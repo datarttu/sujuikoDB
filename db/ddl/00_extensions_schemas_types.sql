@@ -1,6 +1,5 @@
 /*
 Create extensions, schemas and custom types for sujuiko database.
-**NOTE:** the database must already exist.
 
 Arttu K 2020-02
 */
