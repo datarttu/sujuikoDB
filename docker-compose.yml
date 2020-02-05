@@ -1,0 +1,11 @@
+version: "3"
+services:
+  sujuiko-db:
+    build: "."
+    container_name: "sujuiko-db"
+    volumes:
+      - "./data/rawdata/dbvolume:/var/lib/postgresql/data"
+    ports:
+      # NOTE: using 5435 here to avoid conflict with host machine 5432
+      - "127.0.0.1:5435:5432"
+    env_file: ".env"
