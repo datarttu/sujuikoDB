@@ -34,6 +34,9 @@ SELECT AddGeometryColumn('nw', 'links', 'geom', 3067, 'LINESTRING', 2);
 CREATE INDEX links_geom_idx
   ON nw.links
   USING GIST (geom);
+CREATE INDEX links_modes_idx
+  ON nw.links
+  USING GIN (modes);
 
 CREATE TABLE nw.stops (
   stopid       integer PRIMARY KEY,
@@ -46,3 +49,6 @@ CREATE TABLE nw.stops (
 );
 CREATE INDEX stops_nodeid_idx
   ON nw.stops (nodeid);
+CREATE INDEX stops_modes_idx
+  ON nw.stops
+  USING GIN (modes);
