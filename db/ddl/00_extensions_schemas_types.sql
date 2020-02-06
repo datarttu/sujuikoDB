@@ -52,17 +52,13 @@ and thus do not need explicit schema name prefix when applied.
 CREATE TYPE public.mode_type AS ENUM('bus', 'tram');
 
 /*
-"timing" refers to the quality of a timestamp at a node or on a link:
+"timing" refers to the quality of a scheduled timestamp at a node or on a link:
 
 - `strict`:   strictly scheduled dep / arr timepoint at a stop in schedule
 - `approx`:   estimated dep / arr time at a non-timepoint stop in schedule
-- `observ`:   segment's enter and exit times are based on real observations on that segment
-- `interp`:   segment's enter and exit times are interpolated from adjacent segments,
-              no observations available on that segment.
-
-**TODO:** Should we split this to two different types instead?
+- `interp`:   timestamp has been linearly interpolated (i.e., no schedule at hand for that location)
 */
-CREATE TYPE public.timing_type AS ENUM('strict', 'approx', 'observ', 'interp');
+CREATE TYPE public.timing_type AS ENUM('strict', 'approx', 'interp');
 
 /*
 HFP event types, in priority order such that the most important one remains
