@@ -5,6 +5,8 @@ Arttu K 2020-02
 */
 \c sujuiko;
 
+CREATE SCHEMA IF NOT EXISTS nw;
+
 /*
 TODO:
 

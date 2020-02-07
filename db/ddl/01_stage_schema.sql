@@ -5,6 +5,10 @@ Arttu K 2020-02
 */
 \c sujuiko;
 
+CREATE SCHEMA IF NOT EXISTS stage_osm;
+CREATE SCHEMA IF NOT EXISTS stage_gtfs;
+CREATE SCHEMA IF NOT EXISTS stage_hfp;
+
 /*
 TODO: GTFS, OSM and HFP tables.
 

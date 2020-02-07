@@ -1,5 +1,5 @@
 /*
-Create extensions, schemas and custom types for sujuiko database.
+Create extensions and global objects for sujuiko database.
 
 Arttu K 2020-02
 */
@@ -33,12 +33,6 @@ prefixed with the schema name.
 This is for clarity and to enable using colliding object names
 within different schemas.
 */
-CREATE SCHEMA IF NOT EXISTS stage_osm;
-CREATE SCHEMA IF NOT EXISTS stage_gtfs;
-CREATE SCHEMA IF NOT EXISTS stage_hfp;
-CREATE SCHEMA IF NOT EXISTS obs;
-CREATE SCHEMA IF NOT EXISTS sched;
-CREATE SCHEMA IF NOT EXISTS nw;
 
 /*
 # Custom types
@@ -50,15 +44,6 @@ These types are defined in default schema `public`
 and thus do not need explicit schema name prefix when applied.
 */ /* Self-explanatory. */
 CREATE TYPE public.mode_type AS ENUM('bus', 'tram');
-
-/*
-"timing" refers to the quality of a scheduled timestamp at a node or on a link:
-
-- `strict`:   strictly scheduled dep / arr timepoint at a stop in schedule
-- `approx`:   estimated dep / arr time at a non-timepoint stop in schedule
-- `interp`:   timestamp has been linearly interpolated (i.e., no schedule at hand for that location)
-*/
-CREATE TYPE public.timing_type AS ENUM('strict', 'approx', 'interp');
 
 /*
 HFP event types, in priority order such that the most important one remains
