@@ -6,10 +6,10 @@ Create sujuiko database and execute DDL scripts from scratch.
 
 CREATE DATABASE sujuiko;
 
-\i 00_extensions_schemas_types.sql
-\i 01_stage_schema.sql
-\i 02_network_schema.sql
-\i 03_schedule_schema.sql
-\i 04_observation_schema.sql
+\i 01_extensions_schemas_types.sql
+\i 02_stage_schema.sql
+\i 03_network_schema.sql
+\i 04_schedule_schema.sql
+\i 05_observation_schema.sql
 
 \timing off
