@@ -8,7 +8,7 @@ Arttu K 2020-02
 
 CREATE DATABASE sujuiko;
 
-\i 01_extensions_schemas_types.sql
+\i 01_extensions_global.sql
 \i 02_stage_schema.sql
 \i 03_network_schema.sql
 \i 04_schedule_schema.sql
