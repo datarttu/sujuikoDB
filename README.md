@@ -2,6 +2,42 @@
 
 WIP
 
+## Installation
+
+On Ubuntu 18.04 LTS.
+
+```
+wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+RELEASE=$(lsb_release -cs)
+echo "deb http://apt.postgresql.org/pub/repos/apt/ ${RELEASE}"-pgdg main | sudo tee  /etc/apt/sources.list.d/pgdg.list
+# Verify:
+cat /etc/apt/sources.list.d/pgdg.list
+sudo apt update
+# Install postgres, postgis and pgrouting
+sudo apt -y install postgresql-11
+sudo apt -y install postgis postgresql-11-postgis-2.5
+sudo apt -y install postgresql-11-pgrouting
+# Install timescaledb
+sudo add-apt-repository ppa:timescale/timescaledb-ppa
+sudo apt-get update
+sudo apt -y install timescaledb-postgresql-11
+```
+
+Run `timescaledb-tune` to configure memory and other parameters according to your system.
+
+```
+sudo timescaledb-tune
+```
+
+Tweak `/etc/postgresql/11/main/postgresql.conf` if needed.
+For example, ensure that you are using `data_directory` on a correct disk and with permissions for `postgres` user.
+
+Finally, restart PostgreSQL server:
+
+```
+sudo service postgresql restart
+```
+
 ## Postgres schemata
 
 - `stage_*` schemata are meant for intermediate source data handling and transformation, i.e., staging.
