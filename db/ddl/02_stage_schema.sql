@@ -6,9 +6,6 @@ Arttu K 2020-02
 \set ON_ERROR_STOP on
 \c sujuiko;
 
---CREATE SCHEMA IF NOT EXISTS stage_osm;
---CREATE SCHEMA IF NOT EXISTS stage_gtfs;
-
 /*
 TODO: GTFS, OSM and HFP tables.
 
@@ -20,7 +17,29 @@ As for raw data:
   when importing data.
 - HFP: use pre-defined tables
 */
+
 BEGIN;
+\echo Creating stage_osm schema ...
+
+CREATE SCHEMA IF NOT EXISTS stage_osm;
+
+/*
+ * Following tables are created by ogr2ogr when importing data:
+ * - stage_osm.raw_bus_lines
+ * - stage_osm.raw_tram_lines
+ */
+
+COMMIT;
+
+BEGIN;
+\echo Creating stage_gtfs schema ...
+
+CREATE SCHEMA IF NOT EXISTS stage_gtfs;
+
+COMMIT;
+
+BEGIN;
+\echo Creating stage_hfp schema ...
 
 CREATE SCHEMA IF NOT EXISTS stage_hfp;
 
