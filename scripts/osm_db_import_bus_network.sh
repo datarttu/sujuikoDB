@@ -2,11 +2,16 @@
 # Import BUS network from .osm file to sujuiko database.
 # Requires ogr2ogr as well as configuration .ini file tailored for the bus network.
 
+set -e
+source "../.env"
+
 osmfile="../data/rawdata/osm/bus_rel_nw.osm"
 configfile="../config/osmconfig_bus.ini"
 
+connstring=${PG_CONN:-"dbname='sujuiko' host='localhost' port='5435' user='postgres'"}
+
 ogr2ogr -f PostgreSQL \
-  PG:"dbname='sujuiko' host='localhost' port='5435' user='postgres'" \
+  PG:"$connstring" \
   "$osmfile" lines \
   --config OSM_USE_CUSTOM_INDEXING NO \
   -oo CONFIG_FILE="$configfile" \
