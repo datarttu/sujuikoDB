@@ -1,23 +1,23 @@
 /*
-Create tables for the observed transit service schema.
-
-Arttu K 2020-02
-*/
+ * Create tables for the observed transit service schema.
+ *
+ * Arttu K 2020-02
+ */
 \c sujuiko;
 
 CREATE SCHEMA IF NOT EXISTS obs;
 
 /*
-"vehid" is in fact redundant,
-as it is directly derived from "oper" and "veh",
-but we want to use a single primary key
-to enable simpler joins on vehicles.
-
-For now, "vehicles" is under "obs" schema,
-because we actually import the vehicle data from
-what we see in HFP observations;
-there is currently no separate data source for vehicles.
-*/
+ * "vehid" is in fact redundant,
+ * as it is directly derived from "oper" and "veh",
+ * but we want to use a single primary key
+ * to enable simpler joins on vehicles.
+ *
+ * For now, "vehicles" is under "obs" schema,
+ * because we actually import the vehicle data from
+ * what we see in HFP observations;
+ * there is currently no separate data source for vehicles.
+ */
 CREATE TABLE obs.vehicles (
   vehid      serial           PRIMARY KEY,
   oper       smallint         NOT NULL,
@@ -27,13 +27,13 @@ CREATE UNIQUE INDEX vehicles_oper_veh_idx
   ON obs.vehicles (oper, veh);
 
 /*
-Again, "jrnid" is directly dependent on "(tripid, start_ts)",
-but we want to avoid using composite foreign keys in the
-child table "obs.segments" that will store huge amounts of data.
-
-**TODO:** Test using composite keys anyway?
-          Or joining segments on md5 of start_ts and tripid on the fly?
-*/
+ * Again, "jrnid" is directly dependent on "(tripid, start_ts)",
+ * but we want to avoid using composite foreign keys in the
+ * child table "obs.segments" that will store huge amounts of data.
+ *
+ * **TODO:** Test using composite keys anyway?
+ *           Or joining segments on md5 of start_ts and tripid on the fly?
+ */
 CREATE TABLE obs.journeys (
   start_ts   timestamptz      NOT NULL,
   tripid     text             NOT NULL REFERENCES sched.trips(tripid),

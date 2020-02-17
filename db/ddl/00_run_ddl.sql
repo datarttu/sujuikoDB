@@ -1,8 +1,8 @@
 /*
-Create sujuiko database and execute DDL scripts from scratch.
-
-Arttu K 2020-02
-*/
+ * Create sujuiko database and execute DDL scripts from scratch.
+ *
+ * Arttu K 2020-02
+ */
 \set ON_ERROR_STOP on
 
 CREATE DATABASE sujuiko;

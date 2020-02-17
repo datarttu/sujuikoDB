@@ -1,18 +1,18 @@
 /*
-Create tables for the network model schema.
-
-Arttu K 2020-02
-*/
+ * Create tables for the network model schema.
+ *
+ * Arttu K 2020-02
+ */
 \c sujuiko;
 
 CREATE SCHEMA IF NOT EXISTS nw;
 
 /*
-TODO:
-
-Can we pre-define edge and node tables for pgrouting,
-or must they be created dynamically?
-*/
+ * TODO:
+ *
+ * Can we pre-define edge and node tables for pgrouting,
+ * or must they be created dynamically?
+ */
 
 CREATE TABLE nw.nodes (
   nodeid       integer PRIMARY KEY,
@@ -24,12 +24,12 @@ CREATE INDEX nodes_geom_idx
   USING GIST (geom);
 
 /*
-Even though OSM ways can be oneway or two-way,
-we handle two-way streets as separate links here.
-Thus the "reverse cost" options will be never used with pgrouting.
-The two-way links should have the same geometry
-except that the points are listed in reverse order.
-*/
+ * Even though OSM ways can be oneway or two-way,
+ * we handle two-way streets as separate links here.
+ * Thus the "reverse cost" options will be never used with pgrouting.
+ * The two-way links should have the same geometry
+ * except that the points are listed in reverse order.
+ */
 CREATE TABLE nw.links (
   inode        integer REFERENCES nw.nodes (nodeid),
   jnode        integer REFERENCES nw.nodes (nodeid),
