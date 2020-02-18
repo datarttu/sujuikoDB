@@ -194,6 +194,76 @@ CREATE TABLE stage_gtfs.stops (
   vehicle_type          smallint
 );
 
+/*
+ * # Derived GTFS tables
+ */
+
+CREATE TABLE stage_gtfs.stop_sequences_for_routing (
+  fid               serial        PRIMARY KEY,
+  trip_ids          text[]        NOT NULL,
+  stop_ids  integer[]     NOT NULL
+);
+COMMENT ON TABLE stage_gtfs.stop_sequences_for_routing IS
+'Unique, ordered stop sequences of trips
+such that GTFS trips sharing same sequences
+need not be routed to network one by one.';
+CREATE INDEX ON stage_gtfs.stop_sequences_for_routing
+  USING GIN (trip_ids);
+CREATE INDEX ON stage_gtfs.stop_sequences_for_routing
+  USING GIN (stop_ids);
+
+CREATE OR REPLACE FUNCTION stage_gtfs.collect_unique_stop_sequences()
+RETURNS TABLE (
+  n_total                 bigint,
+  min_trip_ids_per_array  bigint,
+  max_trip_ids_per_array  bigint,
+  min_stop_ids_per_array  bigint,
+  max_stop_ids_per_array  bigint
+)
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+BEGIN
+  IF EXISTS (
+    SELECT *
+    FROM stage_gtfs.stop_sequences_for_routing
+    LIMIT 1
+  ) THEN
+    RAISE EXCEPTION 'Table stage_gtfs.stop_sequences_for_routing is not empty!'
+    USING HINT = 'Truncate the table first.';
+  END IF;
+
+  RETURN QUERY
+  WITH
+    ordered_stop_times AS (
+      SELECT trip_id, stop_id, stop_sequence
+      FROM stage_gtfs.stop_times
+      ORDER BY trip_id, stop_sequence
+    ),
+    arrays_per_trip AS (
+      SELECT trip_id,
+        array_agg(stop_id) AS stop_ids
+      FROM ordered_stop_times
+      GROUP BY trip_id
+    ),
+    unique_arrays_inserted AS (
+      INSERT INTO stage_gtfs.stop_sequences_for_routing (trip_ids, stop_ids)
+      SELECT array_agg(trip_id) AS trip_ids,
+        stop_ids
+      FROM arrays_per_trip
+      GROUP BY stop_ids
+      RETURNING *
+    )
+    SELECT
+      count(trip_ids)::bigint                 AS n_total,
+      min(array_length(trip_ids, 1))::bigint  AS min_trip_ids_per_array,
+      max(array_length(trip_ids, 1))::bigint  AS max_trip_ids_per_array,
+      min(array_length(stop_ids, 1))::bigint  AS min_stop_ids_per_array,
+      max(array_length(stop_ids, 1))::bigint  AS max_stop_ids_per_array
+    FROM unique_arrays_inserted;
+END;
+$$;
+
 COMMIT;
 
 BEGIN;
