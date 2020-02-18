@@ -137,17 +137,19 @@ CREATE TABLE stage_gtfs.calendar (
 );
 
 CREATE TABLE stage_gtfs.calendar_dates (
-  service_id        text        PRIMARY KEY,
+  service_id        text,
   date              date,
-  exception_type    smallint
+  exception_type    smallint,
+  PRIMARY KEY (service_id, date)
 );
 
 CREATE TABLE stage_gtfs.shapes (
-  shape_id            text        PRIMARY KEY,
+  shape_id            text,
   shape_pt_lat        double precision,
   shape_pt_lon        double precision,
   shape_pt_sequence   integer,
-  shape_dist_traveled double precision
+  shape_dist_traveled double precision,
+  PRIMARY KEY (shape_id, shape_pt_sequence)
 );
 
 CREATE TABLE stage_gtfs.trips (
@@ -163,7 +165,7 @@ CREATE TABLE stage_gtfs.trips (
 );
 
 CREATE TABLE stage_gtfs.stop_times (
-  trip_id               text        PRIMARY KEY,
+  trip_id               text,
   arrival_time          interval,
   departure_time        interval,
   stop_id               integer,
@@ -172,7 +174,8 @@ CREATE TABLE stage_gtfs.stop_times (
   pickup_type           smallint,
   drop_off_type         smallint,
   shape_dist_traveled   double precision,
-  timepoint             boolean
+  timepoint             boolean,
+  PRIMARY KEY (trip_id, stop_sequence)
 );
 
 CREATE TABLE stage_gtfs.stops (
