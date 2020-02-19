@@ -198,27 +198,21 @@ CREATE TABLE stage_gtfs.stops (
  * # Derived GTFS tables
  */
 
-CREATE TABLE stage_gtfs.stop_sequences_for_routing (
-  fid               serial        PRIMARY KEY,
-  trip_ids          text[]        NOT NULL,
-  stop_ids  integer[]     NOT NULL
+CREATE TABLE stage_gtfs.successive_stops (
+  i_stop        integer           NOT NULL,
+  j_stop        integer           NOT NULL,
+  mode          public.mode_type  NOT NULL,
+  PRIMARY KEY (i_stop, j_stop, mode)
 );
-COMMENT ON TABLE stage_gtfs.stop_sequences_for_routing IS
-'Unique, ordered stop sequences of trips
-such that GTFS trips sharing same sequences
-need not be routed to network one by one.';
-CREATE INDEX ON stage_gtfs.stop_sequences_for_routing
-  USING GIN (trip_ids);
-CREATE INDEX ON stage_gtfs.stop_sequences_for_routing
-  USING GIN (stop_ids);
+COMMENT ON TABLE stage_gtfs.successive_stops IS
+'Stop pairs that occur in schedules,
+unique by transport mode.
+For finding network routes between stops.';
 
-CREATE OR REPLACE FUNCTION stage_gtfs.collect_unique_stop_sequences()
+CREATE OR REPLACE FUNCTION stage_gtfs.populate_successive_stops()
 RETURNS TABLE (
-  n_total                 bigint,
-  min_trip_ids_per_array  bigint,
-  max_trip_ids_per_array  bigint,
-  min_stop_ids_per_array  bigint,
-  max_stop_ids_per_array  bigint
+  mode            public.mode_type,
+  rows_inserted   bigint
 )
 LANGUAGE PLPGSQL
 VOLATILE
@@ -226,41 +220,28 @@ AS $$
 BEGIN
   IF EXISTS (
     SELECT *
-    FROM stage_gtfs.stop_sequences_for_routing
+    FROM stage_gtfs.successive_stops
     LIMIT 1
   ) THEN
-    RAISE EXCEPTION 'Table stage_gtfs.stop_sequences_for_routing is not empty!'
+    RAISE EXCEPTION 'Table stage_gtfs.successive_stops is not empty!'
     USING HINT = 'Truncate the table first.';
   END IF;
 
   RETURN QUERY
   WITH
-    ordered_stop_times AS (
-      SELECT trip_id, stop_id, stop_sequence
-      FROM stage_gtfs.stop_times
-      ORDER BY trip_id, stop_sequence
+    successive_all AS (
+      -- TODO: Make filtered table for bus & tram stop times first!
     ),
-    arrays_per_trip AS (
-      SELECT trip_id,
-        array_agg(stop_id) AS stop_ids
-      FROM ordered_stop_times
-      GROUP BY trip_id
-    ),
-    unique_arrays_inserted AS (
-      INSERT INTO stage_gtfs.stop_sequences_for_routing (trip_ids, stop_ids)
-      SELECT array_agg(trip_id) AS trip_ids,
-        stop_ids
-      FROM arrays_per_trip
-      GROUP BY stop_ids
+    successive_inserted AS (
+      INSERT INTO stage_gtfs.successive_stops
+      SELECT DISTINCT mode, i_stop, j_stop
+      FROM successive_all
+      WHERE j_stop IS NOT NULL
       RETURNING *
     )
-    SELECT
-      count(trip_ids)::bigint                 AS n_total,
-      min(array_length(trip_ids, 1))::bigint  AS min_trip_ids_per_array,
-      max(array_length(trip_ids, 1))::bigint  AS max_trip_ids_per_array,
-      min(array_length(stop_ids, 1))::bigint  AS min_stop_ids_per_array,
-      max(array_length(stop_ids, 1))::bigint  AS max_stop_ids_per_array
-    FROM unique_arrays_inserted;
+  SELECT
+    mode, count(mode)::bigint AS rows_inserted
+  FROM successive_inserted;
 END;
 $$;
 
