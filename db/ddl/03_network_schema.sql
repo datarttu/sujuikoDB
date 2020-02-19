@@ -3,25 +3,26 @@
  *
  * Arttu K 2020-02
  */
+\set ON_ERROR_STOP on
 \c sujuiko;
+
+BEGIN;
+\echo Creating nw schema ...
 
 CREATE SCHEMA IF NOT EXISTS nw;
 
-/*
- * TODO:
- *
- * Can we pre-define edge and node tables for pgrouting,
- * or must they be created dynamically?
- */
-
 CREATE TABLE nw.nodes (
-  nodeid       integer PRIMARY KEY,
-  osm_tags     jsonb
+  nodeid        integer       PRIMARY KEY,
+  osm_data      jsonb,
+  geom          geometry(POINT, 3067),
+  wgs_geom      geometry(POINT, 4326)
 );
-SELECT AddGeometryColumn('nw', 'nodes', 'geom', 3067, 'POINT', 2);
 CREATE INDEX nodes_geom_idx
   ON nw.nodes
   USING GIST (geom);
+CREATE INDEX nodes_wgs_geom_idx
+  ON nw.nodes
+  USING GIST (wgs_geom);
 
 /*
  * Even though OSM ways can be oneway or two-way,
@@ -31,32 +32,40 @@ CREATE INDEX nodes_geom_idx
  * except that the points are listed in reverse order.
  */
 CREATE TABLE nw.links (
-  inode        integer REFERENCES nw.nodes (nodeid),
-  jnode        integer REFERENCES nw.nodes (nodeid),
-  modes        public.mode_type[] NOT NULL,
-  osm_tags     jsonb,
+  inode         integer           REFERENCES nw.nodes (nodeid),
+  jnode         integer           REFERENCES nw.nodes (nodeid),
+  mode          public.mode_type  NOT NULL,
+  cost          double precision,
+  rcost         double precision,
+  osm_data      jsonb,
+  geom          geometry(LINESTRING, 3067),
+  wgs_geom      geometry(LINESTRING, 4326),
   PRIMARY KEY (inode, jnode),
   CONSTRAINT nodes CHECK (inode <> jnode)
 );
-SELECT AddGeometryColumn('nw', 'links', 'geom', 3067, 'LINESTRING', 2);
 CREATE INDEX links_geom_idx
   ON nw.links
   USING GIST (geom);
-CREATE INDEX links_modes_idx
+CREATE INDEX links_wgs_geom_idx
   ON nw.links
-  USING GIN (modes);
+  USING GIST (wgs_geom);
+CREATE INDEX links_mode_idx
+  ON nw.links (mode);
 
 CREATE TABLE nw.stops (
-  stopid       integer PRIMARY KEY,
-  nodeid       integer REFERENCES nw.nodes (nodeid),
-  modes        public.mode_type[] NOT NULL,
-  code         text,
-  name         text,
-  descr        text,
-  parent       integer
+  stopid      integer           PRIMARY KEY,
+  nodeid      integer           REFERENCES nw.nodes (nodeid),
+  mode        public.mode_type  NOT NULL,
+  code        text,
+  name        text,
+  descr       text,
+  parent      integer
 );
 CREATE INDEX stops_nodeid_idx
   ON nw.stops (nodeid);
-CREATE INDEX stops_modes_idx
-  ON nw.stops
-  USING GIN (modes);
+CREATE INDEX stops_mode_idx
+  ON nw.stops (mode);
+CREATE INDEX stops_code_idx
+  ON nw.stops (code);
+
+COMMIT;
