@@ -178,6 +178,9 @@ CREATE TABLE stage_gtfs.stop_times (
   PRIMARY KEY (trip_id, stop_sequence)
 );
 
+CREATE INDEX stop_times_stop_id_idx
+  ON stage_gtfs.stop_times (stop_id);
+
 CREATE TABLE stage_gtfs.stops (
   stop_id               integer     PRIMARY KEY,
   stop_code             text,
