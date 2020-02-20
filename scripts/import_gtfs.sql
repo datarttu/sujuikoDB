@@ -5,7 +5,18 @@
  * Note 1:  In HSL GTFS stops.txt, there is a buggy whitespace
  *          in parent_station field that has to be removed first, e.g.:
  *          `sed -i 's/, ,/,,/g' stops.txt`.
- * Note 2:  This script uses server-side COPY FROM.
+ * Note 2:  HSL has some bus and tram route variants indicated by
+ *          a trailing whitespace and a digit, e.g. "1001" -> variant "1001 3"
+ *          but these seem not to have propagated correctly to the GTFS dataset:
+ *          instead, the trailing whitespace+digit are left out from the route_id,
+ *          but they are still visible in the beginning of the trip_id
+ *          (all HSL trip_ids start with the route identifier).
+ *          We fix this issue here by updating the route ids,
+ *          since these route variants really are different from the main routes,
+ *          and sometimes they have exactly same departure times
+ *          which would lead to conflicts when distinguishing individual
+ *          trips by route, direction and departure timestamp.
+ * Note 3:  This script uses server-side COPY FROM.
  *          GTFS files must be in `gtfs_dir` and readable by `postgres`.
  */
 \set gtfs_dir           '/data1/gtfs/'
@@ -48,6 +59,24 @@ INSERT INTO stage_gtfs.trips (
     FROM stage_gtfs.routes
   )
 );
+/*
+ * Fixing the aforementioned route_id issue here.
+ * This should work correctly as long as trip_ids
+ * start with route_id, separated by a '_'.
+ */
+\qecho Fixing missing "whitespace route variants" in trips and routes
+WITH trips_update AS (
+  UPDATE stage_gtfs.trips
+  SET route_id = left(trip_id, position('_' IN trip_id) - 1)
+  WHERE trip_id LIKE '% %'
+  RETURNING *
+)
+INSERT INTO stage_gtfs.routes (route_id, route_type)
+SELECT DISTINCT ON (u.route_id) u.route_id, r.route_type
+FROM trips_update             AS u
+INNER JOIN stage_gtfs.routes  AS r
+  ON left(u.route_id, position(' ' IN u.route_id) - 1) = r.route_id
+ORDER BY route_id;
 
 \qecho Importing calendar
 CREATE TEMPORARY TABLE tmp_calendar (

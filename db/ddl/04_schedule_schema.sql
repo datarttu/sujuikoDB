@@ -25,7 +25,6 @@ CREATE TABLE sched.routes (
   mode       public.mode_type  NOT NULL
 );
 
--- TODO: Also add buggy "whitespace + digit" route variants
 CREATE FUNCTION sched.populate_routes_from_gtfs()
 RETURNS TABLE (
   mode            public.mode_type,
