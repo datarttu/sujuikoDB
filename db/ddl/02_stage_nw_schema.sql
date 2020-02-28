@@ -37,6 +37,7 @@ BEGIN
     USING HINT = 'Truncate the table first.';
   END IF;
 
+  RAISE NOTICE 'Populating stage_nw.raw_nw ...';
   INSERT INTO stage_nw.raw_nw (
     id, cost, reverse_cost, oneway, mode, geom
   )
@@ -52,6 +53,7 @@ BEGIN
     c.geom
   FROM stage_osm.combined_lines AS c;
 
+  RAISE NOTICE 'Creating pgr topology on stage_nw.raw_nw ...';
   -- NOTE: tolerance in meters! (EPSG 3067)
   PERFORM pgr_createTopology(
     'stage_nw.raw_nw',
