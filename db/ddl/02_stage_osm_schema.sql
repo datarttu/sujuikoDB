@@ -31,7 +31,7 @@ CREATE SCHEMA IF NOT EXISTS stage_osm;
 
 CREATE TABLE stage_osm.combined_lines (
   osm_id                      bigint              PRIMARY KEY,
-  oneway                      boolean             NOT NULL,
+  oneway                      text                NOT NULL,
   mode                        public.mode_type    NOT NULL,
   highway                     text,
   lanes                       smallint,
@@ -56,9 +56,9 @@ WITH
     SELECT
       osm_id::bigint                AS osm_id,
       CASE
-        WHEN oneway = 'yes' THEN true
-        WHEN oneway = 'no' THEN false
-        WHEN oneway IS NULL THEN false
+        WHEN oneway = 'yes' THEN 'FT'
+        WHEN oneway = 'no' THEN 'B'
+        WHEN oneway IS NULL THEN 'B'
       END                           AS oneway,
       'bus'::public.mode_type       AS mode,
       highway::text                 AS highway,
@@ -70,7 +70,7 @@ WITH
   tram_cast AS (
     SELECT
       osm_id::bigint                    AS osm_id,
-      true                              AS oneway,
+      'FT'::text                        AS oneway,
       'tram'::public.mode_type          AS mode,
       NULL::text                        AS highway,
       NULL::smallint                    AS lanes,
