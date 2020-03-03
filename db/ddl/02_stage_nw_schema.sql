@@ -75,39 +75,107 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION stage_nw.analyze_inout_edges()
+RETURNS TEXT
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+DECLARE cnt integer;
+BEGIN
+  RAISE NOTICE 'Counting incoming and outgoing oneway edges ...';
+
+  ALTER TABLE stage_nw.raw_nw_vertices_pgr
+    ADD COLUMN IF NOT EXISTS owein integer DEFAULT 0;
+  UPDATE stage_nw.raw_nw_vertices_pgr AS upd
+    SET owein = results.cnt
+    FROM (
+      SELECT target AS id, count(target) AS cnt
+      FROM stage_nw.raw_nw
+      WHERE oneway = 'FT'
+      GROUP BY target
+    ) AS results
+    WHERE upd.id = results.id;
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE '"owein" set for % rows', cnt;
+
+  ALTER TABLE stage_nw.raw_nw_vertices_pgr
+    ADD COLUMN IF NOT EXISTS oweout integer DEFAULT 0;
+  UPDATE stage_nw.raw_nw_vertices_pgr AS upd
+    SET oweout = results.cnt
+    FROM (
+      SELECT source AS id, count(source) AS cnt
+      FROM stage_nw.raw_nw
+      WHERE oneway = 'FT'
+      GROUP BY source
+    ) AS results
+    WHERE upd.id = results.id;
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE '"oweout" set for % rows', cnt;
+
+  RAISE NOTICE 'Counting incoming and outgoing two-way edges ...';
+
+  ALTER TABLE stage_nw.raw_nw_vertices_pgr
+    ADD COLUMN IF NOT EXISTS twein integer DEFAULT 0;
+  UPDATE stage_nw.raw_nw_vertices_pgr AS upd
+    SET twein = results.cnt
+    FROM (
+      SELECT target AS id, count(target) AS cnt
+      FROM stage_nw.raw_nw
+      WHERE oneway = 'B'
+      GROUP BY target
+    ) AS results
+    WHERE upd.id = results.id;
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE '"twein" set for % rows', cnt;
+
+  ALTER TABLE stage_nw.raw_nw_vertices_pgr
+    ADD COLUMN IF NOT EXISTS tweout integer DEFAULT 0;
+  UPDATE stage_nw.raw_nw_vertices_pgr AS upd
+    SET tweout = results.cnt
+    FROM (
+      SELECT source AS id, count(source) AS cnt
+      FROM stage_nw.raw_nw
+      WHERE oneway = 'B'
+      GROUP BY source
+    ) AS results
+    WHERE upd.id = results.id;
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE '"tweout" set for % rows', cnt;
+
+  RETURN 'OK';
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION stage_nw.build_contracted_network()
 RETURNS TEXT
 LANGUAGE PLPGSQL
 VOLATILE
 AS $$
+DECLARE forbidden integer[];
 BEGIN
+  RAISE NOTICE 'Checking restricted vertices ...';
+  EXECUTE '
+  SELECT array_agg(id)
+  FROM stage_nw.raw_nw_vertices_pgr
+  WHERE NOT (
+    (owein = 1 and oweout = 1 and twein = 0 and tweout = 0)
+    OR
+    (owein = 0 and oweout = 0 and twein = 1 and tweout = 1)
+  );'
+  INTO forbidden;
+
   RAISE NOTICE 'Building contracted network from stage_nw.raw_nw ...';
-  /*
-   * When merging edges, ignore one-way edge pairs that use the same
-   * source and target nodes but in opposite directions:
-   * this way they do not get merged.
-   */
-  RAISE NOTICE '  Creating temporary table for restricted edges ...';
-  DROP TABLE IF EXISTS stage_nw.restricted_edges;
-  CREATE TEMPORARY TABLE restricted_edges ON COMMIT DROP AS (
-    SELECT
-      a.id, a.source, a.target
-    FROM stage_nw.raw_nw        AS a
-    INNER JOIN stage_nw.raw_nw  AS b
-    ON  ((a.source = b.target AND a.target = b.source)
-        OR (a.id <> b.id AND a.source = b.source AND a.target = b.target))
-    ORDER BY a.id
-  );
+
   RAISE NOTICE '  Creating table for contracted vertices arrays ...';
   DROP TABLE IF EXISTS stage_nw.contracted_arr;
   CREATE TABLE stage_nw.contracted_arr AS (
     SELECT id, contracted_vertices, source, target, cost
     FROM pgr_contraction(
       'SELECT id, source, target, cost, reverse_cost
-       FROM stage_nw.raw_nw
-       WHERE id NOT IN (SELECT id FROM restricted_edges AS r)',
+       FROM stage_nw.raw_nw',
        ARRAY[2], -- _linear_ contraction (2), as opposed to dead-end (1)
        max_cycles := 1,
+       forbidden_vertices := forbidden,
        directed := true
     )
   );
