@@ -264,6 +264,10 @@ BEGIN
     is_contracted = true
   WHERE id < 0;
 
+  RAISE NOTICE '  Adding primary key on contracted network ...';
+  ALTER TABLE stage_nw.contracted_nw
+  ADD PRIMARY KEY (id);
+
   RAISE NOTICE '  Creating pgr topology on contracted network ...';
   PERFORM pgr_createTopology(
     'stage_nw.contracted_nw',
