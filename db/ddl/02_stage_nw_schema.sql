@@ -309,4 +309,40 @@ requires that stage_nw.analyze_inout_edges() is run first.
 Creates new network tables stage_nw.contracted_nw
 and stage_nw.contracted_nw_vertices_pgr.';
 
+CREATE FUNCTION stage_nw.snap_stops_to_network(
+  stop_table  text    DEFAULT 'stage_gtfs.stops_with_mode',
+  nw_table    text    DEFAULT 'stage_nw.contracted_nw',
+  tolerance   numeric DEFAULT 30.0
+)
+RETURNS TABLE (
+  stopid      integer,
+  mode        public.mode_type,
+  code        text,
+  name        text,
+  descr       text,
+  parent      integer,
+  distance    numeric,
+  accepted    boolean,
+  orig_geom   geometry(POINT, 3067),
+  geom        geometry(POINT, 3067)
+)
+LANGUAGE PLPGSQL
+STABLE
+AS $$
+/*
+ * TO DO
+ */
+$$;
+COMMENT ON FUNCTION stage_nw.snap_stops_to_network IS
+'Returns stop points projected on the nearest network edge geometries,
+with "accepted" flag, i.e., whether the projected point is within "tolerance"
+and thus close enough to the original point.';
+
+/*
+ * TO DO:
+ * - Recursive snap to existing nodes / cluster stops into new nodes
+ * - Split edges by new nodes, redefine ids
+ * - Populate nw schema
+ */
+
 COMMIT;
