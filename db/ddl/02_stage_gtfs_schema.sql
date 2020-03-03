@@ -106,7 +106,7 @@ CREATE TABLE stage_gtfs.stops_with_mode (
   name          text,
   descr         text,
   parent        integer,
-  geom          geometry(POINT, 4326) NOT NULL,
+  geom          geometry(POINT, 3067) NOT NULL,
   PRIMARY KEY (stopid, mode)
 );
 COMMENT ON TABLE stage_gtfs.stops_with_mode IS
@@ -158,7 +158,10 @@ BEGIN
         s.stop_name   AS name,
         s.stop_desc   AS desc,
         s.parent_station	AS parent,
-        ST_SetSRID(ST_MakePoint(s.stop_lon, s.stop_lat), 4326) AS geom
+        ST_Transform(
+          ST_SetSRID(
+            ST_MakePoint(s.stop_lon, s.stop_lat), 4326),
+          3067) AS geom
       FROM stage_gtfs.stops     AS s
       INNER JOIN mode_stoptimes AS m
       ON s.stop_id = m.stop_id
