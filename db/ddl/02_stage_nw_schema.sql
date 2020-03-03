@@ -1,3 +1,11 @@
+/*
+ * Create tables and functions for network preparing schema.
+ *
+ * Arttu K 2020-03
+ */
+\set ON_ERROR_STOP on
+\c sujuiko;
+
 BEGIN;
 
 DROP SCHEMA IF EXISTS stage_nw CASCADE;
@@ -74,6 +82,9 @@ BEGIN
   GROUP BY mode;
 END;
 $$;
+COMMENT ON FUNCTION stage_nw.populate_raw_nw IS
+'Read line geometries from stage_osm.combined_lines
+into stage_nw.raw_nw and create pgr routing topology.';
 
 CREATE OR REPLACE FUNCTION stage_nw.analyze_inout_edges()
 RETURNS TEXT
@@ -145,6 +156,11 @@ BEGIN
   RETURN 'OK';
 END;
 $$;
+COMMENT ON FUNCTION stage_nw.analyze_inout_edges IS
+'For each vertex in stage_nw.raw_nw_vertices_pgr,
+calculate number of incoming and outgoing oneway
+and two-way edges.
+Adds integer columns "owein", "oweout", "twein" and "tweout".';
 
 CREATE OR REPLACE FUNCTION stage_nw.build_contracted_network()
 RETURNS TEXT
