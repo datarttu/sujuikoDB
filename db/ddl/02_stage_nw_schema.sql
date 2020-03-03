@@ -300,5 +300,13 @@ BEGIN
 
 END;
 $$;
+COMMENT ON FUNCTION stage_nw.build_contracted_network IS
+'Creates a new network from stage_nw.raw_nw where linear edges
+(i.e., continuous one- or two-way edge groups between intersections)
+are merged, resulting in fewer edges in total.
+Detecting vertices restricted from contraction
+requires that stage_nw.analyze_inout_edges() is run first.
+Creates new network tables stage_nw.contracted_nw
+and stage_nw.contracted_nw_vertices_pgr.';
 
 COMMIT;
