@@ -19,6 +19,7 @@ CREATE SCHEMA IF NOT EXISTS stage_osm;
  *   oneway                       varchar,  -- Only values 'yes', 'no', null
  *   highway                      varchar,  -- Text values
  *   lanes                        varchar,  -- Will cast to int
+ *   junction                     varchar,  -- Text values
  *   geom                         geometry(LINESTRING, 4326)
  * );
  * CREATE TABLE stage_osm.raw_tram_lines (
