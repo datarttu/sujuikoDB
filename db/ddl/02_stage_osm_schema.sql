@@ -31,7 +31,7 @@ CREATE SCHEMA IF NOT EXISTS stage_osm;
  */
 
 CREATE TABLE stage_osm.combined_lines (
-  osm_id                      bigint              PRIMARY KEY,
+  osm_id                      bigserial           PRIMARY KEY,
   oneway                      text                NOT NULL,
   mode                        public.mode_type    NOT NULL,
   highway                     text,
