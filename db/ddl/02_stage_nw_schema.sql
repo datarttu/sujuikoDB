@@ -309,14 +309,26 @@ requires that stage_nw.analyze_inout_edges() is run first.
 Creates new network tables stage_nw.contracted_nw
 and stage_nw.contracted_nw_vertices_pgr.';
 
+CREATE TABLE stage_nw.snapped_stops (
+  stopid            integer           PRIMARY KEY,
+  edgeid            bigint            NOT NULL,
+  point_dist        double precision,
+  edge_start_dist   double precision,
+  edge_end_dist     double precision,
+  status            text,
+  geom              geometry(POINT, 3067)
+);
+CREATE INDEX ON stage_nw.snapped_stops USING GIST(geom);
+
 CREATE OR REPLACE FUNCTION stage_nw.snap_stops_to_network()
 RETURNS TEXT
 LANGUAGE PLPGSQL
 VOLATILE
 AS $$
+DECLARE
+  cnt   integer;
 BEGIN
-  DROP TABLE IF EXISTS stage_nw.snapped_stops;
-  CREATE TABLE stage_nw.snapped_stops AS
+  TRUNCATE TABLE stage_nw.snapped_stops CASCADE;
   WITH projected AS (
     SELECT
       s.stopid::integer                   AS stopid,
@@ -335,22 +347,24 @@ BEGIN
     ) AS n
     ON true
   )
+  INSERT INTO stage_nw.snapped_stops
   SELECT
     stopid::integer,
     edgeid::bigint,
     point_dist,
     location_along * edge_length        AS edge_start_dist,
     (1 - location_along) * edge_length  AS edge_end_dist,
+    'snapped'::text                     AS status,
     ST_LineInterpolatePoint(
       edge_geom, location_along)        AS geom
   FROM projected;
-  ALTER TABLE stage_nw.snapped_stops ADD PRIMARY KEY (stopid);
-  CREATE INDEX ON stage_nw.snapped_stops USING GIST(geom);
-  RETURN 'OK: created table stage_nw.snapped_stops';
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE 'stage_nw.snapped_stops populated with % rows', cnt;
+  RETURN 'OK';
 END;
 $$;
 COMMENT ON FUNCTION stage_nw.snap_stops_to_network IS
-'Create table stage_nw.snapped_stops of stop points projected
+'Populate stage_nw.snapped_stops with stop points projected
 on the nearest network edge line geometries,
 with distance to original point location, distances to edge start
 and end along the edge, and projected point geometry.
