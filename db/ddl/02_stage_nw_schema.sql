@@ -395,6 +395,40 @@ COMMENT ON FUNCTION stage_nw.delete_outlier_stops IS
 delete the ones whose original distance from the edge
 exceeds the tolerance in projection unit.';
 
+CREATE OR REPLACE FUNCTION stage_nw.snap_stops_near_nodes(
+  tolerance     double precision    DEFAULT 10.0
+)
+RETURNS TEXT
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+DECLARE
+  cnt   integer;
+BEGIN
+  UPDATE stage_nw.snapped_stops AS s
+  SET geom = ST_StartPoint(e.geom)
+  FROM stage_nw.contracted_nw AS e
+  WHERE s.edgeid = e.id
+    AND s.edge_start_dist < tolerance
+    AND s.edge_start_dist <= s.edge_end_dist;
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE
+    '% stops closer than % units to link start snapped to link start',
+    cnt, tolerance;
+  UPDATE stage_nw.snapped_stops AS s
+  SET geom = ST_EndPoint(e.geom)
+  FROM stage_nw.contracted_nw AS e
+  WHERE s.edgeid = e.id
+    AND s.edge_end_dist < tolerance
+    AND s.edge_end_dist < s.edge_start_dist;
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE
+    '% stops closer than % units to link end snapped to link end',
+    cnt, tolerance;
+  RETURN 'OK';
+END;
+$$;
+
 /*
  * TO DO:
  * - Recursive snap to existing nodes / cluster stops into new nodes
