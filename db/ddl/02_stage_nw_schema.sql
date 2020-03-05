@@ -309,34 +309,54 @@ requires that stage_nw.analyze_inout_edges() is run first.
 Creates new network tables stage_nw.contracted_nw
 and stage_nw.contracted_nw_vertices_pgr.';
 
-CREATE FUNCTION stage_nw.snap_stops_to_network(
-  stop_table  text    DEFAULT 'stage_gtfs.stops_with_mode',
-  nw_table    text    DEFAULT 'stage_nw.contracted_nw',
-  tolerance   numeric DEFAULT 30.0
-)
-RETURNS TABLE (
-  stopid      integer,
-  mode        public.mode_type,
-  code        text,
-  name        text,
-  descr       text,
-  parent      integer,
-  distance    numeric,
-  accepted    boolean,
-  orig_geom   geometry(POINT, 3067),
-  geom        geometry(POINT, 3067)
-)
+CREATE OR REPLACE FUNCTION stage_nw.snap_stops_to_network()
+RETURNS TEXT
 LANGUAGE PLPGSQL
-STABLE
+VOLATILE
 AS $$
-/*
- * TO DO
- */
+BEGIN
+  DROP TABLE IF EXISTS stage_nw.snapped_stops;
+  CREATE TABLE stage_nw.snapped_stops AS
+  WITH projected AS (
+    SELECT
+      s.stopid::integer                   AS stopid,
+      n.id::bigint                        AS edgeid,
+      ST_Distance(s.geom, n.geom)         AS point_dist,
+      ST_LineLocatePoint(n.geom, s.geom)  AS location_along,
+      ST_Length(n.geom)                   AS edge_length,
+      n.geom                              AS edge_geom
+    FROM stage_gtfs.stops_with_mode AS s
+    INNER JOIN LATERAL (
+      SELECT e.id, e.geom
+      FROM stage_nw.contracted_nw AS e
+      WHERE e.mode = s.mode
+      ORDER BY s.geom <-> e.geom
+      LIMIT 1
+    ) AS n
+    ON true
+  )
+  SELECT
+    stopid::integer,
+    edgeid::bigint,
+    point_dist,
+    location_along * edge_length        AS edge_start_dist,
+    (1 - location_along) * edge_length  AS edge_end_dist,
+    ST_LineInterpolatePoint(
+      edge_geom, location_along)        AS geom
+  FROM projected;
+  ALTER TABLE stage_nw.snapped_stops ADD PRIMARY KEY (stopid);
+  CREATE INDEX ON stage_nw.snapped_stops USING GIST(geom);
+  RETURN 'OK: created table stage_nw.snapped_stops';
+END;
 $$;
 COMMENT ON FUNCTION stage_nw.snap_stops_to_network IS
-'Returns stop points projected on the nearest network edge geometries,
-with "accepted" flag, i.e., whether the projected point is within "tolerance"
-and thus close enough to the original point.';
+'Create table stage_nw.snapped_stops of stop points projected
+on the nearest network edge line geometries,
+with distance to original point location, distances to edge start
+and end along the edge, and projected point geometry.
+Requires stop points from table stage_gtfs.stops_with_mode
+and network edges from table stage_nw.contracted_nw.';
+
 
 /*
  * TO DO:
