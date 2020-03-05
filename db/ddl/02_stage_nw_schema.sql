@@ -392,8 +392,8 @@ END;
 $$;
 COMMENT ON FUNCTION stage_nw.delete_outlier_stops IS
 'From stops snapped to network edges,
-delete the ones whose snapping distance exceeds the tolerance in proj. unit.
-Returns the deleted records.';
+delete the ones whose original distance from the edge
+exceeds the tolerance in projection unit.';
 
 /*
  * TO DO:
