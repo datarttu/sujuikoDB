@@ -371,6 +371,29 @@ and end along the edge, and projected point geometry.
 Requires stop points from table stage_gtfs.stops_with_mode
 and network edges from table stage_nw.contracted_nw.';
 
+CREATE OR REPLACE FUNCTION stage_nw.delete_outlier_stops(
+  tolerance     double precision    DEFAULT 10.0
+)
+RETURNS TEXT
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+DECLARE
+  cnt   integer;
+BEGIN
+  DELETE FROM stage_nw.snapped_stops
+  WHERE point_dist > tolerance;
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE
+    '% records exceeding distance tolerance of % deleted from stage_nw.snapped_stops',
+    cnt, tolerance;
+  RETURN 'OK';
+END;
+$$;
+COMMENT ON FUNCTION stage_nw.delete_outlier_stops IS
+'From stops snapped to network edges,
+delete the ones whose snapping distance exceeds the tolerance in proj. unit.
+Returns the deleted records.';
 
 /*
  * TO DO:
