@@ -209,33 +209,41 @@ BEGIN
         FROM stage_nw.contracted_arr
       ),
       /*
-       * Include first and last vertices in the arrays,
-       * and open them up into rows so we get directly to vertex ids.
+       * Open up intermediate vertices ("via points") to rows.
        */
       unnested AS (
         SELECT
           id AS grp,
-          unnest(source || contracted_vertices || target) AS vertex
+          source::bigint,
+          target::bigint,
+          unnest(contracted_vertices)::bigint AS vertex
         FROM distinct_contraction_arrays
       ),
       /*
-       * Prepare all relevant pairs of listed vertices
-       * within each contraction group;
-       * next we find which of these pairs really form a link
-       * in the raw network table.
-       * This step is necessary because vertices in the contraction arrays
-       * are NOT ordered like they appear on the network.
+       * From possible combos of source-intermediate, intermediate-intermediate
+       * and intermediate-end vertice ids, we find the ones that actually
+       * have a matching link on the network, and then we can assign a
+       * contraction group id to them.
+       * We do this because the contraction algorithm did not output the
+       * vertex array in the same order they appear on the links to merge.
        */
-      vertex_permutations_by_grp AS (
+      vertex_pair_candidates AS (
+        SELECT grp, source AS source, vertex AS target
+        FROM unnested
+        UNION
+        SELECT grp, vertex AS source, target AS target
+        FROM unnested
+        UNION
         SELECT u1.grp AS grp, u1.vertex AS source, u2.vertex AS target
-        FROM unnested AS u1, unnested AS u2
-        WHERE u1.grp = u2.grp AND u1.vertex <> u2.vertex
+        FROM unnested       AS u1
+        INNER JOIN unnested AS u2
+          ON (u1.grp = u2.grp AND u1.vertex <> u2.vertex)
       )
-    SELECT n.id, vp.grp, n.source, n.target
+    SELECT n.id, vpc.grp, n.source, n.target
     FROM stage_nw.raw_nw AS n
-    INNER JOIN vertex_permutations_by_grp AS vp
-    ON n.source = vp.source AND n.target = vp.target
-    ORDER BY vp.grp, n.id
+    INNER JOIN vertex_pair_candidates AS vpc
+    ON n.source = vpc.source AND n.target = vpc.target
+    ORDER BY vpc.grp, n.id
   );
 
   RAISE NOTICE '  Creating contracted network edge table ...';
