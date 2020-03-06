@@ -395,7 +395,7 @@ BEGIN
   WHERE point_dist > tolerance;
   GET DIAGNOSTICS cnt = ROW_COUNT;
   RAISE NOTICE
-    '% records exceeding distance tolerance of % deleted from stage_nw.snapped_stops',
+    'Deleted % stops from stage_nw.snapped_stops farther than % units away from edges',
     cnt, tolerance;
   RETURN 'OK';
 END;
