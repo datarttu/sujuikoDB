@@ -413,7 +413,7 @@ BEGIN
     AND s.edge_start_dist <= s.edge_end_dist;
   GET DIAGNOSTICS cnt = ROW_COUNT;
   RAISE NOTICE
-    '% stops closer than % units to link start snapped to link start',
+    '% stops closer than % units to link start moved to link start',
     cnt, tolerance;
   UPDATE stage_nw.snapped_stops AS s
   SET geom = ST_EndPoint(e.geom)
@@ -423,11 +423,17 @@ BEGIN
     AND s.edge_end_dist < s.edge_start_dist;
   GET DIAGNOSTICS cnt = ROW_COUNT;
   RAISE NOTICE
-    '% stops closer than % units to link end snapped to link end',
+    '% stops closer than % units to link end moved to link end',
     cnt, tolerance;
   RETURN 'OK';
 END;
 $$;
+COMMENT ON FUNCTION stage_nw.snap_stops_near_nodes IS
+'Update stage_nw.snapped_stops point geoms using stage_nw.contracted_nw edges
+such that any stop closer than `tolerance` to edge start point is snapped to
+that point, or to end point respectively.
+If distance to both start and end is less than the tolerance,
+the closer one is preferred.';
 
 /*
  * TO DO:
