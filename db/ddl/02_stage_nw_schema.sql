@@ -336,7 +336,9 @@ AS $$
 DECLARE
   cnt   integer;
 BEGIN
-  TRUNCATE TABLE stage_nw.snapped_stops CASCADE;
+  DELETE FROM stage_nw.snapped_stops CASCADE;
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE '% rows deleted from stage_nw.snapped stops', cnt;
   WITH projected AS (
     SELECT
       s.stopid::integer                   AS stopid,
