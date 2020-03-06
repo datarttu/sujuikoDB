@@ -382,7 +382,7 @@ Requires stop points from table stage_gtfs.stops_with_mode
 and network edges from table stage_nw.contracted_nw.';
 
 CREATE OR REPLACE FUNCTION stage_nw.delete_outlier_stops(
-  tolerance     double precision    DEFAULT 10.0
+  tolerance     double precision    DEFAULT 20.0
 )
 RETURNS TEXT
 LANGUAGE PLPGSQL
