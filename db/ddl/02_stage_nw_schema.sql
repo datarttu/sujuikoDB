@@ -455,6 +455,52 @@ that point, or to end point respectively.
 If distance to both start and end is less than the tolerance,
 the closer one is preferred.';
 
+CREATE OR REPLACE FUNCTION stage_nw.grouped_stops_on_edge(
+  tolerance     double precision   DEFAULT 10.0
+)
+RETURNS TABLE (
+  stopid              integer,
+  edgeid              bigint,
+  edge_start_dist     double precision,
+  cluster_group       integer
+)
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+DECLARE
+  rec             record;
+  recout          record;
+  current_edge    bigint    := 0;
+  prev_distance   double precision;
+BEGIN
+  FOR rec IN
+    SELECT s.stopid, s.edgeid, s.edge_start_dist
+    FROM stage_nw.snapped_stops AS s
+    ORDER BY s.edgeid, s.edge_start_dist
+  LOOP
+    IF rec.edgeid <> current_edge THEN
+      current_edge    := rec.edgeid;
+      cluster_group   := 0;
+      prev_distance   := rec.edge_start_dist;
+    ELSE
+      IF rec.edge_start_dist > (prev_distance + tolerance) THEN
+        cluster_group := cluster_group + 1;
+        prev_distance := rec.edge_start_dist;
+      END IF;
+    END IF;
+    stopid          := rec.stopid;
+    edgeid          := rec.edgeid;
+    edge_start_dist := rec.edge_start_dist;
+    RETURN NEXT;
+  END LOOP;
+END;
+$$;
+COMMENT ON FUNCTION stage_nw.snap_stops_near_nodes IS
+'Return stops from stage_nw.snapped_stops such that particular stops
+get a common cluster group id if they are within `tolerance` meters
+from each other along the edge. Grouping is started from the first
+stop on the edge based on distance from edge start.';
+
 /*
  * TO DO:
  * - Recursive snap to existing nodes / cluster stops into new nodes
