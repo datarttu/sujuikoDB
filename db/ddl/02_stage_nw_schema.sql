@@ -465,7 +465,7 @@ RETURNS TABLE (
   cluster_group       integer
 )
 LANGUAGE PLPGSQL
-VOLATILE
+STABLE
 AS $$
 DECLARE
   rec             record;
