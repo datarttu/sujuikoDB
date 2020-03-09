@@ -495,7 +495,7 @@ BEGIN
   END LOOP;
 END;
 $$;
-COMMENT ON FUNCTION stage_nw.snap_stops_near_nodes IS
+COMMENT ON FUNCTION stage_nw.grouped_stops_on_edge IS
 'Return stops from stage_nw.snapped_stops such that particular stops
 get a common cluster group id if they are within `tolerance` meters
 from each other along the edge. Grouping is started from the first
