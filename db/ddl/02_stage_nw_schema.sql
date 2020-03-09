@@ -416,7 +416,11 @@ DECLARE
   cnt   integer;
 BEGIN
   UPDATE stage_nw.snapped_stops AS s
-  SET geom = ST_StartPoint(e.geom)
+  SET
+    geom = ST_StartPoint(e.geom),
+    edge_start_dist = 0,
+    edge_end_dist = ST_Length(e.geom),
+    status = 'moved to edge start'
   FROM stage_nw.contracted_nw AS e
   WHERE s.edgeid = e.id
     AND s.edge_start_dist < tolerance
@@ -426,7 +430,11 @@ BEGIN
     '% stops closer than % units to link start moved to link start',
     cnt, tolerance;
   UPDATE stage_nw.snapped_stops AS s
-  SET geom = ST_EndPoint(e.geom)
+  SET
+    geom = ST_EndPoint(e.geom),
+    status = 'moved to edge end',
+    edge_start_dist = ST_Length(e.geom),
+    edge_end_dist = 0
   FROM stage_nw.contracted_nw AS e
   WHERE s.edgeid = e.id
     AND s.edge_end_dist < tolerance
