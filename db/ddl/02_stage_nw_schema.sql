@@ -423,6 +423,7 @@ BEGIN
     status = 'moved to edge start'
   FROM stage_nw.contracted_nw AS e
   WHERE s.edgeid = e.id
+    AND s.edge_start_dist > 0
     AND s.edge_start_dist < tolerance
     AND s.edge_start_dist <= s.edge_end_dist;
   GET DIAGNOSTICS cnt = ROW_COUNT;
@@ -437,6 +438,7 @@ BEGIN
     edge_end_dist = 0
   FROM stage_nw.contracted_nw AS e
   WHERE s.edgeid = e.id
+    AND s.edge_end_dist > 0
     AND s.edge_end_dist < tolerance
     AND s.edge_end_dist < s.edge_start_dist;
   GET DIAGNOSTICS cnt = ROW_COUNT;
