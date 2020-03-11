@@ -238,6 +238,12 @@ BEGIN
         SELECT grp, vertex AS source, target AS target
         FROM unnested
         UNION
+        SELECT grp, target AS source, vertex AS target
+        FROM unnested
+        UNION
+        SELECT grp, vertex AS source, source AS target
+        FROM unnested
+        UNION
         SELECT u1.grp AS grp, u1.vertex AS source, u2.vertex AS target
         FROM unnested       AS u1
         INNER JOIN unnested AS u2
