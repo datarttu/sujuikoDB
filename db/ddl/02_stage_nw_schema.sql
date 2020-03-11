@@ -511,6 +511,62 @@ get a common cluster group id if they are within `tolerance` meters
 from each other along the edge. Grouping is started from the first
 stop on the edge based on distance from edge start.';
 
+CREATE OR REPLACE FUNCTION stage_nw.cluster_stops_on_edges(
+  tolerance       double precision    DEFAULT 10.0
+)
+RETURNS TEXT
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+DECLARE
+  cnt   integer;
+BEGIN
+  ALTER TABLE stage_nw.snapped_stops
+    ADD COLUMN IF NOT EXISTS groupid integer;
+
+  UPDATE stage_nw.snapped_stops AS s
+  SET groupid = g.cluster_group
+  FROM stage_nw.grouped_stops_on_edge(tolerance := tolerance) AS g
+  WHERE s.stopid = g.stopid;
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE 'Cluster groupid set for % stops', cnt;
+
+  WITH
+    /*
+     * New location is determined by average distance of stops of the groups
+     * from the edge start.
+     */
+    avg_distances AS (
+      SELECT edgeid, groupid, avg(edge_start_dist) AS new_dist, count(*)
+      FROM stage_nw.snapped_stops
+      GROUP BY edgeid, groupid
+      HAVING count(*) > 1
+    )
+  UPDATE stage_nw.snapped_stops AS s
+  SET
+    edge_start_dist = a.new_dist,
+    edge_end_dist = ST_Length(e.geom) - a.new_dist,
+    geom = ST_LineInterpolatePoint(e.geom, a.new_dist / ST_Length(e.geom)),
+    status = 'grouped'
+  FROM
+    avg_distances AS a,
+    stage_nw.contracted_nw AS e
+  WHERE s.edgeid = a.edgeid
+    AND s.groupid = a.groupid
+    AND s.edgeid = e.id;
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE
+    'New edge_start_dist, edge_end_dist, geom and status set for % stops',
+    cnt;
+
+  RETURN 'OK';
+END;
+$$;
+COMMENT ON FUNCTION stage_nw.cluster_stops_on_edges IS
+'Update stage_nw.snapped_stops by grouping stops located close to each other
+on the same edge to the same point location within group.
+Adds a new column "groupid" if not already present.';
+
 /*
  * TO DO:
  * - Recursive snap to existing nodes / cluster stops into new nodes
