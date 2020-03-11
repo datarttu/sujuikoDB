@@ -1,0 +1,51 @@
+# Known issues
+
+## Issues due to source data
+
+These issues are particularly related to HSL-GTFS, OSM in HSL area or HFP.
+They represent the data as of November 2019.
+
+### Missing OSM bus relations
+
+Unlike tram network that is based on all `railway=tram` links in the area, bus network is currently based on OSM ways that are part of at least one bus route relation.
+This makes the number of ways to handle significantly smaller than if we extracted all the ways that buses could *possibly* use.
+However, by doing this we basically assume that OSM users have modeled all the bus routes that we have in GTFS as well, but this is not true.
+Some routes are outdated, and some routes such as minor local service routes are not found in OSM at all.
+
+See `scripts/overpass_get_network_used_by_busroutes.sh` for more details on bus network extraction from OSM.
+
+Below is an example from Munkkiniemi.
+
+![Example of an area with clear GTFS stops but no bus links.](img/missing_osm_bus_relations_example.png)
+
+### Inaccurate GTFS stop locations
+
+Some GTFS stop points are modeled inaccurately, which may cause stops to be snapped to a wrong link.
+This particularly applies to tram network where opposite directions are modeled as separate oneway links.
+
+Below is an example from Huutokonttori, Jätkäsaari.
+
+![Example of stop points that will snap to wrong links.](img/inaccurate_gtfs_stop_locations_example.png)
+
+For tram stops, this issue can be examined with `db/patches/find_missnapped_tram_stops.sql` and fixed manually with `db/patches/tram_stops_of_stops_with_mode.sql`.
+
+### Invalid OSM topology
+
+Some OSM ways do not connect to each other as they should do and would seem to.
+Instead of an end-to-end connection, they may touch each other, but this is not enough to form a working routing topology.
+
+Example from Arabia.
+
+![Example of OSM ways without proper end-to-end connection.](img/invalid_osm_topology_example.png)
+
+This could be fixed by manually splitting the most critical spots from `stage_osm.combined_lines` or by automating the splitting process e.g. by using `ST_Touches()`, which would leave out any direct intersections of lines (e.g. bridges).
+However, the latter would probably involve some nontrivial problems such as bus links following partly the same geometries on top of tram links, still without meaning that the links should be split.
+
+### Incomplete GTFS route identifiers
+
+See `scripts/import_gtfs.sql` notes:
+
+*HSL has some bus and tram route variants indicated by a trailing whitespace and a digit, e.g. "1001" -> variant "1001 3" but these seem not to have propagated correctly to the GTFS dataset:
+instead, the trailing whitespace+digit are left out from the route_id, but they are still visible in the beginning of the trip_id (all HSL trip_ids start with the route identifier).*
+
+This issue is fixed in the aforementioned import script.
