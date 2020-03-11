@@ -177,6 +177,10 @@ BEGIN
     (owein = 1 and oweout = 1 and twein = 0 and tweout = 0)
     OR
     (owein = 0 and oweout = 0 and twein = 1 and tweout = 1)
+    OR
+    (owein = 0 and oweout = 0 and twein = 2 and tweout = 0)
+    OR
+    (owein = 0 and oweout = 0 and twein = 0 and tweout = 2)
   );'
   INTO forbidden;
 
