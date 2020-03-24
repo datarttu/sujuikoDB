@@ -41,6 +41,17 @@ Example from Arabia.
 This could be fixed by manually splitting the most critical spots from `stage_osm.combined_lines` or by automating the splitting process e.g. by using `ST_Touches()`, which would leave out any direct intersections of lines (e.g. bridges).
 However, the latter would probably involve some nontrivial problems such as bus links following partly the same geometries on top of tram links, still without meaning that the links should be split.
 
+### Topology tolerance value too high
+
+There are OSM nodes that are closer to each other than the tolerance used in `pgr_createTopology`.
+As of writing this, we have used a tolerance of `1.0 meters`.
+This is apparently too high (example from Mannerheimintie-Nordenskiöldinkatu):
+
+![Example of tolerance value too high.](img/raw_vertices_below_tolerance.png)
+
+In this case, the node above `5950` is not included in the network topology, and pgRouting thinks that the merging tram tracks go both via `5950` and `6503`.
+A smaller tolerance value should be used, though it should not be too low.
+
 ### Incomplete GTFS route identifiers
 
 See `scripts/import_gtfs.sql` notes:
