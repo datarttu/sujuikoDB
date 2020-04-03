@@ -32,6 +32,7 @@ CREATE INDEX nodes_wgs_geom_idx
  * except that the points are listed in reverse order.
  */
 CREATE TABLE nw.links (
+  linkid        integer           PRIMARY KEY,
   inode         integer           REFERENCES nw.nodes (nodeid),
   jnode         integer           REFERENCES nw.nodes (nodeid),
   mode          public.mode_type  NOT NULL,
@@ -40,9 +41,10 @@ CREATE TABLE nw.links (
   osm_data      jsonb,
   geom          geometry(LINESTRING, 3067),
   wgs_geom      geometry(LINESTRING, 4326),
-  PRIMARY KEY (inode, jnode),
   CONSTRAINT nodes CHECK (inode <> jnode)
 );
+CREATE UNIQUE INDEX links_nodes_idx
+  ON nw.links (inode, jnode);
 CREATE INDEX links_geom_idx
   ON nw.links
   USING GIST (geom);

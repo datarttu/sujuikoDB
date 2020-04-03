@@ -68,16 +68,14 @@ CREATE INDEX trips_route_dir_idx
 
 CREATE TABLE sched.segments (
   tripid         text           NOT NULL REFERENCES sched.trip_templates(tripid),
-  inode          integer        NOT NULL,
-  jnode          integer        NOT NULL,
+  linkid         integer        NOT NULL REFERENCES nw.links(linkid),
   enter_hms      interval       NOT NULL,
   exit_hms       interval,
   enter_timing   sched.timing_type,
   exit_timing    sched.timing_type,
   enter_rel_dist double precision,
   exit_rel_dist  double precision,
-  PRIMARY KEY (tripid, inode, jnode, enter_hms),
-  FOREIGN KEY (inode, jnode) REFERENCES nw.links(inode, jnode)
+  PRIMARY KEY (tripid, linkid, enter_hms)
 );
 
 COMMIT;
