@@ -74,6 +74,8 @@ CREATE TABLE sched.segments (
   exit_hms       interval,
   enter_timing   sched.timing_type,
   exit_timing    sched.timing_type,
+  enter_rel_dist double precision,
+  exit_rel_dist  double precision,
   PRIMARY KEY (tripid, inode, jnode, enter_hms),
   FOREIGN KEY (inode, jnode) REFERENCES nw.links(inode, jnode)
 );
