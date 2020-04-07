@@ -20,8 +20,7 @@ CREATE TABLE nw.links (
   rcost         double precision,
   osm_data      jsonb,
   geom          geometry(LINESTRING, 3067),
-  wgs_geom      geometry(LINESTRING, 4326),
-  CONSTRAINT nodes CHECK (inode <> jnode)
+  wgs_geom      geometry(LINESTRING, 4326)
 );
 CREATE INDEX links_geom_idx
   ON nw.links
