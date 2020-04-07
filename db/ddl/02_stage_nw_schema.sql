@@ -880,7 +880,7 @@ BEGIN
   RETURN 'OK';
 END;
 $$;
-COMMENT ON FUNCTION stage_nw.route_stop_pairs IS
+COMMENT ON FUNCTION stage_nw.route_node_pairs IS
 'Find a route sequence along nw.links edges
 for each stop node pair based on stage_gtfs.successive_stops,
 nw.nodes and nw.stops, using pgr_Dijkstra.
