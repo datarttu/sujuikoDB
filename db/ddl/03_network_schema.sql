@@ -13,8 +13,8 @@ CREATE SCHEMA IF NOT EXISTS nw;
 
 CREATE TABLE nw.links (
   linkid        integer           PRIMARY KEY,
-  inode         integer           REFERENCES nw.nodes (nodeid),
-  jnode         integer           REFERENCES nw.nodes (nodeid),
+  inode         integer,
+  jnode         integer,
   mode          public.mode_type  NOT NULL,
   cost          double precision,
   rcost         double precision,
@@ -23,8 +23,6 @@ CREATE TABLE nw.links (
   wgs_geom      geometry(LINESTRING, 4326),
   CONSTRAINT nodes CHECK (inode <> jnode)
 );
-CREATE UNIQUE INDEX links_nodes_idx
-  ON nw.links (inode, jnode);
 CREATE INDEX links_geom_idx
   ON nw.links
   USING GIST (geom);
