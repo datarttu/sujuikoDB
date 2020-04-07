@@ -11,19 +11,6 @@ BEGIN;
 
 CREATE SCHEMA IF NOT EXISTS nw;
 
-CREATE TABLE nw.nodes (
-  nodeid        integer       PRIMARY KEY,
-  osm_data      jsonb,
-  geom          geometry(POINT, 3067),
-  wgs_geom      geometry(POINT, 4326)
-);
-CREATE INDEX nodes_geom_idx
-  ON nw.nodes
-  USING GIST (geom);
-CREATE INDEX nodes_wgs_geom_idx
-  ON nw.nodes
-  USING GIST (wgs_geom);
-
 CREATE TABLE nw.links (
   linkid        integer           PRIMARY KEY,
   inode         integer           REFERENCES nw.nodes (nodeid),
