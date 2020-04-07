@@ -732,7 +732,7 @@ BEGIN
     INNER JOIN stage_nw.snapped_stops AS b
       ON a.stopid = b.stopid
     INNER JOIN nw.nodes               AS c
-      ON b.geom = c.geom
+      ON ST_DWithin(b.geom, c.geom, 0.01)
     ORDER BY c.nodeid, a.stopid
   );
   GET DIAGNOSTICS cnt = ROW_COUNT;
