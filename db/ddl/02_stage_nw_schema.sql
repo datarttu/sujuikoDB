@@ -567,11 +567,111 @@ COMMENT ON FUNCTION stage_nw.cluster_stops_on_edges IS
 on the same edge to the same point location within group.
 Adds a new column "groupid" if not already present.';
 
-/*
- * TO DO:
- * - Recursive snap to existing nodes / cluster stops into new nodes
- * - Split edges by new nodes, redefine ids
- * - Populate nw schema
- */
+CREATE OR REPLACE FUNCTION stage_nw.populate_nw_links()
+RETURNS TEXT
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+DECLARE
+  cnt   integer;
+BEGIN
+  DELETE FROM nw.links;
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE '% rows deleted from nw.links', cnt;
+
+  WITH
+    distances_ordered AS (
+      SELECT DISTINCT ON (edges.id, stops.edge_start_dist)
+        edges.id              AS edge,
+        edges.geom            AS geom,
+        ST_Length(edges.geom) AS len,
+        edges.mode            AS mode,
+        edges.oneway          AS oneway,
+        stops.edge_start_dist AS dist
+      FROM stage_nw.contracted_nw       AS edges
+      INNER JOIN stage_nw.snapped_stops AS stops
+        ON edges.id = stops.edgeid
+      WHERE stops.edge_start_dist > 0
+        AND stops.edge_start_dist < ST_Length(edges.geom)
+      ORDER BY stops.edge_start_dist ASC
+    ),
+    splits AS (
+      SELECT
+        edge,
+        mode,
+        oneway,
+        geom,
+        coalesce(
+          lag(dist) OVER (PARTITION BY edge ORDER BY dist),
+          0) / len  AS start_frac,
+        dist / len  AS end_frac
+      FROM distances_ordered
+      UNION
+      SELECT
+        edge,
+        min(mode)   AS mode,
+        min(oneway) AS oneway,
+        geom,
+        max(dist) / max(len) AS start_frac,
+        1 AS end_frac
+      FROM distances_ordered
+      GROUP BY edge, geom
+    ),
+    combined AS (
+    SELECT
+      edge,
+      mode,
+      oneway,
+      /*
+       * Store these distance fraction values later
+       * if needed for diagnostics or debugging.
+       * For now, we do not save them for production.
+      start_frac,
+      end_frac,
+       */
+      ST_LineSubstring(geom, start_frac, end_frac) AS geom
+    FROM splits
+    UNION
+    SELECT
+      edges.id      AS edge,
+      edges.mode    AS mode,
+      edges.oneway  AS oneway,
+      /*
+      0::real       AS start_frac,
+      1::real       AS end_frac,
+      */
+      edges.geom    AS geom
+    FROM stage_nw.contracted_nw   AS edges
+    WHERE edges.id NOT IN
+      (
+        SELECT DISTINCT edge
+        FROM splits
+      )
+    )
+  INSERT INTO nw.links (linkid, mode, cost, rcost, geom, wgs_geom)
+  (
+    SELECT
+      row_number() OVER (ORDER BY edge) AS linkid,
+      mode,
+      ST_Length(geom)                   AS cost,
+      CASE
+        WHEN oneway = 'B' THEN ST_Length(geom)
+        ELSE -1
+      END                               AS rcost,
+      geom,
+      ST_Transform(geom, 4326)          AS wgs_geom
+    FROM combined
+  );
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE '% rows inserted into nw.links', cnt;
+  RETURN 'OK';
+END;
+$$;
+COMMENT ON FUNCTION stage_nw.populate_nw_links IS
+'Split contracted network edges by stop locations,
+and insert the resulting network edges to nw.links table.
+nw.links will be emptied first.
+Requires populated stage_nw.contracted_nw
+and stage_nw.snapped_stops tables.';
 
 COMMIT;
