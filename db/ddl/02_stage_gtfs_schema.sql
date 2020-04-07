@@ -179,13 +179,12 @@ $$;
 CREATE TABLE stage_gtfs.successive_stops (
   i_stop        integer           NOT NULL,
   j_stop        integer           NOT NULL,
-  mode          public.mode_type  NOT NULL,
-  PRIMARY KEY (i_stop, j_stop, mode)
+  PRIMARY KEY (i_stop, j_stop)
 );
 COMMENT ON TABLE stage_gtfs.successive_stops IS
 'Stop pairs that occur in schedules,
-unique by transport mode.
-For finding network routes between stops.';
+for finding network routes between stops.
+Based on ALL bus and tram stops found in the GTFS data.';
 
 CREATE OR REPLACE FUNCTION stage_gtfs.populate_successive_stops()
 RETURNS TABLE (
