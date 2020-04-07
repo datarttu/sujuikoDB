@@ -33,7 +33,7 @@ CREATE INDEX links_mode_idx
 
 CREATE TABLE nw.stops (
   stopid      integer           PRIMARY KEY,
-  nodeid      integer           REFERENCES nw.nodes (nodeid),
+  nodeid      integer           NOT NULL,
   mode        public.mode_type  NOT NULL,
   code        text,
   name        text,
