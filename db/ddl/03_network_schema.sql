@@ -24,13 +24,6 @@ CREATE INDEX nodes_wgs_geom_idx
   ON nw.nodes
   USING GIST (wgs_geom);
 
-/*
- * Even though OSM ways can be oneway or two-way,
- * we handle two-way streets as separate links here.
- * Thus the "reverse cost" options will be never used with pgrouting.
- * The two-way links should have the same geometry
- * except that the points are listed in reverse order.
- */
 CREATE TABLE nw.links (
   linkid        integer           PRIMARY KEY,
   inode         integer           REFERENCES nw.nodes (nodeid),
