@@ -580,6 +580,11 @@ BEGIN
   RAISE NOTICE '% rows deleted from nw.links', cnt;
 
   WITH
+    /*
+     * The stops table we use has already a value
+     * that tells us how far away the stop point is located from the edge start
+     * (along the edge). We use this to split the edges at stop locations.
+     */
     distances_ordered AS (
       SELECT DISTINCT ON (edges.id, stops.edge_start_dist)
         edges.id              AS edge,
@@ -595,6 +600,14 @@ BEGIN
         AND stops.edge_start_dist < ST_Length(edges.geom)
       ORDER BY stops.edge_start_dist ASC
     ),
+    /*
+     * An UNION is required since the first data set here will not include
+     * the last part of the split edge;
+     * we construct the last parts separately.
+     * GROUP BY is required because we have snapped stops close to each other
+     * to the same location, so without grouping, this would result in
+     * same split edge occurring multiple times.
+     */
     splits AS (
       SELECT
         edge,
@@ -617,6 +630,11 @@ BEGIN
       FROM distances_ordered
       GROUP BY edge, geom
     ),
+    /*
+     * Note that the above only included those edges that are somehow related
+     * to one or more stops. We want to include the rest of the edges too,
+     * i.e. the not split ones.
+     */
     combined AS (
     SELECT
       edge,
@@ -648,6 +666,14 @@ BEGIN
         FROM splits
       )
     )
+  /*
+   * At this point, we lose the previous edge id information (for now at least)
+   * and use a running link id instead.
+   * However, split links with the same original edge id should have
+   * consecutive ids.
+   * Moreover, we move from the 'B-FT' oneway marking system, used by the
+   * contraction algorithm, to cost-rcost system used by routing algorithms.
+   */
   INSERT INTO nw.links (linkid, mode, cost, rcost, geom, wgs_geom)
   (
     SELECT
