@@ -256,4 +256,23 @@ from tram & bus stop times
 and insert them into stage_gtfs.successive_stops table.
 stage_gtfs.successive_stops is emptied first.';
 
+CREATE TABLE stage_gtfs.normalized_stop_times (
+  trip_id               text,
+  trip_start_time       interval,
+  arr_time_norm         interval,
+  dep_time_norm         interval,
+  stop_id               integer,
+  stop_sequence         smallint,
+  shape_dist_traveled   double precision,
+  timepoint             boolean,
+  PRIMARY KEY (trip_id, stop_sequence)
+);
+COMMENT ON TABLE stage_gtfs.normalized_stop_times IS
+'Stop times of bus and tram trips, where each trip id is assigned
+the initial departure time of the trip, and each stop event
+is assigned an arrival and a departure time based on that start time.
+This is an intermediate step before the trips are grouped into
+records with date & initial departure time arrays
+based on route, direction, stop sequence and time difference information.';
+
 COMMIT;
