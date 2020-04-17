@@ -887,6 +887,9 @@ nw.nodes and nw.stops, using pgr_Dijkstra.
 Note that routes are not between stops but their respective NODES.
 Results are stored in stage_nw.node_pair_routes.';
 
+/*
+ * TODO: This view has to be created only after nw.nodes exists!
+ */
 CREATE VIEW stage_nw.node_pairs_not_routed_geom AS (
   SELECT a.i_node, a.j_node, ST_MakeLine(b.geom, c.geom) AS geom
   FROM stage_nw.successive_nodes AS a
