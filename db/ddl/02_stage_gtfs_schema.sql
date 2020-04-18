@@ -109,6 +109,10 @@ CREATE INDEX ON stage_gtfs.shape_lines
 USING GIST(geom);
 CREATE INDEX ON stage_gtfs.shape_lines
 USING GIST(wgs_geom);
+COMMENT ON TABLE stage_gtfs.shape_lines IS
+'GTFS trip geometries as in original "shapes" table,
+but each record is a linestring instead of a point.
+Includes both TM35 and WGS84 geometries.';
 
 CREATE FUNCTION stage_gtfs.populate_shape_lines()
 RETURNS TEXT
