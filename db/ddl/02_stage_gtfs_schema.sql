@@ -419,6 +419,7 @@ stage_gtfs.successive_stops is emptied first.';
 
 CREATE TABLE stage_gtfs.trips_with_dates (
   trip_id               text              PRIMARY KEY,
+  service_id            text,
   route_id              text,
   direction_id          smallint,
   trip_start_hms        interval,
