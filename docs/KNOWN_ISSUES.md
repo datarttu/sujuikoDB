@@ -60,3 +60,14 @@ See `scripts/import_gtfs.sql` notes:
 instead, the trailing whitespace+digit are left out from the route_id, but they are still visible in the beginning of the trip_id (all HSL trip_ids start with the route identifier).*
 
 This issue is fixed in the aforementioned import script.
+
+### Service dates and > 24 hrs trip start times
+
+*NOTE: This may be either due to the data model or errors in HSL GTFS generation.*
+
+Some night trips seem not to get any correct dates when made into `stage_gtfs.trips_with_dates`.
+They seem to have initial departure times > 24 hrs (with GTFS 30-hour clock).
+The problem is that `start_date` and `end_date` do not conform with the weekday definition in GTFS:
+this is at least the case at the start of the GTFS dataset validity time.
+
+For example, see trips with `service_id = '1020N_20191031_20191031_Ke'`.
