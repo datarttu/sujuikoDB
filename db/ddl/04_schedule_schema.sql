@@ -29,7 +29,7 @@ CREATE TABLE sched.trip_templates (
   tripid      text              PRIMARY KEY,
   route       text              NOT NULL REFERENCES sched.routes(route),
   dir         smallint          NOT NULL,
-  start_hms   interval          NOT NULL,
+  start_times interval[]        NOT NULL,
   dates       date[]            NOT NULL
 );
 CREATE INDEX trips_route_dir_idx
