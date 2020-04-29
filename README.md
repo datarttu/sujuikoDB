@@ -15,7 +15,7 @@ cat /etc/apt/sources.list.d/pgdg.list
 sudo apt update
 # Install postgres, postgis and pgrouting
 sudo apt -y install postgresql-11
-sudo apt -y install postgis postgresql-11-postgis-2.5
+sudo apt -y install postgis postgresql-11-postgis-3
 sudo apt -y install postgresql-11-pgrouting
 # Install timescaledb
 sudo add-apt-repository ppa:timescale/timescaledb-ppa
