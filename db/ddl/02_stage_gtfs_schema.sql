@@ -484,7 +484,7 @@ CREATE TABLE stage_gtfs.normalized_stop_times (
   dep_time_diff         interval,
   stop_id               integer,
   stop_sequence         smallint,
-  shape_dist_traveled   double precision,
+  rel_dist_traveled     double precision,
   timepoint             boolean,
   PRIMARY KEY (trip_id, stop_sequence)
 );
@@ -493,6 +493,8 @@ COMMENT ON TABLE stage_gtfs.normalized_stop_times IS
 'Stop times of bus and tram trips, where each trip id is assigned
 the initial departure time of the trip, and each stop event
 is assigned an arrival and a departure time difference based on that start time.
+Also shape_dist_traveled (kilometers) is made into "relative" distance traveled,
+meaning at each stop the proportion of the total trip shape length.
 This is an intermediate step before the trips are grouped into
 records with date & initial departure time arrays
 based on route, direction, stop sequence and time difference information.';
@@ -516,24 +518,26 @@ BEGIN
     dep_time_diff,
     stop_id,
     stop_sequence,
-    shape_dist_traveled,
+    rel_dist_traveled,
     timepoint
   )
   SELECT
     st.trip_id,
-    st.arrival_time - twd.trip_start_hms    AS arr_time_diff,
-    st.departure_time - twd.trip_start_hms  AS dep_time_diff,
-    stop_id,
-    stop_sequence,
-    shape_dist_traveled,
-    timepoint
+    st.arrival_time - twd.trip_start_hms        AS arr_time_diff,
+    st.departure_time - twd.trip_start_hms      AS dep_time_diff,
+    st.stop_id,
+    st.stop_sequence,
+    st.shape_dist_traveled / sl.gtfs_dist_total AS rel_dist_traveled,
+    st.timepoint
   FROM stage_gtfs.stop_times AS st
   /*
    * Should there be any non-matching records,
    * left join will leave time differences NULL for us to find later.
    */
   LEFT JOIN stage_gtfs.trips_with_dates AS twd
-  ON st.trip_id = twd.trip_id;
+  ON st.trip_id = twd.trip_id
+  LEFT JOIN stage_gtfs.shape_lines      AS sl
+  ON twd.shape_id = sl.shape_id;
   GET DIAGNOSTICS cnt = ROW_COUNT;
   RAISE NOTICE '% records inserted into stage_gtfs.normalized_stop_times', cnt;
 
