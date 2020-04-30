@@ -901,4 +901,98 @@ COMMENT ON VIEW stage_nw.node_pairs_not_routed_geom IS
 'Failed node pairs that have not marked as successfully routed,
 with line geometry for visualization.';
 
+CREATE TABLE stage_nw.trip_template_routes (
+  ttid            text          NOT NULL,
+  stop_seq        smallint      NOT NULL,
+  path_seq        integer       NOT NULL,
+  edge            integer,
+  PRIMARY KEY (ttid, stop_seq, path_seq)
+);
+COMMENT ON TABLE stage_nw.trip_template_routes IS
+'Trip templates, as in stage_gtfs.trip_template_arrays,
+routed on the network of nw.links & nw.nodes, meaning that the stop id sequences
+are decomposed into nodes and thereby edges between the stops.
+Missing edges of failed routes are NOT included here.
+This table is then used together with stage_gtfs.trip_template_arrays
+to populate sched.trip_templates and sched.segments with trip templates
+that have complete routes on the network.';
+
+CREATE OR REPLACE FUNCTION stage_nw.populate_trip_template_routes()
+RETURNS TEXT
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+DECLARE
+  cnt       bigint;
+BEGIN
+  DELETE FROM stage_nw.trip_template_routes;
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE '% rows deleted from stage_nw.trip_template_routes', cnt;
+
+  WITH
+    tta_unnested AS (
+      SELECT
+        ttid,
+        unnest(stop_sequences)  AS stop_seq,
+        unnest(stop_ids)        AS stop_id
+      FROM stage_gtfs.trip_template_arrays
+    ),
+    tt_with_nodes AS (
+      SELECT
+        tt.ttid       AS ttid,
+        tt.stop_seq   AS stop_seq,
+        s.nodeid      AS nodeid
+      FROM tta_unnested     AS tt
+      INNER JOIN nw.stops   AS s
+      ON tt.stop_id = s.stopid
+    ),
+    tt_nodepairs AS (
+      SELECT
+        ttid,
+        stop_seq,
+        nodeid                                                  AS start_node,
+        lead(nodeid) OVER (PARTITION BY ttid ORDER BY stop_seq) AS end_node
+      FROM tt_with_nodes
+    ),
+    /*
+     * The last stops of each trip template do not occur in the above set
+     * since there are no edges after them.
+     * However, we want to add them "artificially" to the set.
+     * This way they are directly included in later joins,
+     * and NULL values in those joins can be used to detect route parts
+     * that are actually missing from between trip template stops.
+     */
+    tt_nodepairs_with_laststops AS (
+      SELECT
+        ttnp.ttid,
+        ttnp.stop_seq,
+        npr.path_seq,
+        npr.edge
+      FROM tt_nodepairs                    AS ttnp
+      LEFT JOIN stage_nw.node_pair_routes  AS npr
+      ON ttnp.start_node = npr.start_node
+        AND ttnp.end_node = npr.end_node
+      WHERE npr.edge <> -1
+      UNION
+      SELECT
+        ttid,
+        max(stop_seq) AS stop_seq,
+        0::integer AS path_seq,
+        -1::integer AS edge
+      FROM tt_nodepairs
+      GROUP BY ttid
+     )
+  INSERT INTO stage_nw.trip_template_routes (
+   ttid, stop_seq, path_seq, edge
+  )
+  SELECT * FROM tt_nodepairs_with_laststops
+  ORDER BY ttid, stop_seq, path_seq;
+
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE '% rows inserted into stage_nw.trip_template_routes', cnt;
+
+  RETURN 'OK';
+END;
+$$;
+
 COMMIT;
