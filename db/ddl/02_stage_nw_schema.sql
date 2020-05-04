@@ -991,6 +991,45 @@ BEGIN
   GET DIAGNOSTICS cnt = ROW_COUNT;
   RAISE NOTICE '% rows inserted into stage_nw.trip_template_routes', cnt;
 
+  /*
+   * To ensure consistency between the routes found above
+   * and the source array table, we update the route_found field
+   * of the array table right away.
+   */
+
+  UPDATE stage_gtfs.trip_template_arrays
+  SET route_found = false;
+
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE 'route_found set to false for all % records in stage_gtfs.trip_template_arrays';
+
+  WITH
+    tta AS (
+      SELECT
+        ttid,
+        unnest(stop_sequences) AS stop_seq
+      FROM stage_gtfs.trip_template_arrays
+    ),
+    ttids_with_missing_paths AS (
+      SELECT
+        tta.ttid,
+        bool_and(ttr.edge IS NOT NULL) AS path_complete
+      FROM tta
+      LEFT JOIN stage_nw.trip_template_routes AS ttr
+        ON tta.ttid = ttr.ttid
+        AND tta.stop_seq = ttr.stop_seq
+      GROUP BY tta.ttid
+    )
+  UPDATE stage_gtfs.trip_template_arrays  AS upd
+  SET route_found = true
+  FROM ttids_with_missing_paths           AS twmp
+  WHERE upd.ttid = twmp.ttid
+    AND twmp.path_complete IS true;
+
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE 'Complete route found for % trip templates', cnt;
+  RAISE NOTICE '(route_found set to true for them in stage_gtfs.trip_template_arrays)';
+
   RETURN 'OK';
 END;
 $$;
