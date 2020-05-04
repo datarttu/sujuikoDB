@@ -580,6 +580,7 @@ CREATE TABLE stage_gtfs.trip_template_arrays (
   service_ids     text[],
   start_times     interval[],
   dates           date[],
+  route_found     boolean,
   UNIQUE (route_id, direction_id, shape_id, stop_ids, stop_sequences,
           rel_distances, arr_time_diffs, dep_time_diffs, timepoints)
 );
@@ -599,7 +600,9 @@ are stored as arrays that can be later decomposed into rows.
 From this table, the records that are successfully routable
 on the network can be transferred to the production schedule tables.
 Note that this table should already use the 1-2 direction id system
-instead of GTFS 0-1 standard.';
+instead of GTFS 0-1 standard.
+route_found is populated in a later stage, indicating whether the trip template
+has a complete route on the network and can be transferred to sched schema.';
 
 CREATE OR REPLACE FUNCTION stage_gtfs.populate_trip_template_arrays()
 RETURNS TEXT
