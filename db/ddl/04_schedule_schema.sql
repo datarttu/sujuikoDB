@@ -26,7 +26,7 @@ CREATE TABLE sched.routes (
 );
 
 CREATE TABLE sched.trip_templates (
-  tripid      text              PRIMARY KEY,
+  ttid        text              PRIMARY KEY,
   route       text              NOT NULL REFERENCES sched.routes(route),
   dir         smallint          NOT NULL,
   start_times interval[]        NOT NULL,
@@ -36,7 +36,7 @@ CREATE INDEX trips_route_dir_idx
   ON sched.trip_templates (route, dir);
 
 CREATE TABLE sched.segments (
-  tripid         text           NOT NULL REFERENCES sched.trip_templates(tripid),
+  ttid           text           NOT NULL REFERENCES sched.trip_templates(ttid),
   linkid         integer        NOT NULL REFERENCES nw.links(linkid),
   enter_hms      interval       NOT NULL,
   exit_hms       interval,
@@ -44,7 +44,7 @@ CREATE TABLE sched.segments (
   exit_timing    sched.timing_type,
   enter_rel_dist double precision,
   exit_rel_dist  double precision,
-  PRIMARY KEY (tripid, linkid, enter_hms)
+  PRIMARY KEY (ttid, linkid, enter_hms)
 );
 
 COMMIT;
