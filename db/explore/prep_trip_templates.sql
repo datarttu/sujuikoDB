@@ -97,19 +97,42 @@ WITH
     FROM tt_routes
   ),
 
-  partition_arr_dep_times AS (
+  prepare_partition_aggregates AS (
     SELECT
-      *,
+      ttid,
+      part_num,
       /*
        * Using min / max here should not make any difference,
        * we just need the single values from the partition start.
        */
-      min(arr) OVER (PARTITION BY ttid, part_num)       AS part_arr,
-      min(dep) OVER (PARTITION BY ttid, part_num)       AS part_dep
+      min(arr)      AS part_arr,
+      min(dep)      AS part_dep,
+      sum(seg_len)  AS part_len
     FROM tt_route_partitions
+    GROUP BY ttid, part_num
   ),
 
+  partition_aggregates AS (
+    SELECT
+      ttid,
+      part_num,
+      part_len,
+      part_dep      AS part_i_time,
+      lead(part_arr) OVER (
+        PARTITION BY ttid ORDER BY part_num
+      )             AS part_j_time,
+      /*
+       * Note that possible waiting times at stops, i.e. dep - arr,
+       * are NOT included in the partition total driving times.
+       * They are eventually taken into account at segment level.
+       */
+      lead(part_arr) OVER (
+        PARTITION BY ttid ORDER BY part_num
+      ) - part_dep  AS part_total_time
+    FROM prepare_partition_aggregates
+  )
+
 SELECT *
-FROM partition_arr_dep_times
-ORDER BY ttid, stop_seq, path_seq
+FROM partition_aggregates
+ORDER BY ttid, part_num
 LIMIT 600;
