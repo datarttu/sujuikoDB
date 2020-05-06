@@ -37,20 +37,14 @@ WITH
       END AS timepoint
     FROM tt_arr_unnested
   ),
-
-  tt_discard_nontimepoint_times AS (
-    SELECT ttid, stop_seq,
-      CASE WHEN timepoint THEN arr ELSE NULL END AS arr,
-      CASE WHEN timepoint THEN dep ELSE NULL END AS dep,
-      timepoint
-    FROM tt_set_firstlast_timepoints
-  ),
-
+  
   tt_routes AS (
     SELECT
       s.ttid,
       s.stop_seq,
       r.path_seq,
+      s.arr,
+      s.dep,
       l.linkid,
       r.inode,
       r.jnode,
@@ -70,7 +64,24 @@ WITH
 
   tt_route_partitions AS (
     SELECT
-      *,
+      ttid,
+      stop_seq,
+      path_seq,
+      CASE
+        WHEN i_strict AND stop_seq > 0 THEN arr
+        ELSE NULL
+      END                                     AS arr,
+      CASE
+        WHEN i_strict
+          AND stop_seq < (max(stop_seq) OVER (PARTITION BY ttid))
+          THEN dep
+        ELSE NULL END                         AS dep,
+      linkid,
+      inode,
+      jnode,
+      seg_len,
+      i_stop,
+      i_strict,
       sum(i_strict::int) OVER (
         PARTITION BY ttid ORDER BY stop_seq, path_seq
       ) AS part_num
