@@ -679,6 +679,36 @@ BEGIN
   GET DIAGNOSTICS cnt = ROW_COUNT;
   RAISE NOTICE '% rows inserted into stage_gtfs.trip_template_arrays', cnt;
 
+  /*
+   * The start_times arrays created above still contain duplicated and
+   * unsorted values, fix it here.
+   */
+  WITH
+    unnested_times AS (
+      SELECT
+        ttid,
+        unnest(start_times) AS start_time
+      FROM stage_gtfs.trip_template_arrays
+    ),
+    unique_times AS (
+      SELECT DISTINCT ttid, start_time
+      FROM unnested_times
+    ),
+    new_time_arrays AS (
+      SELECT
+        ttid,
+        array_agg(start_time ORDER BY start_time) AS start_times
+      FROM unique_times
+      GROUP BY ttid
+    )
+  UPDATE stage_gtfs.trip_template_arrays  AS tta
+  SET start_times = nta.start_times
+  FROM new_time_arrays                    AS nta
+  WHERE tta.ttid = nta.ttid;
+
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE 'Start time arrays with unique values updated for % rows in stage_gtfs.trip_template_arrays', cnt;
+
   WITH
     ttids_tripids AS (
       SELECT
