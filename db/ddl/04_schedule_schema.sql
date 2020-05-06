@@ -36,11 +36,11 @@ CREATE INDEX trips_route_dir_idx
   ON sched.trip_templates (route, dir);
 
 CREATE TABLE sched.segments (
-  ttid              text           NOT NULL REFERENCES sched.trip_templates(ttid),
-  linkid            integer        NOT NULL REFERENCES nw.links(linkid),
-  inode             integer        NOT NULL REFERENCES nw.nodes(nodeid),
-  jnode             integer        NOT NULL REFERENCES nw.nodes(nodeid),
-  i_time            interval       NOT NULL,
+  ttid              text              NOT NULL REFERENCES sched.trip_templates(ttid),
+  linkid            integer           NOT NULL REFERENCES nw.links(linkid),
+  inode             integer           NOT NULL REFERENCES nw.nodes(nodeid),
+  jnode             integer           NOT NULL REFERENCES nw.nodes(nodeid),
+  i_time            interval          NOT NULL,
   j_time            interval,
   i_strict          boolean,
   j_strict          boolean,
