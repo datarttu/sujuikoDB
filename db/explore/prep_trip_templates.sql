@@ -25,6 +25,7 @@ WITH
     WHERE route_found IS true
       AND start_times IS NOT NULL
       AND dates IS NOT NULL
+      AND route_id LIKE '1077%' -- REMOVE THIS AFTER EXPERIMENTING
   ),
 
   tt_set_firstlast_timepoints AS (
@@ -43,9 +44,31 @@ WITH
       CASE WHEN timepoint THEN dep ELSE NULL END AS dep,
       timepoint
     FROM tt_set_firstlast_timepoints
+  ),
+
+  tt_routes AS (
+    SELECT
+      s.ttid,
+      s.stop_seq,
+      r.path_seq,
+      l.linkid,
+      r.inode,
+      r.jnode,
+      ST_Length(l.geom)                       AS seg_len,
+      r.path_seq IN (0, 1)                    AS i_stop,
+      s.timepoint AND (r.path_seq IN (0, 1))  AS i_strict
+    FROM tt_set_firstlast_timepoints          AS s
+    INNER JOIN stage_nw.trip_template_routes  AS r
+      ON s.ttid = r.ttid AND s.stop_seq = r.stop_seq
+    /*
+     * Left join, because we want to keep the last stops of each template:
+     * they do not start a segment so they get no linkid.
+     */
+    LEFT JOIN nw.links                        AS l
+      ON r.edge = l.linkid
   )
 
 SELECT *
-FROM tt_discard_nontimepoint_times
-ORDER BY ttid, stop_seq
+FROM tt_routes
+ORDER BY ttid, stop_seq, path_seq
 LIMIT 60;
