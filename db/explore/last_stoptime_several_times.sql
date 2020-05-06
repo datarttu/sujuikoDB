@@ -40,4 +40,8 @@ LIMIT 70;
  * 6.5.2020
  * Max number of "last duplicates" seems to be 3, including the last stop.
  * This occurs at least with route 1093K.
+ * Conclusion:
+ * When defining partitions for stop time interpolation,
+ * we have to take into account possible duplicate times *before*
+ * the last stop, given that the last stop time is fixed as partition boundary.
  */
