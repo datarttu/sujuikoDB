@@ -48,7 +48,7 @@ CREATE TABLE sched.segments (
   j_strict          boolean           NOT NULL,
   i_rel_dist        double precision  NOT NULL CHECK (i_rel_dist BETWEEN 0 AND 1),
   j_rel_dist        double precision  NOT NULL CHECK (j_rel_dist BETWEEN 0 AND 1),
-  PRIMARY KEY (ttid, linkid, enter_hms)
+  PRIMARY KEY (ttid, linkid, i_time)
 );
 COMMENT ON TABLE sched.segments IS
 'Refers to links that, ordered by enter time `i_time`, comprise the route
