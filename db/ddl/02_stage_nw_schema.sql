@@ -906,6 +906,8 @@ CREATE TABLE stage_nw.trip_template_routes (
   stop_seq        smallint      NOT NULL,
   path_seq        integer       NOT NULL,
   edge            integer,
+  inode           integer,
+  jnode           integer,
   PRIMARY KEY (ttid, stop_seq, path_seq)
 );
 COMMENT ON TABLE stage_nw.trip_template_routes IS
@@ -955,6 +957,22 @@ BEGIN
       FROM tt_with_nodes
     ),
     /*
+     * Add both enter and exit node to each edge so we know to which
+     * direction the edge is traversed.
+     */
+    jnoded_node_pair_routes AS (
+      SELECT
+        start_node,
+        end_node,
+        path_seq,
+        edge,
+        node  AS inode,
+        lead(node) OVER (
+          PARTITION BY start_node, end_node ORDER BY path_seq
+        )     AS jnode
+      FROM stage_nw.node_pair_routes
+    ),
+    /*
      * The last stops of each trip template do not occur in the above set
      * since there are no edges after them.
      * However, we want to add them "artificially" to the set.
@@ -967,23 +985,27 @@ BEGIN
         ttnp.ttid,
         ttnp.stop_seq,
         npr.path_seq,
-        npr.edge
+        npr.edge,
+        npr.inode,
+        npr.jnode
       FROM tt_nodepairs                    AS ttnp
-      LEFT JOIN stage_nw.node_pair_routes  AS npr
+      LEFT JOIN jnoded_node_pair_routes    AS npr
       ON ttnp.start_node = npr.start_node
         AND ttnp.end_node = npr.end_node
       WHERE npr.edge <> -1
       UNION
       SELECT
         ttid,
-        max(stop_seq) AS stop_seq,
-        0::integer AS path_seq,
-        -1::integer AS edge
+        max(stop_seq)   AS stop_seq,
+        0::integer      AS path_seq,
+        -1::integer     AS edge,
+        -1::integer     AS inode,
+        -1::integer     AS jnode
       FROM tt_nodepairs
       GROUP BY ttid
      )
   INSERT INTO stage_nw.trip_template_routes (
-   ttid, stop_seq, path_seq, edge
+   ttid, stop_seq, path_seq, edge, inode, jnode
   )
   SELECT * FROM tt_nodepairs_with_laststops
   ORDER BY ttid, stop_seq, path_seq;
@@ -1001,7 +1023,7 @@ BEGIN
   SET route_found = false;
 
   GET DIAGNOSTICS cnt = ROW_COUNT;
-  RAISE NOTICE 'route_found set to false for all % records in stage_gtfs.trip_template_arrays';
+  RAISE NOTICE 'route_found set to false for all % records in stage_gtfs.trip_template_arrays', cnt;
 
   WITH
     tta AS (
