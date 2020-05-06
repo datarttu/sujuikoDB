@@ -130,9 +130,47 @@ WITH
         PARTITION BY ttid ORDER BY part_num
       ) - part_dep  AS part_total_time
     FROM prepare_partition_aggregates
+  ),
+
+  prepare_partition_segments AS (
+    SELECT
+      rp.ttid,
+      rp.stop_seq,
+      rp.path_seq,
+      rp.linkid,
+      rp.inode,
+      rp.jnode,
+      rp.seg_len,
+      rp.i_stop,
+      rp.j_stop,
+      rp.i_strict,
+      rp.j_strict,
+      pa.part_num,
+      pa.part_len,
+      pa.part_i_time,
+      pa.part_j_time,
+      pa.part_total_time,
+      pa.part_i_time + (sum(rp.seg_len) OVER (
+        PARTITION BY rp.ttid, pa.part_num ORDER BY rp.stop_seq, rp.path_seq
+      ) / pa.part_len) * pa.part_total_time AS j_time
+    FROM tt_route_partitions        AS rp
+    INNER JOIN partition_aggregates AS pa
+      ON rp.ttid = pa.ttid AND rp.part_num = pa.part_num
+  ),
+
+  partition_segments AS (
+    SELECT
+      *,
+      coalesce(
+        lag(j_time) OVER (
+          PARTITION BY ttid, part_num ORDER BY stop_seq, path_seq
+        ),
+        part_i_time
+      ) AS i_time
+    FROM prepare_partition_segments
   )
 
 SELECT *
-FROM partition_aggregates
-ORDER BY ttid, part_num
+FROM partition_segments
+ORDER BY ttid, stop_seq, path_seq
 LIMIT 600;
