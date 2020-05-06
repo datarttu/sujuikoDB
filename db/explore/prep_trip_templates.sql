@@ -76,21 +76,24 @@ WITH
       CASE
         WHEN i_strict AND stop_seq > 1 THEN arr
         ELSE NULL
-      END                                     AS arr,
+      END                                               AS arr,
       CASE
         WHEN i_strict
           AND stop_seq < (max(stop_seq) OVER (PARTITION BY ttid))
           THEN dep
-        ELSE NULL END                         AS dep,
+        ELSE NULL END                                   AS dep,
       linkid,
       inode,
       jnode,
       seg_len,
       i_stop,
+      lead(i_stop) OVER (
+        PARTITION BY ttid ORDER BY stop_seq, path_seq)  AS j_stop,
       i_strict,
+      lead(i_strict) OVER (
+        PARTITION BY ttid ORDER BY stop_seq, path_seq)  AS j_strict,
       sum(i_strict::int) OVER (
-        PARTITION BY ttid ORDER BY stop_seq, path_seq
-      ) AS part_num
+        PARTITION BY ttid ORDER BY stop_seq, path_seq)  AS part_num
     FROM tt_routes
   )
 
