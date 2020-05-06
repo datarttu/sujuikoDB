@@ -95,9 +95,21 @@ WITH
       sum(i_strict::int) OVER (
         PARTITION BY ttid ORDER BY stop_seq, path_seq)  AS part_num
     FROM tt_routes
-  )
+  ),
+
+  partition_arr_dep_times AS (
+    SELECT
+      *,
+      /*
+       * Using min / max here should not make any difference,
+       * we just need the single values from the partition start.
+       */
+      min(arr) OVER (PARTITION BY ttid, part_num)       AS part_arr,
+      min(dep) OVER (PARTITION BY ttid, part_num)       AS part_dep
+    FROM tt_route_partitions
+  ),
 
 SELECT *
-FROM tt_route_partitions
+FROM partition_arr_dep_times
 ORDER BY ttid, stop_seq, path_seq
 LIMIT 600;
