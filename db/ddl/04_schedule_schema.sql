@@ -40,12 +40,12 @@ CREATE TABLE sched.segments (
   linkid            integer        NOT NULL REFERENCES nw.links(linkid),
   inode             integer        NOT NULL REFERENCES nw.nodes(nodeid),
   jnode             integer        NOT NULL REFERENCES nw.nodes(nodeid),
-  enter_hms         interval       NOT NULL,
-  exit_hms          interval,
-  enter_timing      sched.timing_type,
-  exit_timing       sched.timing_type,
-  enter_rel_dist    double precision,
-  exit_rel_dist     double precision,
+  i_time            interval       NOT NULL,
+  j_time            interval,
+  i_strict          boolean,
+  j_strict          boolean,
+  i_rel_dist        double precision,
+  j_rel_dist        double precision,
   PRIMARY KEY (ttid, linkid, enter_hms)
 );
 
