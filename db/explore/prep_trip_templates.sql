@@ -36,9 +36,17 @@ WITH
         ELSE timepoint
       END AS timepoint
     FROM tt_arr_unnested
+  ),
+
+  tt_discard_nontimepoint_times AS (
+    SELECT ttid, stop_seq,
+      CASE WHEN timepoint THEN arr ELSE NULL END AS arr,
+      CASE WHEN timepoint THEN dep ELSE NULL END AS dep,
+      timepoint
+    FROM tt_set_firstlast_timepoints
   )
 
 SELECT *
-FROM tt_set_firstlast_timepoints
+FROM tt_discard_nontimepoint_times
 ORDER BY ttid, stop_seq
 LIMIT 60;
