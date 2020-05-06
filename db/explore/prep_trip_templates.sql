@@ -25,7 +25,6 @@ WITH
     WHERE route_found IS true
       AND start_times IS NOT NULL
       AND dates IS NOT NULL
-      AND route_id = '1001' -- REMOVE THIS FILTER FOR PRODUCTION!!
   ),
 
   tt_set_firstlast_timepoints AS (
