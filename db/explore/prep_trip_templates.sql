@@ -66,9 +66,18 @@ WITH
      */
     LEFT JOIN nw.links                        AS l
       ON r.edge = l.linkid
+  ),
+
+  tt_route_partitions AS (
+    SELECT
+      *,
+      sum(i_strict::int) OVER (
+        PARTITION BY ttid ORDER BY stop_seq, path_seq
+      ) AS part_num
+    FROM tt_routes
   )
 
 SELECT *
-FROM tt_routes
+FROM tt_route_partitions
 ORDER BY ttid, stop_seq, path_seq
 LIMIT 60;
