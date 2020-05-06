@@ -67,6 +67,12 @@ WITH
       ttid,
       stop_seq,
       path_seq,
+      /*
+       * We remove stop times from anywhere but timepoint stop rows.
+       * Also, we remove arr time from the first stop
+       * and dep time from the last stop,
+       * so at least the intermediate result is a bit more clear for debugging.
+       */
       CASE
         WHEN i_strict AND stop_seq > 1 THEN arr
         ELSE NULL
