@@ -86,6 +86,8 @@ WITH
       inode,
       jnode,
       seg_len,
+      sum(seg_len) OVER (
+        PARTITION BY ttid ORDER BY stop_seq, path_seq)  AS cumul_len,
       i_stop,
       lead(i_stop) OVER (
         PARTITION BY ttid ORDER BY stop_seq, path_seq)  AS j_stop,
@@ -141,6 +143,7 @@ WITH
       rp.inode,
       rp.jnode,
       rp.seg_len,
+      rp.cumul_len,
       rp.i_stop,
       rp.j_stop,
       rp.i_strict,
@@ -152,7 +155,10 @@ WITH
       pa.part_total_time,
       pa.part_i_time + (sum(rp.seg_len) OVER (
         PARTITION BY rp.ttid, pa.part_num ORDER BY rp.stop_seq, rp.path_seq
-      ) / pa.part_len) * pa.part_total_time AS j_time
+      ) / pa.part_len) * pa.part_total_time   AS j_time,
+      rp.cumul_len / (sum(rp.seg_len) OVER (
+        PARTITION BY rp.ttid
+      ))                                      AS j_rel_dist
     FROM tt_route_partitions        AS rp
     INNER JOIN partition_aggregates AS pa
       ON rp.ttid = pa.ttid AND rp.part_num = pa.part_num
@@ -163,10 +169,14 @@ WITH
       *,
       coalesce(
         lag(j_time) OVER (
-          PARTITION BY ttid, part_num ORDER BY stop_seq, path_seq
-        ),
+          PARTITION BY ttid, part_num ORDER BY stop_seq, path_seq),
         part_i_time
-      ) AS i_time
+      ) AS i_time,
+      coalesce(
+        lag(j_rel_dist) OVER (
+          PARTITION BY ttid ORDER BY stop_seq, path_seq),
+        0
+      ) AS i_rel_dist
     FROM prepare_partition_segments
   )
 
