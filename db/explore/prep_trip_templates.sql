@@ -37,7 +37,7 @@ WITH
       END AS timepoint
     FROM tt_arr_unnested
   ),
-  
+
   tt_routes AS (
     SELECT
       s.ttid,
@@ -68,7 +68,7 @@ WITH
       stop_seq,
       path_seq,
       CASE
-        WHEN i_strict AND stop_seq > 0 THEN arr
+        WHEN i_strict AND stop_seq > 1 THEN arr
         ELSE NULL
       END                                     AS arr,
       CASE
@@ -91,4 +91,4 @@ WITH
 SELECT *
 FROM tt_route_partitions
 ORDER BY ttid, stop_seq, path_seq
-LIMIT 60;
+LIMIT 600;
