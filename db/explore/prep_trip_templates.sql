@@ -12,6 +12,8 @@
  *    A partition = route part between timepoint stops.
  */
 
+BEGIN;
+
 WITH
 
   tt_arr_unnested AS (
@@ -25,7 +27,6 @@ WITH
     WHERE route_found IS true
       AND start_times IS NOT NULL
       AND dates IS NOT NULL
-      AND route_id LIKE '1077%' -- REMOVE THIS AFTER EXPERIMENTING
   ),
 
   tt_set_firstlast_timepoints AS (
@@ -180,7 +181,13 @@ WITH
     FROM prepare_partition_segments
   )
 
-SELECT *
+INSERT INTO sched.segments (
+  ttid, linkid, i_node, j_node, i_time, j_time, i_stop, j_stop,
+  i_strict, j_strict, i_rel_dist, j_rel_dist
+)
+SELECT
+  ttid, linkid, inode, jnode, i_time, j_time, i_stop, j_stop,
+  i_strict, j_strict, i_rel_dist, j_rel_dist
 FROM partition_segments
-ORDER BY ttid, stop_seq, path_seq
-LIMIT 600;
+WHERE path_seq > 0
+ORDER BY ttid, i_time, linkid;
