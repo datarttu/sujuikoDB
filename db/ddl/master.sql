@@ -26,6 +26,11 @@ BEGIN;
 COMMIT;
 
 BEGIN;
+\ir obs/create_schema.sql
+\ir obs/base_tables.sql
+COMMIT;
+
+BEGIN;
 \ir stage_gtfs/create_schema.sql
 \ir stage_gtfs/base_tables.sql
 \ir stage_gtfs/service_dates.sql
