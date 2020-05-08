@@ -51,13 +51,23 @@ WITH
     INNER JOIN sched.segments AS s
       ON tt.ttid = s.ttid
     WHERE tt.start_time + s.j_time <= :'time_2'::interval
+  ),
+  per_hour AS (
+    SELECT
+      linkid,
+      extract(hour FROM op_date + i_time) AS hr,
+      op_date,
+      count(*)                            AS trips_per_hour,
+      string_agg(DISTINCT route || '_' || dir, ', ') AS routes
+    FROM add_segments
+    GROUP BY linkid, hr, op_date
+    ORDER BY linkid, hr, op_date
   )
 
 SELECT
   linkid,
-  min(op_date) || ' - ' || max(op_date) AS date_rng,
-  string_agg(DISTINCT route || '_' || dir, ', ') AS routes,
-  count(*) AS n_trips
-FROM add_segments
+  avg(trips_per_hour) AS n_trips,
+  max(routes)         AS routes
+FROM per_hour
 GROUP BY linkid
 ORDER BY linkid;
