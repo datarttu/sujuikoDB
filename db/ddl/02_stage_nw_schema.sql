@@ -1162,27 +1162,24 @@ BEGIN
         CASE
           WHEN i_strict AND stop_seq > 1 THEN arr
           ELSE NULL
-        END                                               AS arr,
+        END                               AS arr,
         CASE
           WHEN i_strict
             AND stop_seq < (max(stop_seq) OVER (PARTITION BY ttid))
             THEN dep
-          ELSE NULL END                                   AS dep,
+          ELSE NULL END                   AS dep,
         linkid,
         inode,
         jnode,
         seg_len,
-        sum(seg_len) OVER (
-          PARTITION BY ttid ORDER BY stop_seq, path_seq)  AS cumul_len,
+        sum(seg_len) OVER w_ttid          AS cumul_len,
         i_stop,
-        lead(i_stop) OVER (
-          PARTITION BY ttid ORDER BY stop_seq, path_seq)  AS j_stop,
+        lead(i_stop) OVER w_ttid          AS j_stop,
         i_strict,
-        lead(i_strict) OVER (
-          PARTITION BY ttid ORDER BY stop_seq, path_seq)  AS j_strict,
-        sum(i_strict::int) OVER (
-          PARTITION BY ttid ORDER BY stop_seq, path_seq)  AS part_num
+        lead(i_strict) OVER w_ttid        AS j_strict,
+        sum(i_strict::int) OVER w_ttid    AS part_num
       FROM tt_routes
+      WINDOW w_ttid AS (PARTITION BY ttid ORDER BY stop_seq, path_seq)
     ),
 
     prepare_partition_aggregates AS (
@@ -1205,19 +1202,16 @@ BEGIN
         ttid,
         part_num,
         part_len,
-        part_dep      AS part_i_time,
-        lead(part_arr) OVER (
-          PARTITION BY ttid ORDER BY part_num
-        )             AS part_j_time,
+        part_dep                                AS part_i_time,
+        lead(part_arr) OVER w_ttid              AS part_j_time,
         /*
          * Note that possible waiting times at stops, i.e. dep - arr,
          * are NOT included in the partition total driving times.
          * They are eventually taken into account at segment level.
          */
-        lead(part_arr) OVER (
-          PARTITION BY ttid ORDER BY part_num
-        ) - part_dep  AS part_total_time
+        lead(part_arr) OVER w_ttid - part_dep   AS part_total_time
       FROM prepare_partition_aggregates
+      WINDOW w_ttid AS (PARTITION BY ttid ORDER BY part_num)
     ),
 
     prepare_partition_segments AS (
