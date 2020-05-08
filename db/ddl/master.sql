@@ -12,6 +12,7 @@ CREATE DATABASE sujuiko;
 BEGIN;
 \ir types.sql
 COMMIT;
+
 BEGIN;
 \ir stage_gtfs/create_schema.sql
 \ir stage_gtfs/base_tables.sql
@@ -24,9 +25,9 @@ BEGIN;
 \ir stage_gtfs/normalized_stop_times.sql
 \ir stage_gtfs/trip_template_arrays.sql
 COMMIT;
+
 BEGIN;
 \i 02_stage_osm_schema.sql
-\i 02_stage_gtfs_schema.sql
 \i 02_stage_hfp_schema.sql
 \i 03_network_schema.sql
 \i 04_schedule_schema.sql
