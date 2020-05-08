@@ -1,13 +1,4 @@
 /*
- * Create tables for the observed transit service schema.
- *
- * Arttu K 2020-02
- */
-\c sujuiko;
-
-CREATE SCHEMA IF NOT EXISTS obs;
-
-/*
  * "vehid" is in fact redundant,
  * as it is directly derived from "oper" and "veh",
  * but we want to use a single primary key

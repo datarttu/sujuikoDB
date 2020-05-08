@@ -1,16 +1,3 @@
-/*
- * Create tables for the HFP staging schema.
- *
- * Arttu K 2020-02
- */
-\set ON_ERROR_STOP on
-\c sujuiko;
-
-BEGIN;
-\echo Creating stage_hfp schema ...
-
-CREATE SCHEMA IF NOT EXISTS stage_hfp;
-
 CREATE TABLE stage_hfp.raw (
   is_ongoing    boolean,
   event_type    text,
@@ -28,5 +15,3 @@ CREATE TABLE stage_hfp.raw (
   stop          integer,
   route         text
 );
-
-COMMIT;

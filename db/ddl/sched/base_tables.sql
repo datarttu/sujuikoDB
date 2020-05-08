@@ -1,16 +1,3 @@
-/*
- * Create tables for the scheduled (planned) transit service schema.
- *
- * Depends on the network schema "nw".
- *
- * Arttu K 2020-02
- */
-\set ON_ERROR_STOP on
-\c sujuiko;
-
-BEGIN;
-CREATE SCHEMA IF NOT EXISTS sched;
-
 CREATE TABLE sched.routes (
   route      text              PRIMARY KEY,
   mode       public.mode_type  NOT NULL
@@ -51,28 +38,3 @@ Values at link enter point are prefixed with `i`, and values at exit point with 
 `_strict`: true if `_time` at that point is absolute and "planned",
            false if it has been interpolated.
 `_rel_dist`: distance relative to the length of the entire trip template geometry.';
-
-CREATE VIEW sched.individual_trips AS (
-  WITH
-    unnest_dates AS (
-     SELECT
-       ttid,
-       route,
-       dir,
-       start_times,
-       unnest(dates)  AS service_date
-     FROM sched.trip_templates
-    )
-  SELECT
-   ttid,
-   route,
-   dir,
-   service_date,
-   unnest(start_times) AS start_time
-  FROM unnest_dates
-);
-COMMENT ON VIEW sched.individual_trips IS
-'Opens up trip templates into individual trips
-with start times and service dates.';
-
-COMMIT;
