@@ -6,6 +6,11 @@ AS $$
 DECLARE
   cnt   integer;
 BEGIN
+
+  DELETE FROM nw.nodes;
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE 'nw.nodes empty: % nodes deleted', cnt;
+
   PERFORM pgr_createTopology(
     'nw.links',
     0.01,
@@ -16,22 +21,25 @@ BEGIN
     rows_where  := 'true',
     clean       := true
   );
-  ALTER TABLE nw.links_vertices_pgr
-  RENAME TO nodes;
-  ALTER TABLE nw.nodes
-  RENAME COLUMN id TO nodeid;
-  ALTER TABLE nw.nodes
-  RENAME COLUMN the_geom TO geom;
-  ALTER TABLE nw.nodes
-  ADD COLUMN wgs_geom geometry(POINT, 4326);
+
+  INSERT INTO nw.nodes (
+    nodeid, cnt, chk, ein, eout, geom
+  )
+  SELECT id, cnt, chk, ein, eout, the_geom
+  FROM nw.links_vertices_pgr
+  ORDER BY nodeid;
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE '% node rows inserted into nw.nodes', cnt;
+  RETURN 'OK';
+
+  DROP TABLE nw.links_vertices_pgr;
+
   UPDATE nw.nodes
   SET wgs_geom = ST_Transform(geom, 4326);
-  GET DIAGNOSTICS cnt = ROW_COUNT;
-  RAISE NOTICE '% nodes created for nw.links', cnt;
-  RETURN 'OK';
+  RAISE NOTICE 'nw.nodes: wgs_geom set';
 
 END;
 $$;
 COMMENT ON FUNCTION nw.create_node_table IS
-'Create nw.nodes table by building topology from nw.links
-and renaming table and columns created by pgr_createTopology.';
+'Run pgr_createTopology on nw.links edge table,
+import result into nw.nodes table.';

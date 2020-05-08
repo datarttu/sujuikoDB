@@ -1,3 +1,15 @@
+CREATE TABLE nw.nodes (
+  nodeid        integer           PRIMARY KEY,
+  cnt           integer,
+  chk           integer,
+  ein           integer,
+  eout          integer,
+  geom          geometry(POINT, 3067),
+  wgs_geom      geometry(POINT, 4326)
+);
+CREATE INDEX ON nw.nodes USING GIST (geom);
+CREATE INDEX ON nw.nodes USING GIST (wgs_geom);
+
 CREATE TABLE nw.links (
   linkid        integer           PRIMARY KEY,
   inode         integer,
