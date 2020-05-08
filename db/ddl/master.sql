@@ -65,11 +65,3 @@ BEGIN;
 \ir stage_nw/trip_template_routes.sql
 \ir stage_nw/transfer_trip_templates.sql
 COMMIT;
-
-BEGIN;
-\i 02_stage_osm_schema.sql
-\i 02_stage_hfp_schema.sql
-\i 03_network_schema.sql
-\i 04_schedule_schema.sql
-\i 05_observation_schema.sql
-COMMIT;
