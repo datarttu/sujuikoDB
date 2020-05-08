@@ -7,8 +7,12 @@
 
 CREATE DATABASE sujuiko;
 
+\ir extensions.sql
+
 BEGIN;
-\i 01_extensions_global.sql
+\ir types.sql
+COMMIT;
+BEGIN;
 \ir stage_gtfs/create_schema.sql
 \ir stage_gtfs/base_tables.sql
 \ir stage_gtfs/service_dates.sql
