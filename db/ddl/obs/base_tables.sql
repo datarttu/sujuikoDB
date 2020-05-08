@@ -30,7 +30,7 @@ CREATE TABLE obs.journeys (
   ttid       text             NOT NULL REFERENCES sched.trip_templates(ttid),
   jrnid      uuid             NOT NULL, -- TODO: md5 trigger
   vehid      integer          NOT NULL REFERENCES obs.vehicles(vehid),
-  PRIMARY KEY (start_ts, tripid)
+  PRIMARY KEY (start_ts, ttid)
 );
 CREATE UNIQUE INDEX journeys_jrnid_idx
   ON obs.journeys (jrnid);
