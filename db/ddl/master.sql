@@ -4,7 +4,7 @@
  * Arttu K 2020-02
  */
 \set ON_ERROR_STOP on
-\set new_db_name sujuiko
+\set new_db_name test_sujuiko
 
 CREATE DATABASE :new_db_name;
 \c :new_db_name
