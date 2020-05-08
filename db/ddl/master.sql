@@ -27,6 +27,11 @@ BEGIN;
 COMMIT;
 
 BEGIN;
+\ir stage_hfp/create_schema.sql
+\ir stage_hfp/base_tables.sql
+COMMIT;
+
+BEGIN;
 \i 02_stage_osm_schema.sql
 \i 02_stage_hfp_schema.sql
 \i 03_network_schema.sql
