@@ -55,6 +55,6 @@ BEGIN
   RETURN 'OK';
 END;
 $$;
-COMMENT ON FUNCTION stage_gtfs.populate_trips_with_dates_trips IS
+COMMENT ON FUNCTION stage_gtfs.populate_trips_with_dates IS
 'Initializes and fills trips_with_dates table with trip ids,
 service ids, trip start times and validity dates.';
