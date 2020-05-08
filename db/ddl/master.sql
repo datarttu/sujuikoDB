@@ -32,6 +32,11 @@ BEGIN;
 COMMIT;
 
 BEGIN;
+\ir stage_osm/create_schema.sql
+\ir stage_osm/combined_lines.sql
+COMMIT;
+
+BEGIN;
 \i 02_stage_osm_schema.sql
 \i 02_stage_hfp_schema.sql
 \i 03_network_schema.sql

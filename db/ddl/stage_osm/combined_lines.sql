@@ -1,17 +1,4 @@
 /*
- * Create tables for the OSM staging schema.
- *
- * Arttu K 2020-02
- */
-\set ON_ERROR_STOP on
-\c sujuiko;
-
-BEGIN;
-\echo Creating stage_osm schema ...
-
-CREATE SCHEMA IF NOT EXISTS stage_osm;
-
-/*
  * Following tables are created by ogr2ogr when importing data:
  * CREATE TABLE stage_osm.raw_bus_lines (
  *   fid                          serial    PRIMARY KEY,
@@ -94,5 +81,3 @@ WITH
   GROUP BY mode;
   -- TODO: SELECT these into a logging table
 $$;
-
-COMMIT;
