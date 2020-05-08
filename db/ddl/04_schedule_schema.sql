@@ -11,15 +11,6 @@
 BEGIN;
 CREATE SCHEMA IF NOT EXISTS sched;
 
-/*
- * "timing" refers to the quality of a scheduled timestamp at a node or on a link:
- *
- * - `strict`:   strictly scheduled dep / arr timepoint at a stop in schedule
- * - `approx`:   estimated dep / arr time at a non-timepoint stop in schedule
- * - `interp`:   timestamp has been linearly interpolated (i.e., no schedule at hand for that location)
- */
-CREATE TYPE sched.timing_type AS ENUM('strict', 'approx', 'interp');
-
 CREATE TABLE sched.routes (
   route      text              PRIMARY KEY,
   mode       public.mode_type  NOT NULL
