@@ -20,6 +20,12 @@ BEGIN;
 COMMIT;
 
 BEGIN;
+\ir sched/create_schema.sql
+\ir sched/base_tables.sql
+\ir sched/views.sql
+COMMIT;
+
+BEGIN;
 \ir stage_gtfs/create_schema.sql
 \ir stage_gtfs/base_tables.sql
 \ir stage_gtfs/service_dates.sql
