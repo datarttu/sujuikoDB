@@ -6,6 +6,7 @@
 \set ON_ERROR_STOP on
 
 CREATE DATABASE sujuiko;
+\c sujuiko
 
 \ir extensions.sql
 
