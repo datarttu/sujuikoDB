@@ -14,6 +14,12 @@ BEGIN;
 COMMIT;
 
 BEGIN;
+\ir nw/create_schema.sql
+\ir nw/base_tables.sql
+\ir nw/create_node_table.sql
+COMMIT;
+
+BEGIN;
 \ir stage_gtfs/create_schema.sql
 \ir stage_gtfs/base_tables.sql
 \ir stage_gtfs/service_dates.sql
