@@ -27,7 +27,7 @@ CREATE UNIQUE INDEX vehicles_oper_veh_idx
  */
 CREATE TABLE obs.journeys (
   start_ts   timestamptz      NOT NULL,
-  tripid     text             NOT NULL REFERENCES sched.trips(tripid),
+  ttid       text             NOT NULL REFERENCES sched.trip_templates(ttid),
   jrnid      uuid             NOT NULL, -- TODO: md5 trigger
   vehid      integer          NOT NULL REFERENCES obs.vehicles(vehid),
   PRIMARY KEY (start_ts, tripid)
