@@ -37,6 +37,19 @@ BEGIN;
 COMMIT;
 
 BEGIN;
+\ir stage_nw/create_schema.sql
+\ir stage_nw/raw_nw.sql
+\ir stage_nw/contracted_nw.sql
+\ir stage_nw/snapped_stops.sql
+\ir stage_nw/populate_nw_links.sql
+\ir stage_nw/populate_nw_stops.sql
+\ir stage_nw/successive_nodes.sql
+\ir stage_nw/node_pair_routes.sql
+\ir stage_nw/trip_template_routes.sql
+\ir stage_nw/transfer_trip_templates.sql
+COMMIT;
+
+BEGIN;
 \i 02_stage_osm_schema.sql
 \i 02_stage_hfp_schema.sql
 \i 03_network_schema.sql
