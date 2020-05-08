@@ -39,10 +39,11 @@ CREATE INDEX journeys_vehid_idx
 
 CREATE TABLE obs.segments (
   enter_ts   timestamptz      NOT NULL,
-  linkid     integer          NOT NULL,
+  linkid     integer          NOT NULL REFERENCES nw.links(linkid),
+  inode      integer          NOT NULL REFERENCES nw.nodes(nodeid),
+  jnode      integer          NOT NULL REFERENCES nw.nodes(nodeid),
   jrnid      uuid             NOT NULL REFERENCES obs.journeys(jrnid),
   exit_ts    timestamptz,
   traj_pts   jsonb,
-  PRIMARY KEY (enter_ts, inode, jnode, jrnid),
-  FOREIGN KEY (inode, jnode) REFERENCES nw.links(inode, jnode)
+  PRIMARY KEY (enter_ts, linkid, jrnid)
 );
