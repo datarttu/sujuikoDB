@@ -74,7 +74,11 @@ BEGIN
     compressed_arrays AS (
       SELECT
         twd.route_id,
-        twd.direction_id,
+        /*
+         * NOTE: We do the conversion of direction id
+         *       from GTFS 0-1 to HFP 1-2 system here.
+         */
+        twd.direction_id + 1                                AS dir,
         twd.shape_id,
         sa.stop_ids,
         sa.stop_sequences,
@@ -90,7 +94,7 @@ BEGIN
       ON sa.trip_id = twd.trip_id
       GROUP BY
         twd.route_id,
-        twd.direction_id,
+        dir,
         twd.shape_id,
         sa.stop_ids,
         sa.stop_sequences,
@@ -108,12 +112,8 @@ BEGIN
     concat_ws(
       '_',
       route_id,
-      /*
-       * NOTE: We do an early conversion of direction id
-       *       from GTFS 0-1 to HFP 1-2 system here.
-       */
-      direction_id + 1,
-      row_number() OVER (PARTITION BY route_id, direction_id)
+      dir,
+      row_number() OVER (PARTITION BY route_id, dir)
     ) AS ttid,
     *
   FROM compressed_arrays;
