@@ -15,3 +15,9 @@ CREATE TABLE stage_hfp.raw (
   stop          integer,
   route         text
 );
+
+CREATE INDEX ON stage_hfp.raw USING BTREE (route, dir);
+CREATE INDEX ON stage_hfp.raw USING BRIN (oday, start);
+CREATE INDEX ON stage_hfp.raw USING BTREE (is_ongoing);
+SELECT *
+FROM create_hypertable('stage_hfp.raw', 'tst', chunk_time_interval => interval '1 hour');
