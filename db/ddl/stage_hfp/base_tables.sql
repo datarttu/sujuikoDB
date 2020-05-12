@@ -4,7 +4,7 @@ CREATE TABLE stage_hfp.raw (
   dir           smallint,
   oper          smallint,
   veh           integer,
-  tst           timestamptz,
+  tst           timestamptz   NOT NULL,
   lat           real,
   lon           real,
   odo           integer,
