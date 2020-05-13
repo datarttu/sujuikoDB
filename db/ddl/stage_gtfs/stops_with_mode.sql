@@ -6,6 +6,8 @@ CREATE TABLE stage_gtfs.stops_with_mode (
   descr         text,
   parent        integer,
   geom          geometry(POINT, 3067) NOT NULL,
+  geom_history  geometry(POINT, 3067)[],
+  history_times timestamptz[],
   PRIMARY KEY (stopid, mode)
 );
 COMMENT ON TABLE stage_gtfs.stops_with_mode IS
@@ -14,6 +16,24 @@ is indicated by multiple records.';
 CREATE INDEX stops_with_mode_geom_idx
   ON stage_gtfs.stops_with_mode
   USING GIST(geom);
+
+CREATE FUNCTION stage_gtfs.record_geom_mods()
+RETURNS TRIGGER
+LANGUAGE PLPGSQL
+AS $$
+BEGIN
+  IF NEW.geom IS DISTINCT FROM OLD.geom THEN
+    NEW.history_times = array_append(OLD.history_times, now());
+    NEW.geom_history = array_append(OLD.geom_history, OLD.geom);
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER geom_mod_recorder
+  BEFORE UPDATE ON stage_gtfs.stops_with_mode
+  FOR EACH ROW
+  EXECUTE FUNCTION stage_gtfs.record_geom_mods();
 
 CREATE OR REPLACE FUNCTION stage_gtfs.populate_stops_with_mode()
 RETURNS TABLE (
@@ -49,7 +69,9 @@ BEGIN
       ON st.trip_id = t.trip_id
     ),
     inserted AS (
-      INSERT INTO stage_gtfs.stops_with_mode
+      INSERT INTO stage_gtfs.stops_with_mode (
+        stopid, mode, code, name, descr, parent, geom
+      )
       SELECT
         s.stop_id     AS stopid,
         m.mode        AS mode,
