@@ -1,14 +1,13 @@
 CREATE TABLE stage_gtfs.stops_with_mode (
-  stopid        integer           NOT NULL,
-  mode          public.mode_type  NOT NULL,
+  stopid        integer                   PRIMARY KEY,
+  mode          public.mode_type          NOT NULL,
   code          text,
   name          text,
   descr         text,
   parent        integer,
-  geom          geometry(POINT, 3067) NOT NULL,
+  geom          geometry(POINT, 3067)     NOT NULL,
   geom_history  geometry(POINT, 3067)[],
-  history_times timestamptz[],
-  PRIMARY KEY (stopid, mode)
+  history_times timestamptz[]
 );
 COMMENT ON TABLE stage_gtfs.stops_with_mode IS
 'Stops with travel mode; same stop for multiple modes
