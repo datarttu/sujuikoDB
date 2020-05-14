@@ -10,8 +10,8 @@ CREATE TABLE stage_gtfs.stops_with_mode (
   history_times timestamptz[]
 );
 COMMENT ON TABLE stage_gtfs.stops_with_mode IS
-'Stops with travel mode; same stop for multiple modes
-is indicated by multiple records.';
+'Stops with travel mode.
+History fields describe old geometries and the times they were modified.';
 CREATE INDEX stops_with_mode_geom_idx
   ON stage_gtfs.stops_with_mode
   USING GIST(geom);
