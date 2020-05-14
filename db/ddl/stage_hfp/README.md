@@ -83,6 +83,15 @@ Various per-journey statistics are calculated so they can be used later for vali
     Note, though, that some observations are duplicated over `tst`, distinct by `event_type`,
     so this is not a completely accurate metric.
 
+Based on `oday`, `start`, `route` and `dir`, for each journey
+we look up for a corresponding trip template from `sched` schema.
+Matching journeys get a `ttid` value.
+Non-matching journeys should be discarded as invalid ones.
+Then we can fill some geometry values regarding the journey as a whole:
+
+- `line_raw_length`: length of the linestring composed by raw observation points, in meters
+- `line_tt_length`: length of the linestring given by `ttid` from the `sched` schema
+- `line_ref_length`: length of the linestring composed by raw points that are projected on the trip template linestring, without "reverse" parts
 
 
 - `invalid_reasons`: reasons why a journey is considered invalid and therefore discarded
