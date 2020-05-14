@@ -47,19 +47,15 @@ BEGIN
   WITH
     mode_routes AS (
       SELECT
-        route_id,
-        (CASE
-         WHEN route_type = 0 THEN 'tram'
-         WHEN route_type IN (700, 701, 702, 704) THEN 'bus'
-         END
-        )::public.mode_type AS mode
-      FROM stage_gtfs.routes
+        route,
+        mode
+      FROM sched.routes
     ),
     mode_trips AS (
       SELECT t.trip_id, r.mode
       FROM stage_gtfs.trips     AS t
         INNER JOIN mode_routes  AS r
-        ON t.route_id = r.route_id
+        ON t.route_id = r.route
     ),
     mode_stoptimes AS (
       SELECT DISTINCT st.stop_id, t.mode
