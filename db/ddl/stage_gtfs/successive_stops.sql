@@ -8,6 +8,7 @@ COMMENT ON TABLE stage_gtfs.successive_stops IS
 for finding network routes between stops.
 Based on ALL bus and tram stops found in the GTFS data.';
 
+-- TODO: Use trip template arrays rather than raw stop times
 CREATE OR REPLACE FUNCTION stage_gtfs.populate_successive_stops()
 RETURNS TEXT
 LANGUAGE PLPGSQL
