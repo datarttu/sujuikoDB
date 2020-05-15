@@ -53,6 +53,9 @@ This is apparently too high (example from Mannerheimintie-Nordenskiöldinkatu):
 In this case, the node above `5950` is not included in the network topology, and pgRouting thinks that the merging tram tracks go both via `5950` and `6503`.
 A smaller tolerance value should be used, though it should not be too low.
 
+*2020-05-15: topology tolerance has now been set to 0.01, i.e. 1 cm, for `stage_nw.raw_nw` and `stage_nw.contracted_nw`.
+nw.links already had that tolerance.*
+
 ### Incomplete GTFS route identifiers
 
 See `scripts/import_gtfs.sql` notes:
