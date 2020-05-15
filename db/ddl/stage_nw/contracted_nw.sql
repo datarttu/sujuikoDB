@@ -141,7 +141,7 @@ BEGIN
   RAISE NOTICE '  Creating pgr topology on contracted network ...';
   PERFORM pgr_createTopology(
     'stage_nw.contracted_nw',
-    1.0,
+    0.01,
     the_geom := 'geom',
     id := 'id',
     source := 'source',

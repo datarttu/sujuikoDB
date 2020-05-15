@@ -52,7 +52,7 @@ BEGIN
   -- NOTE: tolerance in meters! (EPSG 3067)
   PERFORM pgr_createTopology(
     'stage_nw.raw_nw',
-    1.0,
+    0.01,
     the_geom := 'geom',
     id := 'id',
     source := 'source',
