@@ -18,15 +18,14 @@
  */
 
 CREATE TABLE stage_osm.combined_lines (
-  osm_id                      bigserial           NOT NULL,
-  sub_id                      smallint            NOT NULL DEFAULT 1,
+  fid                         serial              PRIMARY KEY,
+  osm_id                      bigint                  NULL,
   oneway                      text                NOT NULL,
   mode                        public.mode_type    NOT NULL,
   highway                     text,
   lanes                       smallint,
   tram_segregation_physical   text,
-  geom                        geometry(LINESTRING, 3067),
-  PRIMARY KEY (osm_id, sub_id)
+  geom                        geometry(LINESTRING, 3067)
 );
 
 CREATE INDEX combined_lines_geom_idx
@@ -34,6 +33,7 @@ CREATE INDEX combined_lines_geom_idx
   USING GIST (geom);
 
 CREATE INDEX ON stage_osm.combined_lines (mode);
+CREATE INDEX ON stage_osm.combined_lines (osm_id);
 
 CREATE OR REPLACE FUNCTION stage_osm.populate_combined_lines()
 RETURNS TEXT
@@ -102,11 +102,11 @@ BEGIN
   DROP TABLE IF EXISTS stage_osm.unconnected_combined_lines;
   CREATE TABLE stage_osm.unconnected_combined_lines AS (
     SELECT
-      f.osm_id                                    AS failing_link,
-      t.osm_id                                    AS touching_link,
-      f.mode                                      AS mode,
-      f.geom                                      AS f_geom,
-      t.geom                                      AS t_geom
+      f.fid       AS failing_link,
+      t.fid       AS touching_link,
+      f.mode      AS mode,
+      f.geom      AS f_geom,
+      t.geom      AS t_geom
     FROM stage_osm.combined_lines       AS f
     INNER JOIN stage_osm.combined_lines AS t
     /*
@@ -120,7 +120,7 @@ BEGIN
       AND f.mode = t.mode
   );
   SELECT
-    'Failing links to split: '
+    'Failing split locations to fix: '
     || count(*) filter(WHERE mode = 'bus'::mode_type) || ' bus, '
     || count(*) filter(WHERE mode = 'tram'::mode_type) || ' tram'
   INTO s_info
@@ -165,19 +165,15 @@ BEGIN
     )
     SELECT
       failing_link,
-      row_number() OVER (
-        PARTITION BY failing_link) AS sub_id,
       f_geom,
       sp_geom
     FROM split
   );
 
   INSERT INTO stage_osm.combined_lines (
-    osm_id, sub_id, oneway, mode, highway, lanes, tram_segregation_physical, geom
+    oneway, mode, highway, lanes, tram_segregation_physical, geom
   )
   SELECT
-    scl.failing_link              AS osm_id,
-    scl.sub_id                    AS sub_id,
     cl.oneway                     AS oneway,
     cl.mode                       AS mode,
     cl.highway                    AS highway,
@@ -186,12 +182,18 @@ BEGIN
     scl.sp_geom                   AS geom
   FROM stage_osm.split_combined_lines   AS scl
   INNER JOIN stage_osm.combined_lines   AS cl
-    ON scl.failing_link = cl.osm_id
-  ON CONFLICT ON CONSTRAINT combined_lines_pkey DO UPDATE
-    SET geom = EXCLUDED.geom;
+    ON scl.failing_link = cl.fid;
 
   GET DIAGNOSTICS cnt = ROW_COUNT;
-  RAISE NOTICE '% rows inserted or updated', cnt;
+  RAISE NOTICE '% rows inserted', cnt;
+
+  DELETE FROM stage_osm.combined_lines
+  WHERE fid IN (
+    SELECT DISTINCT failing_link FROM stage_osm.split_combined_lines
+  );
+
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE '% old rows deleted', cnt;
 
   IF drop_intermediate_tables THEN
     RAISE NOTICE 'Dropping intermediate tables';
