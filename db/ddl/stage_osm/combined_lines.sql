@@ -32,52 +32,49 @@ CREATE INDEX combined_lines_geom_idx
   USING GIST (geom);
 
 CREATE OR REPLACE FUNCTION stage_osm.populate_combined_lines()
-RETURNS TABLE (
-  mode            public.mode_type,
-  rows_inserted   bigint
-)
-LANGUAGE SQL
+RETURNS TEXT
+LANGUAGE PLPGSQL
 VOLATILE
 AS $$
-WITH
-  bus_cast AS (
-    SELECT
-      osm_id::bigint                AS osm_id,
-      CASE
-        WHEN oneway = 'yes' THEN 'FT'
-        WHEN oneway = 'no' THEN 'B'
-        WHEN oneway IS NULL THEN 'B'
-      END                           AS oneway,
-      'bus'::public.mode_type       AS mode,
-      highway::text                 AS highway,
-      round(lanes::real)::smallint  AS lanes,  -- There may appear values like '1.8' ...
-      NULL::text                    AS tram_segregation_physical,
-      ST_Transform(geom, 3067)      AS geom
-    FROM stage_osm.raw_bus_lines
-  ),
-  tram_cast AS (
-    SELECT
-      osm_id::bigint                    AS osm_id,
-      'FT'::text                        AS oneway,
-      'tram'::public.mode_type          AS mode,
-      NULL::text                        AS highway,
-      NULL::smallint                    AS lanes,
-      tram_segregation_physical::text   AS tram_segregation_physical,
-      ST_Transform(geom, 3067)          AS geom
-    FROM stage_osm.raw_tram_lines
-  ),
-  combined_insert AS (
-    INSERT INTO stage_osm.combined_lines
-    SELECT * FROM bus_cast
-    UNION
-    SELECT * FROM tram_cast
-    ON CONFLICT DO NOTHING
-    RETURNING mode
-  )
-  SELECT
-    mode,
-    count(mode) AS rows_inserted
-  FROM combined_insert
-  GROUP BY mode;
-  -- TODO: SELECT these into a logging table
+DECLARE
+  cnt     bigint;
+BEGIN
+  WITH
+    bus_cast AS (
+      SELECT
+        osm_id::bigint                AS osm_id,
+        CASE
+          WHEN oneway = 'yes' THEN 'FT'
+          WHEN oneway = 'no' THEN 'B'
+          WHEN oneway IS NULL THEN 'B'
+        END                           AS oneway,
+        'bus'::public.mode_type       AS mode,
+        highway::text                 AS highway,
+        round(lanes::real)::smallint  AS lanes,  -- There may appear values like '1.8' ...
+        NULL::text                    AS tram_segregation_physical,
+        ST_Transform(geom, 3067)      AS geom
+      FROM stage_osm.raw_bus_lines
+    ),
+    tram_cast AS (
+      SELECT
+        osm_id::bigint                    AS osm_id,
+        'FT'::text                        AS oneway,
+        'tram'::public.mode_type          AS mode,
+        NULL::text                        AS highway,
+        NULL::smallint                    AS lanes,
+        tram_segregation_physical::text   AS tram_segregation_physical,
+        ST_Transform(geom, 3067)          AS geom
+      FROM stage_osm.raw_tram_lines
+    )
+  INSERT INTO stage_osm.combined_lines
+  SELECT * FROM bus_cast
+  UNION
+  SELECT * FROM tram_cast
+  ON CONFLICT DO NOTHING;
+
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE '% rows inserted into stage_osm.combined_lines', cnt;
+
+  RETURN 'OK';
+END;
 $$;
