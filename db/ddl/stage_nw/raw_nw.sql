@@ -37,12 +37,21 @@ BEGIN
     id, cost, reverse_cost, oneway, mode, geom
   )
   SELECT
-    c.osm_id AS id,
-    ST_Length(c.geom) AS cost,
+    /*
+     * FIXME: Here's a workaround to assign usable ids,
+     *        but this could be more sophisticated / trackable.
+     *        We have to get rid of osm ids, some of which became duplicated
+     *        after stage_osm.fix_unconnected_combined_lines(),
+     *        but the ids still have to be large enough, because
+     *        stage_nw.build_contracted_network() will assign a set of new
+     *        ids originally -1, -2, ... that are converted to 1, 2, ...
+     */
+    1000000 + row_number() OVER ()    AS id,
+    ST_Length(c.geom)                 AS cost,
     CASE
       WHEN c.oneway LIKE 'FT' THEN -1
       ELSE ST_Length(c.geom)
-      END AS reverse_cost,
+      END                             AS reverse_cost,
     c.oneway,
     c.mode,
     c.geom

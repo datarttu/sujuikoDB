@@ -125,7 +125,7 @@ BEGIN
   /*
    * Replace negative ids produced by the contraction routine.
    * We rely on the fact that the least id used by OSM-based edges
-   * is > 2,000,000, and there are just thousands of contracted edges,
+   * is 1,000,000, and there are just thousands of contracted edges,
    * so we just flip the negative id sign.
    */
   UPDATE stage_nw.contracted_nw
