@@ -18,13 +18,15 @@
  */
 
 CREATE TABLE stage_osm.combined_lines (
-  osm_id                      bigserial           PRIMARY KEY,
+  osm_id                      bigserial           NOT NULL,
+  sub_id                      smallint            NOT NULL DEFAULT 1,
   oneway                      text                NOT NULL,
   mode                        public.mode_type    NOT NULL,
   highway                     text,
   lanes                       smallint,
   tram_segregation_physical   text,
-  geom                        geometry(LINESTRING, 3067)
+  geom                        geometry(LINESTRING, 3067),
+  PRIMARY KEY (osm_id, sub_id)
 );
 
 CREATE INDEX combined_lines_geom_idx
@@ -66,7 +68,9 @@ BEGIN
         ST_Transform(geom, 3067)          AS geom
       FROM stage_osm.raw_tram_lines
     )
-  INSERT INTO stage_osm.combined_lines
+  INSERT INTO stage_osm.combined_lines (
+    osm_id, oneway, mode, highway, lanes, tram_segregation_physical, geom
+  )
   SELECT * FROM bus_cast
   UNION
   SELECT * FROM tram_cast
