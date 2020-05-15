@@ -27,7 +27,7 @@ BEGIN
   )
   SELECT id, cnt, chk, ein, eout, the_geom
   FROM nw.links_vertices_pgr
-  ORDER BY nodeid;
+  ORDER BY id;
   GET DIAGNOSTICS cnt_rows = ROW_COUNT;
   RAISE NOTICE '% node rows inserted into nw.nodes', cnt_rows;
   RETURN 'OK';
