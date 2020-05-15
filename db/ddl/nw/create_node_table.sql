@@ -4,12 +4,12 @@ LANGUAGE PLPGSQL
 VOLATILE
 AS $$
 DECLARE
-  cnt   integer;
+  cnt_rows   integer;
 BEGIN
 
   DELETE FROM nw.nodes;
-  GET DIAGNOSTICS cnt = ROW_COUNT;
-  RAISE NOTICE 'nw.nodes empty: % nodes deleted', cnt;
+  GET DIAGNOSTICS cnt_rows = ROW_COUNT;
+  RAISE NOTICE 'nw.nodes empty: % nodes deleted', cnt_rows;
 
   PERFORM pgr_createTopology(
     'nw.links',
@@ -28,8 +28,8 @@ BEGIN
   SELECT id, cnt, chk, ein, eout, the_geom
   FROM nw.links_vertices_pgr
   ORDER BY nodeid;
-  GET DIAGNOSTICS cnt = ROW_COUNT;
-  RAISE NOTICE '% node rows inserted into nw.nodes', cnt;
+  GET DIAGNOSTICS cnt_rows = ROW_COUNT;
+  RAISE NOTICE '% node rows inserted into nw.nodes', cnt_rows;
   RETURN 'OK';
 
   DROP TABLE nw.links_vertices_pgr;
