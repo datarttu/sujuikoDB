@@ -33,6 +33,8 @@ CREATE INDEX combined_lines_geom_idx
   ON stage_osm.combined_lines
   USING GIST (geom);
 
+CREATE INDEX ON stage_osm.combined_lines (mode);
+
 CREATE OR REPLACE FUNCTION stage_osm.populate_combined_lines()
 RETURNS TEXT
 LANGUAGE PLPGSQL
