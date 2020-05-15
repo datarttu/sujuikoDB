@@ -27,7 +27,8 @@ Below is an example from Huutokonttori, Jätkäsaari.
 
 ![Example of stop points that will snap to wrong links.](img/inaccurate_gtfs_stop_locations_example.png)
 
-For tram stops, this issue can be examined with `db/patches/find_missnapped_tram_stops.sql` and fixed manually with `db/patches/tram_stops_of_stops_with_mode.sql`.
+For tram stops, this issue can be examined with `db/patches/find_missnapped_tram_stops.sql` and fixed manually with `db/patches/move_misplaced_stops.sql`.
+Bus stops have not yet been reviewed but fixes on them can be appended to the same patch file.
 
 ### Invalid OSM topology
 
