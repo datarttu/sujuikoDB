@@ -85,6 +85,77 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION stage_osm.split_ring_geoms_combined_lines(
+  drop_intermediate_tables  boolean   DEFAULT true
+)
+RETURNS TEXT
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+DECLARE
+  cnt     bigint;
+BEGIN
+  DROP TABLE IF EXISTS stage_osm.ring_geoms_combined_lines;
+
+  CREATE TABLE stage_osm.ring_geoms_combined_lines AS (
+    SELECT
+      fid,
+      geom
+    FROM stage_osm.combined_lines
+    WHERE ST_IsClosed(geom)
+  );
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE 'Found % ring geometries', cnt;
+
+  WITH
+    split AS (
+      SELECT
+        fid,
+        (ST_Dump(
+          ST_Split(
+            geom,
+            ST_PointN(
+              geom,
+              ST_NPoints(geom) / 2
+            )
+          )
+        )).geom AS geom
+      FROM stage_osm.ring_geoms_combined_lines
+    )
+  INSERT INTO stage_osm.combined_lines (
+    osm_id, oneway, mode, highway, lanes, tram_segregation_physical, geom
+  )
+  SELECT
+    cl.osm_id,
+    cl.oneway,
+    cl.mode,
+    cl.highway,
+    cl.lanes,
+    cl.tram_segregation_physical,
+    s.geom
+  FROM split                          AS s
+  INNER JOIN stage_osm.combined_lines AS cl
+    ON s.fid = cl.fid;
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE '% new geometries inserted', cnt;
+
+  DELETE FROM stage_osm.combined_lines
+  WHERE fid IN (SELECT fid FROM stage_osm.ring_geoms_combined_lines);
+  GET DIAGNOSTICS cnt = ROW_COUNT;
+  RAISE NOTICE '% old ring geometries deleted', cnt;
+
+  IF drop_intermediate_tables THEN
+    RAISE NOTICE 'Dropping intermediate tables';
+    DROP TABLE stage_osm.ring_geoms_combined_lines;
+  END IF;
+
+  RETURN 'OK';
+END;
+$$;
+COMMENT ON FUNCTION stage_osm.split_ring_geoms_combined_lines IS
+'Split ring geometries, i.e. those where start pt = end pt,
+into two linestrings to enable fixing unconnected lines on them.';
+
 /*
  * TODO: This function seems not to fix all the spots necessary, investigate!
  */
