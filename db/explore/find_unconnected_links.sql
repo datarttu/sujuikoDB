@@ -26,49 +26,29 @@ SELECT ST_Relate(
 );
 */
 
-DROP TABLE IF EXISTS failing_tram_links;
-CREATE TABLE failing_tram_links AS (
-  WITH failing AS (
-    SELECT
-      a.linkid  AS failing_link,
-      b.linkid  AS touching_link,
-      a.geom    AS geom
-    FROM nw.links       AS a
-    INNER JOIN nw.links AS b
-    ON ST_Touches(a.geom, b.geom)
-    WHERE a.mode = 'tram'::mode_type
-      AND b.mode = 'tram'::mode_type
-      AND ST_Relate(a.geom, b.geom, 'F01FF0102')
-  )
-  SELECT
-    failing_link,
-    array_agg(touching_link ORDER BY touching_link) AS touching_links,
-    geom
-  FROM failing
-  GROUP BY failing_link, geom
-  ORDER BY failing_link
-);
+BEGIN;
 
-DROP TABLE IF EXISTS failing_bus_links;
-CREATE TABLE failing_bus_links AS (
+DROP TABLE IF EXISTS unconnected_osm_links;
+CREATE TABLE unconnected_osm_links AS (
   WITH failing AS (
     SELECT
-      a.linkid  AS failing_link,
-      b.linkid  AS touching_link,
+      a.osm_id  AS failing_link,
+      b.osm_id  AS touching_link,
+      a.mode    AS mode,
       a.geom    AS geom
-    FROM nw.links       AS a
-    INNER JOIN nw.links AS b
+    FROM stage_osm.combined_lines       AS a
+    INNER JOIN stage_osm.combined_lines AS b
     ON ST_Touches(a.geom, b.geom)
-    WHERE a.mode = 'bus'::mode_type
-      AND b.mode = 'bus'::mode_type
+    WHERE a.mode = b.mode
       AND ST_Relate(a.geom, b.geom, 'F01FF0102')
   )
   SELECT
     failing_link,
+    mode,
     array_agg(touching_link ORDER BY touching_link) AS touching_links,
     geom
   FROM failing
-  GROUP BY failing_link, geom
+  GROUP BY failing_link, mode, geom
   ORDER BY failing_link
 );
 
