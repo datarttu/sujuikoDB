@@ -102,7 +102,7 @@ BEGIN
       fid,
       geom
     FROM stage_osm.combined_lines
-    WHERE ST_IsClosed(geom)
+    WHERE ST_IsRing(geom)
   );
   GET DIAGNOSTICS cnt = ROW_COUNT;
   RAISE NOTICE 'Found % ring geometries', cnt;
