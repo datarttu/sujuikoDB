@@ -21,3 +21,16 @@ CREATE OR REPLACE VIEW stage_nw.view_trip_template_segments AS (
   LEFT JOIN nw.links                      AS li
     ON tr.edge = li.linkid
 );
+
+CREATE OR REPLACE VIEW stage_nw.view_nodepairs_not_routed AS (
+  SELECT
+    sn.i_node                       AS i,
+    sn.j_node                       AS j,
+    ST_MakeLine(ind.geom, jnd.geom) AS geom
+  FROM stage_nw.successive_nodes  AS sn
+  INNER JOIN nw.nodes             AS ind
+    ON sn.i_node = ind.nodeid
+  INNER JOIN nw.nodes             AS jnd
+    ON sn.j_node = jnd.nodeid
+  WHERE sn.routed IS false
+);
