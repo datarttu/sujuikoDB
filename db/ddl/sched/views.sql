@@ -43,3 +43,6 @@ CREATE VIEW sched.view_trip_segments AS (
   INNER JOIN sched.segments AS sg
     ON tp.ttid = sg.ttid
 );
+COMMENT ON VIEW sched.view_trip_segments IS
+'Segments of individual trips,
+with absolute link enter (i) and exit (j) timestamps.';
