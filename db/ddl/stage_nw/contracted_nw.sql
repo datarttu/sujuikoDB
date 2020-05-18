@@ -115,7 +115,12 @@ BEGIN
       NULL::bigint                    AS target,
       min(oneway)                     AS oneway,
       min(mode)                       AS mode,
-      ST_LineMerge(ST_Collect(geom))  AS geom,
+      ST_LineMerge(
+        ST_SnapToGrid(
+          ST_Collect(geom),
+          0.001
+        )
+      )  AS geom,
       false                           AS is_contracted
     FROM all_edges_before_merging
     GROUP BY merge_group
@@ -138,17 +143,7 @@ BEGIN
   ALTER TABLE stage_nw.contracted_nw
   ADD PRIMARY KEY (id);
 
-  RAISE NOTICE '  Creating pgr topology on contracted network ...';
-  PERFORM pgr_createTopology(
-    'stage_nw.contracted_nw',
-    0.01,
-    the_geom := 'geom',
-    id := 'id',
-    source := 'source',
-    target := 'target',
-    rows_where := 'true',
-    clean := true
-  );
+  CREATE INDEX ON stage_nw.contracted_nw USING GIST (geom);
 
   RETURN 'OK';
 
