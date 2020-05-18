@@ -1,3 +1,4 @@
+DROP VIEW IF EXISTS sched.view_trips;
 CREATE VIEW sched.view_trips AS (
   WITH
     unnest_dates AS (
@@ -24,6 +25,7 @@ COMMENT ON VIEW sched.view_trips IS
 'Opens up trip templates into individual trips
 with actual start datetimes.';
 
+DROP VIEW IF EXISTS sched.view_trip_segments;
 CREATE VIEW sched.view_trip_segments AS (
   SELECT
     tp.ttid,
