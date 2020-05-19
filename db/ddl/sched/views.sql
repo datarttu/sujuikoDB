@@ -59,10 +59,36 @@ COMMENT ON VIEW sched.view_trip_segments IS
 'Segments of individual trips,
 with absolute link enter (i) and exit (j) timestamps.';
 
-DROP VIEW IF EXISTS sched.view_trip_template_geoms AS (
+DROP VIEW IF EXISTS sched.view_segment_geoms;
+CREATE VIEW sched.view_segment_geoms AS (
   SELECT
     sg.ttid,
-    ST_MakeLine(
-      li.geom
-    )
-)
+    sg.linkid,
+    sg.i_node,
+    sg.j_node,
+    sg.i_time,
+    li.reversed,
+    li.geom
+  FROM sched.segments                     AS sg
+  INNER JOIN nw.view_links_with_reverses  AS li
+    ON  sg.linkid = li.linkid
+    AND sg.i_node = li.inode
+    AND sg.j_node = li.jnode
+);
+COMMENT ON VIEW sched.view_segment_geoms IS
+'Trip template segments with their respective link geometries.
+"reversed" indicates if a reversed two-way link geometry is referenced,
+by inverting i and j.';
+
+DROP MATERIALIZED VIEW IF EXISTS sched.mw_trip_template_geoms;
+CREATE MATERIALIZED VIEW sched.mw_trip_template_geoms AS (
+  SELECT
+    ttid,
+    ST_MakeLine(geom ORDER BY i_time) AS geom
+  FROM sched.view_segment_geoms
+  GROUP BY ttid
+);
+COMMENT ON MATERIALIZED VIEW sched.mw_trip_template_geoms IS
+'Linestring geometries of entire trip templates.';
+
+CREATE INDEX ON sched.mw_trip_template_geoms USING GIST(geom);
