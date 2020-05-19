@@ -1,7 +1,6 @@
 CREATE TABLE stage_hfp.journeys (
   jrnid             uuid        PRIMARY KEY,
-  oday              date        NOT NULL,
-  start             interval    NOT NULL,
+  start_ts          timestamptz NOT NULL,
   route             text        NOT NULL,
   dir               smallint    NOT NULL CHECK (dir IN (1, 2)),
   oper              smallint    NOT NULL,
@@ -25,7 +24,7 @@ CREATE TABLE stage_hfp.journeys (
   invalid_reasons   text[]      DEFAULT '{}'
 );
 
-CREATE INDEX ON stage_hfp.journeys (start);
+CREATE INDEX ON stage_hfp.journeys (start_ts);
 CREATE INDEX ON stage_hfp.journeys (route, dir);
 CREATE INDEX ON stage_hfp.journeys (oper, veh);
 CREATE INDEX ON stage_hfp.journeys (array_length(invalid_reasons, 1));
