@@ -14,7 +14,8 @@ CREATE TABLE stage_hfp.raw (
   loc           text,
   stop          integer,
   route         text,
-  jrnid         uuid
+  jrnid         uuid,
+  geom          geometry(POINT, 3067)
 );
 
 CREATE INDEX ON stage_hfp.raw USING BTREE (route, dir);
@@ -22,31 +23,32 @@ CREATE INDEX ON stage_hfp.raw USING BRIN (oday, start);
 CREATE INDEX ON stage_hfp.raw USING BTREE (is_ongoing);
 CREATE INDEX ON stage_hfp.raw USING BTREE (jrnid);
 
-CREATE FUNCTION stage_hfp.jrnid_generator()
+CREATE FUNCTION stage_hfp.set_geom_jrnid_fields()
 RETURNS trigger
 LANGUAGE PLPGSQL
 AS
 $$
 BEGIN
+  NEW.geom := ST_Transform(
+    ST_SetSRID(
+      ST_MakePoint(NEW.lon, NEW.lat),
+      4326),
+    3067);
+
   NEW.jrnid := md5(
     concat_ws(
       '_',
-      NEW.oday,
-      NEW.start,
-      NEW.route,
-      NEW.dir,
-      NEW.oper,
-      NEW.veh
+      NEW.oday, NEW.start, NEW.route, NEW.dir, NEW.oper, NEW.veh
     )
   )::uuid;
   RETURN NEW;
 END;
 $$;
 
-CREATE TRIGGER generate_jrnid
+CREATE TRIGGER fill_additional_fields
 BEFORE INSERT ON stage_hfp.raw
 FOR EACH ROW
-EXECUTE PROCEDURE stage_hfp.jrnid_generator();
+EXECUTE PROCEDURE stage_hfp.insert_handler();
 
 SELECT *
 FROM create_hypertable('stage_hfp.raw', 'tst', chunk_time_interval => interval '1 hour');
