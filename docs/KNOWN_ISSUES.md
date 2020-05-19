@@ -30,6 +30,10 @@ Below is an example from Huutokonttori, Jätkäsaari.
 For tram stops, this issue can be examined with `db/patches/find_missnapped_tram_stops.sql` and fixed manually with `db/patches/move_misplaced_stops.sql`.
 Bus stops have not yet been reviewed but fixes on them can be appended to the same patch file.
 
+Note that some stops are located correctly in the 2D map, but they might still be on a bridge and get incorrectly attached to the link going under that bridge, for example.
+See e.g. stop `1341104 / 2304` in Kehä I, Pakila.
+These stops have to be manually moved far away enough from incorrect links.
+
 ### Invalid OSM topology
 
 Some OSM ways do not connect to each other as they should do and would seem to.
