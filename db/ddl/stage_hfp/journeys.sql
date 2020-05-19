@@ -19,7 +19,7 @@ CREATE TABLE stage_hfp.journeys (
   ref_avg_dist      real,
   ref_med_dist      real,
   ref_max_dist      real,
-  ref_n_accept      integer,
+  ref_n_within      integer,
 
   invalid_reasons   text[]      DEFAULT '{}'
 );
