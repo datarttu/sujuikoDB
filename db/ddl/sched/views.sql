@@ -58,3 +58,11 @@ CREATE VIEW sched.view_trip_segments AS (
 COMMENT ON VIEW sched.view_trip_segments IS
 'Segments of individual trips,
 with absolute link enter (i) and exit (j) timestamps.';
+
+DROP VIEW IF EXISTS sched.view_trip_template_geoms AS (
+  SELECT
+    sg.ttid,
+    ST_MakeLine(
+      li.geom
+    )
+)
