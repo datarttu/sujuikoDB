@@ -1,4 +1,4 @@
-DROP VIEW IF EXISTS sched.view_trips;
+DROP VIEW IF EXISTS sched.view_trips CASCADE;
 CREATE VIEW sched.view_trips AS (
   WITH
     unnest_dates AS (
@@ -37,7 +37,7 @@ COMMENT ON VIEW sched.view_trips IS
 'Opens up trip templates into individual trips
 with unique trip ids and actual start datetimes.';
 
-DROP VIEW IF EXISTS sched.view_trip_segments;
+DROP VIEW IF EXISTS sched.view_trip_segments CASCADE;
 CREATE VIEW sched.view_trip_segments AS (
   SELECT
     tp.ttid,
@@ -59,7 +59,7 @@ COMMENT ON VIEW sched.view_trip_segments IS
 'Segments of individual trips,
 with absolute link enter (i) and exit (j) timestamps.';
 
-DROP VIEW IF EXISTS sched.view_segment_geoms;
+DROP VIEW IF EXISTS sched.view_segment_geoms CASCADE;
 CREATE VIEW sched.view_segment_geoms AS (
   SELECT
     sg.ttid,
@@ -67,6 +67,8 @@ CREATE VIEW sched.view_segment_geoms AS (
     sg.i_node,
     sg.j_node,
     sg.i_time,
+    li.cost,
+    sum(li.cost) OVER (PARTITION BY sg.ttid ORDER BY sg.i_time) - li.cost AS i_cumul_cost,
     li.reversed,
     li.geom
   FROM sched.segments                     AS sg
@@ -80,7 +82,7 @@ COMMENT ON VIEW sched.view_segment_geoms IS
 "reversed" indicates if a reversed two-way link geometry is referenced,
 by inverting i and j.';
 
-DROP MATERIALIZED VIEW IF EXISTS sched.mw_trip_template_geoms;
+DROP MATERIALIZED VIEW IF EXISTS sched.mw_trip_template_geoms CASCADE;
 CREATE MATERIALIZED VIEW sched.mw_trip_template_geoms AS (
   SELECT
     ttid,
