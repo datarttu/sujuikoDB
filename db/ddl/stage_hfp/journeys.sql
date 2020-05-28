@@ -76,20 +76,15 @@ BEGIN
 END;
 $$;
 
-/*
+
 CREATE TABLE stage_hfp.journey_points (
-  jrnid             uuid                  NOT NULL,
+  jrnid             uuid                  NOT NULL REFERENCES stage_hfp.journeys(jrnid),
   obs_num           integer               NOT NULL,
   tst               timestamptz           NOT NULL,
-  events            public.event_type[]   NOT NULL,
+  event             public.event_type     NOT NULL,
   odo               integer,
   drst              boolean,
   stop              integer,
-  geom              geometry(POINT, 3067) NOT NULL,
-
-  -- Lag window based values (calculate referring to previous record over tst, event)
-  dt_prev           interval,
-  dx_prev_raw       real,
 
   -- Reference link based values (calculate by joining the closest corresponding trip template segment)
   ref_linkid        integer,
@@ -97,9 +92,8 @@ CREATE TABLE stage_hfp.journey_points (
   ref_offset        real,     -- Closest distance to the reference link
   ref_loc           real,     -- Location of closest point on ref link, 0 ... link length
 
+  geom_orig         geometry(POINT, 3067),
+  geom_ref          geometry(POINT, 3067),
+
   PRIMARY KEY (jrnid, obs_num)
 );
-
-SELECT *
-FROM create_hypertable('stage_hfp.journey_points', 'tst', chunk_time_interval => interval '1 hour');
-*/
