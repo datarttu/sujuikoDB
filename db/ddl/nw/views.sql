@@ -23,3 +23,13 @@ COMMENT ON VIEW nw.view_links_with_reverses IS
 created by inverting inode and jnode, cost and rcost, and geoms.
 Records should be unique and thus safely joinable on
 by linkid, inode and jnode.';
+
+DROP VIEW IF EXISTS nw.view_stop_nodes;
+CREATE VIEW nw.view_stop_nodes AS (
+  SELECT
+    st.*,
+    nd.geom
+  FROM nw.stops       AS st
+  INNER JOIN nw.nodes AS nd
+    ON st.nodeid = nd.nodeid
+);
