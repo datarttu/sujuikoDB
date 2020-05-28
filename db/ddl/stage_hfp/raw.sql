@@ -41,7 +41,7 @@ BEGIN
   NEW.jrnid := md5(
     concat_ws(
       '_',
-      NEW.oday, NEW.start, NEW.route, NEW.dir, NEW.oper, NEW.veh
+      NEW.start_ts, NEW.route, NEW.dir, NEW.oper, NEW.veh
     )
   )::uuid;
 
