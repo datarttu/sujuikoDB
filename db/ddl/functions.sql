@@ -1,0 +1,18 @@
+CREATE OR REPLACE FUNCTION rn_length(tstzrange)
+RETURNS interval
+LANGUAGE SQL
+IMMUTABLE
+PARALLEL SAFE
+AS
+$$
+  SELECT upper($1) - lower($1);
+$$;
+
+CREATE OR REPLACE FUNCTION rn_length(int4range)
+RETURNS integer
+LANGUAGE SQL
+IMMUTABLE
+PARALLEL SAFE
+AS $$
+  SELECT upper($1) - lower($1);
+$$;
