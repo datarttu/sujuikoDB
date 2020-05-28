@@ -79,3 +79,12 @@ The problem is that `start_date` and `end_date` do not conform with the weekday 
 this is at least the case at the start of the GTFS dataset validity time.
 
 For example, see trips with `service_id = '1020N_20191031_20191031_Ke'`.
+
+## HFP issues
+
+### Missing coordinates
+
+GPS coordinates are missing from some observations.
+However, these points need not be discarded in case there are reasonable odometer values available for linear interpolation.
+
+![Example of missing coordinates from 2550-2.](img/gaps_from_missing_coordinates.png)
