@@ -62,7 +62,25 @@ Note that these have to be done inside the same transaction / function,
 such that every record in `stage_hfp.journeys` has corresponding records
 in `stage_hfp.points` and vice versa.
 
+Data processing from stage_hfp.raw:
 
+1) Get common journey attributes (`jrnid...veh`) and aggregate statistics, and insert them into `.journeys`.
+2) `.journeys`: find a corresponding trip template in `sched` schema, and set `ttid`.
+If `ttid` is not found, add an invalid_reason for that.
+(A journey is "valid" is it has zero `invalid_reasons` and "invalid" otherwise.)
+3) `.journey_points`: import all the ongoing points whose journey `jrnid` is valid.
+For each point, look for the nearest matching trip segment:
+use not only distance but also relative point and segment ranks, since the same link can be traversed multiple times, and we don't want the "randomly first one" of those segments to pick all the observations.
+Calculate the projected point geometry on the segment, distance between original and projected point, and the relative location of the projected point on the segment (between 0.0 and 1.0).
+Points with `NULL` coordinates do not of course get a segment reference at this point.
+
+Choose the best one from route-dir-start_ts duplicates
+
+Interpolate points where coordinates are missing but odometer can be used
+
+Delete duplicated timestamps per journey: prioritize minimal distance to segment & information completeness
+
+Detect actual initial start timestamp (when first moving along the itinerary): `actual_start_ts`
 
 #### journeys
 
