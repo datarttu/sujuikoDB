@@ -49,6 +49,8 @@ CREATE VIEW sched.view_trip_segments AS (
     sg.linkid,
     sg.i_node,
     sg.j_node,
+    sg.i_stop,
+    sg.j_stop,
     tp.start_ts + sg.i_time AS i_ts,
     tp.start_ts + sg.j_time AS j_ts
   FROM sched.view_trips     AS tp
@@ -66,6 +68,8 @@ CREATE VIEW sched.view_segment_geoms AS (
     sg.linkid,
     sg.i_node,
     sg.j_node,
+    sg.i_stop,
+    sg.j_stop,
     sg.i_time,
     li.cost,
     sum(li.cost) OVER (PARTITION BY sg.ttid ORDER BY sg.i_time) - li.cost AS i_cumul_cost,

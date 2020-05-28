@@ -47,6 +47,7 @@ BEGIN
       SELECT
         ttid,
         unnest(stop_sequences)  AS stop_seq,
+        unnest(stop_ids)        AS stop_id,
         unnest(arr_time_diffs)  AS arr,
         unnest(dep_time_diffs)  AS dep,
         unnest(timepoints)      AS timepoint
@@ -57,7 +58,7 @@ BEGIN
     ),
 
     tt_set_firstlast_timepoints AS (
-      SELECT ttid, stop_seq, arr, dep,
+      SELECT ttid, stop_seq, stop_id, arr, dep,
         CASE
           WHEN stop_seq = 1 THEN true
           WHEN stop_seq = max(stop_seq) OVER (PARTITION BY ttid) THEN true
@@ -77,7 +78,10 @@ BEGIN
         r.inode,
         r.jnode,
         ST_Length(l.geom)                       AS seg_len,
-        r.path_seq IN (0, 1)                    AS i_stop,
+        CASE
+          WHEN r.path_seq IN (0, 1) THEN stop_id
+          ELSE NULL
+        END                                     AS i_stop,
         s.timepoint AND (r.path_seq IN (0, 1))  AS i_strict
       FROM tt_set_firstlast_timepoints          AS s
       INNER JOIN stage_nw.trip_template_routes  AS r
