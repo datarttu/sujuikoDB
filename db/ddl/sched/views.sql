@@ -98,3 +98,31 @@ COMMENT ON MATERIALIZED VIEW sched.mw_trip_template_geoms IS
 'Linestring geometries of entire trip templates.';
 
 CREATE INDEX ON sched.mw_trip_template_geoms USING GIST(geom);
+
+DROP VIEW IF EXISTS sched.view_trip_template_stops CASCADE;
+CREATE VIEW sched.view_trip_template_stops AS (
+  WITH stopids AS (
+    SELECT ttid, stopid, stoptime
+    FROM (
+      SELECT ttid, i_stop AS stopid, i_time AS stoptime
+      FROM sched.segments
+      WHERE i_stop IS NOT NULL
+      UNION
+      SELECT ttid, j_stop AS stopid, j_time AS stoptime
+      FROM sched.segments
+      WHERE j_stop IS NOT NULL
+    ) AS a
+    ORDER BY ttid, stoptime
+  )
+  SELECT
+    si.ttid,
+    si.stopid,
+    si.stoptime,
+    nd.nodeid,
+    nd.geom
+  FROM stopids AS si
+  LEFT JOIN nw.stops  AS st
+    ON si.stopid = st.stopid
+  LEFT JOIN nw.nodes  AS nd
+    ON st.nodeid = nd.nodeid
+);
