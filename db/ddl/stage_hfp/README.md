@@ -16,22 +16,26 @@ to avoid latency from client to the server.
 *Note: in the server we're currently using, the data is available in*
 `/data0/hfpdumps/november/`.
 
-- Data files on the server can be read directly by `COPY FROM`.
-- Data files on the client side must be read by psql `\copy` meta-command.
+Example of the required csv file structure - note that the real files should NOT have a header but it is here for clarity:
 
-The csv files must have a header and the fields must be the same as in
-`stage_hfp.raw` up until `route`.
-(Other fields in the table will be calculated by triggers or otherwise.)
-
-A data file must not contain more than one distinct `oday` value.
-However, it is recommended to distribute data into even smaller files,
-e.g., `hfp_[oday]_[route].csv`, to better monitor which of the raw data
-can be successfully imported and which not.
+```
+is_ongoing,event_type,dir,oper,veh,tst,lat,long,odo,drst,oday,start,loc,stop,route
+t,VJA,2,55,1252,2019-11-02 07:14:22+00,60.230585,25.043217,,t,2019-11-02,09:20:00,GPS,1362151,1078
+t,VP,2,55,1252,2019-11-02 07:14:23+00,60.230585,25.043217,,t,2019-11-02,09:20:00,GPS,1362151,1078
+t,DUE,2,55,1252,2019-11-02 07:14:23+00,60.230585,25.043217,,t,2019-11-02,09:20:00,GPS,1362151,1078
+t,ARR,2,55,1252,2019-11-02 07:14:23+00,60.230585,25.043217,0,t,2019-11-02,09:20:00,GPS,1362151,1078
+t,ARS,2,55,1252,2019-11-02 07:14:23+00,60.230585,25.043217,0,t,2019-11-02,09:20:00,GPS,1362151,1078
+t,VP,2,55,1252,2019-11-02 07:14:24+00,60.230585,25.043217,0,t,2019-11-02,09:20:00,GPS,1362151,1078
+t,VP,2,55,1252,2019-11-02 07:14:25+00,60.230585,25.043217,0,t,2019-11-02,09:20:00,GPS,1362151,1078
+t,VP,2,55,1252,2019-11-02 07:14:26+00,60.230585,25.043216,0,t,2019-11-02,09:20:00,GPS,1362151,1078
+t,VP,2,55,1252,2019-11-02 07:14:27+00,60.230585,25.043216,0,t,2019-11-02,09:20:00,GPS,1362151,1078
+t,VP,2,55,1252,2019-11-02 07:14:28+00,60.230585,25.043216,0,t,2019-11-02,09:20:00,GPS,1362151,1078
+```
 
 There must not be empty `tst` values in the data files.
 `stage_hfp.raw` has a `NOT NULL` constraint on `tst`, because this table is
 partitioned into Timescale hypertable along `tst`.
-We don't have any use for observations without a timestamp, anyway.
+We don't even have any use for observations without a timestamp.
 You should get rid of such rows already outside the database.
 
 ## Data flow
