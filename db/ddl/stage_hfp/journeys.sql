@@ -36,11 +36,6 @@ CREATE TABLE stage_hfp.journeys (
   invalid_reasons   text[]      DEFAULT '{}'
 );
 
-CREATE INDEX ON stage_hfp.journeys USING BRIN(start_ts);
-CREATE INDEX ON stage_hfp.journeys (route, dir);
-CREATE INDEX ON stage_hfp.journeys (oper, veh);
-CREATE INDEX ON stage_hfp.journeys (array_length(invalid_reasons, 1));
-
 CREATE OR REPLACE FUNCTION stage_hfp.insert_to_journeys_from_raw()
 RETURNS TEXT
 VOLATILE
