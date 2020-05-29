@@ -26,3 +26,11 @@ SELECT * FROM stage_hfp.invalidate(
   'Zero or negative odometer sum',
   'rn_length(odo_span) <= 0'
 );
+
+SELECT * FROM stage_hfp.set_journeys_ttid();
+
+SELECT * FROM stage_hfp.invalidate(
+  'journeys',
+  'No ttid',
+  'ttid IS NULL'
+);

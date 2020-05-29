@@ -76,6 +76,31 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS stage_hfp.set_journeys_ttid;
+CREATE OR REPLACE FUNCTION stage_hfp.set_journeys_ttid()
+RETURNS TABLE (table_name text, rows_updated bigint)
+VOLATILE
+LANGUAGE PLPGSQL
+AS $$
+BEGIN
+  RETURN QUERY
+  WITH updated AS (
+    UPDATE stage_hfp.journeys AS jrn
+    SET ttid = vt.ttid
+    FROM (
+      SELECT ttid, start_ts, route, dir
+      FROM sched.view_trips
+    ) AS vt
+    WHERE jrn.start_ts = vt.start_ts
+      AND jrn.route = vt.route
+      AND jrn.dir = vt.dir
+    RETURNING *
+  )
+  SELECT 'journeys', count(*)
+  FROM updated;
+END;
+$$;
+
 /*
 CREATE TABLE stage_hfp.journey_points (
   jrnid             uuid                  NOT NULL REFERENCES stage_hfp.journeys(jrnid),
