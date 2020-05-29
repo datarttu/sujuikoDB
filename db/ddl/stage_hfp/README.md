@@ -43,13 +43,14 @@ You should get rid of such rows already outside the database.
 ### Importing from csv files
 
 `stage_hfp.raw` receives the data by `COPY FROM` command(s).
+Right away, a `BEFORE INSERT` trigger fills some additional fields:
 
-`jrnid` is calculated on the fly by a trigger.
-This field describes a unique *trip* taken by a *vehicle*.
-Note that regarding the raw data, finding unique trips only would not be
-enough: multiple vehicle drivers may have signed in on the same trip
-in the schedule system, and later we have to choose which of these
-we consider valid.
+- `geom` is the point geometry in metric TM35 coordinates, making various spatial processes much simpler than raw lon/lat or WGS84 points.
+- `start_ts` is the same as `oday + start` but it's also timezone-aware: we assume here that the original values are based on `Europe/Helsinki`.
+This way we get to treat the point timestamps and initial departure timestamps the same way.
+- `jrnid` describes a unique *journey* taken by a *vehicle*, and it will be used as a surrogate key for identifying journeys and observations belonging to them.
+This way we do not always have to do joins using `(start_ts, route, dir, oper, veh)`.
+Note that regarding the raw data, finding unique journeys without the vehicle information would not be enough: multiple vehicle drivers may have signed in on the same trip in the schedule system, and later we have to choose which of these we consider valid.
 
 ### Splitting into journey- and point-specific tables
 
@@ -69,6 +70,7 @@ in `stage_hfp.points` and vice versa.
 Data processing from stage_hfp.raw:
 
 1) Get common journey attributes (`jrnid...veh`) and aggregate statistics, and insert them into `.journeys`.
+Any journeys with a NULL `jrnid` are ignored.
 2) `.journeys`: find a corresponding trip template in `sched` schema, and set `ttid`.
 If `ttid` is not found, add an invalid_reason for that.
 (A journey is "valid" is it has zero `invalid_reasons` and "invalid" otherwise.)
