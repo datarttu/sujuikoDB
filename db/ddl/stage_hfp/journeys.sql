@@ -1,6 +1,4 @@
 DROP TABLE IF EXISTS stage_hfp.journeys CASCADE;
-DROP FUNCTION IF EXISTS stage_hfp.insert_to_journeys_from_raw;
-
 CREATE TABLE stage_hfp.journeys (
   -- Fields calculated immediately when inserting
   jrnid             uuid        PRIMARY KEY,
@@ -36,6 +34,7 @@ CREATE TABLE stage_hfp.journeys (
   invalid_reasons   text[]      DEFAULT '{}'
 );
 
+DROP FUNCTION IF EXISTS stage_hfp.insert_to_journeys_from_raw;
 CREATE OR REPLACE FUNCTION stage_hfp.insert_to_journeys_from_raw()
 RETURNS TABLE (table_name text, rows_inserted bigint)
 VOLATILE
@@ -100,26 +99,3 @@ BEGIN
   FROM updated;
 END;
 $$;
-
-/*
-CREATE TABLE stage_hfp.journey_points (
-  jrnid             uuid                  NOT NULL REFERENCES stage_hfp.journeys(jrnid),
-  obs_num           integer               NOT NULL,
-  tst               timestamptz           NOT NULL,
-  event             public.event_type     NOT NULL,
-  odo               integer,
-  drst              boolean,
-  stop              integer,
-
-  -- Reference link based values (calculate by joining the closest corresponding trip template segment)
-  ref_linkid        integer,
-  ref_reversed      boolean,
-  ref_offset        real,     -- Closest distance to the reference link
-  ref_loc           real,     -- Location of closest point on ref link, 0 ... link length
-
-  geom_orig         geometry(POINT, 3067),
-  geom_ref          geometry(POINT, 3067),
-
-  PRIMARY KEY (jrnid, obs_num)
-);
-*/

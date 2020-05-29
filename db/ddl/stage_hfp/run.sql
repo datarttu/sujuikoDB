@@ -2,7 +2,8 @@
 \set ON_ERROR_STOP on
 \set ON_ERROR_ROLLBACK interactive
 
-DELETE FROM stage_hfp.journeys CASCADE;
+\ir journeys.sql
+\ir journey_points.sql
 
 SELECT * FROM stage_hfp.insert_to_journeys_from_raw();
 
@@ -34,3 +35,5 @@ SELECT * FROM stage_hfp.invalidate(
   'No ttid',
   'ttid IS NULL'
 );
+
+SELECT * FROM stage_hfp.insert_to_journey_points_from_raw();
