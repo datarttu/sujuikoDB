@@ -4,7 +4,7 @@ CREATE OR REPLACE FUNCTION stage_hfp.invalidate(
   reason      text,
   where_cnd   text
 )
-RETURNS TABLE (invalid_reason text, rows_affected bigint)
+RETURNS TABLE (table_name text, invalid_reason text, rows_affected bigint)
 VOLATILE
 LANGUAGE PLPGSQL
 AS $$
@@ -16,7 +16,7 @@ BEGIN
     WHERE %3$s
       AND array_position(invalid_reasons, %2$L) IS NULL
     RETURNING *)
-    SELECT %2$L, count(*) FROM updated',
+    SELECT %1$L, %2$L, count(*) FROM updated',
     tb_name,
     reason,
     where_cnd
