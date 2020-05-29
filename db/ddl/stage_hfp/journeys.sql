@@ -65,7 +65,8 @@ BEGIN
       count(*) filter(WHERE drst IS false)    AS n_door_closed,
       count(DISTINCT stop) filter(WHERE stop IS NOT NULL) AS n_uniq_stops
     FROM stage_hfp.raw
-    WHERE is_ongoing IS true
+    WHERE jrnid IS NOT NULL
+      AND is_ongoing IS true
     GROUP BY jrnid, start_ts, route, dir, oper, veh
     ORDER BY start_ts
     RETURNING *
