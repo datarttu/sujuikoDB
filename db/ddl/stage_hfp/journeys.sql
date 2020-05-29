@@ -37,37 +37,41 @@ CREATE TABLE stage_hfp.journeys (
 );
 
 CREATE OR REPLACE FUNCTION stage_hfp.insert_to_journeys_from_raw()
-RETURNS TEXT
+RETURNS TABLE (table_name text, rows_inserted bigint)
 VOLATILE
 LANGUAGE PLPGSQL
 AS $$
 BEGIN
-  INSERT INTO stage_hfp.journeys (
-    jrnid, start_ts, route, dir, oper, veh,
-    tst_span, n_ongoing, n_odo_values, odo_span,
-    n_geom_values, n_door_open, n_door_closed, n_uniq_stops
+  RETURN QUERY
+  WITH inserted AS (
+    INSERT INTO stage_hfp.journeys (
+      jrnid, start_ts, route, dir, oper, veh,
+      tst_span, n_ongoing, n_odo_values, odo_span,
+      n_geom_values, n_door_open, n_door_closed, n_uniq_stops
+    )
+    SELECT
+      jrnid,
+      start_ts,
+      route,
+      dir,
+      oper,
+      veh,
+      tstzrange(min(tst), max(tst))           AS tst_span,
+      count(*)                                AS n_ongoing,
+      count(*) filter(WHERE odo IS NOT NULL)  AS n_odo_values,
+      int4range(min(odo), max(odo))           AS odo_span,
+      count(*) filter(WHERE geom IS NOT NULL) AS n_geom_values,
+      count(*) filter(WHERE drst IS true)     AS n_door_open,
+      count(*) filter(WHERE drst IS false)    AS n_door_closed,
+      count(DISTINCT stop) filter(WHERE stop IS NOT NULL) AS n_uniq_stops
+    FROM stage_hfp.raw
+    WHERE is_ongoing IS true
+    GROUP BY jrnid, start_ts, route, dir, oper, veh
+    ORDER BY start_ts
+    RETURNING *
   )
-  SELECT
-    jrnid,
-    start_ts,
-    route,
-    dir,
-    oper,
-    veh,
-    tstzrange(min(tst), max(tst))           AS tst_span,
-    count(*)                                AS n_ongoing,
-    count(*) filter(WHERE odo IS NOT NULL)  AS n_odo_values,
-    int4range(min(odo), max(odo))           AS odo_span,
-    count(*) filter(WHERE geom IS NOT NULL) AS n_geom_values,
-    count(*) filter(WHERE drst IS true)     AS n_door_open,
-    count(*) filter(WHERE drst IS false)    AS n_door_closed,
-    count(DISTINCT stop) filter(WHERE stop IS NOT NULL) AS n_uniq_stops
-  FROM stage_hfp.raw
-  WHERE is_ongoing IS true
-  GROUP BY jrnid, start_ts, route, dir, oper, veh
-  ORDER BY start_ts;
-
-  RETURN 'OK';
+  SELECT 'journeys', count(*)
+  FROM inserted;
 END;
 $$;
 

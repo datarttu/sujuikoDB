@@ -4,7 +4,7 @@
 
 DELETE FROM stage_hfp.journeys CASCADE;
 
-SELECT stage_hfp.insert_to_journeys_from_raw();
+SELECT * FROM stage_hfp.insert_to_journeys_from_raw();
 
 SELECT * FROM stage_hfp.invalidate(
   'journeys',
