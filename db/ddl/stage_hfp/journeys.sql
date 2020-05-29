@@ -72,38 +72,11 @@ BEGIN
   GROUP BY jrnid, start_ts, route, dir, oper, veh
   ORDER BY start_ts;
 
-  -- Validations
-  UPDATE stage_hfp.journeys
-  SET invalid_reasons = array_append(
-    invalid_reasons,
-    'No ongoing points')
-  WHERE n_ongoing = 0;
-
-  UPDATE stage_hfp.journeys
-  SET invalid_reasons = array_append(
-    invalid_reasons,
-    'No odometer values')
-  WHERE n_odo_values = 0;
-
-  UPDATE stage_hfp.journeys
-  SET invalid_reasons = array_append(
-    invalid_reasons,
-    'Zero or negative odometer sum')
-  WHERE rn_length(odo_span) <= 0;
-
-  -- TODO: Parameterize this?
-  UPDATE stage_hfp.journeys
-  SET invalid_reasons = array_append(
-    invalid_reasons,
-    'NULL geom in > 50 % of points')
-  WHERE n_ongoing > 0
-    AND n_geom_values::real / n_ongoing::real <= 0.5;
-
   RETURN 'OK';
 END;
 $$;
 
-
+/*
 CREATE TABLE stage_hfp.journey_points (
   jrnid             uuid                  NOT NULL REFERENCES stage_hfp.journeys(jrnid),
   obs_num           integer               NOT NULL,
@@ -124,3 +97,4 @@ CREATE TABLE stage_hfp.journey_points (
 
   PRIMARY KEY (jrnid, obs_num)
 );
+*/
