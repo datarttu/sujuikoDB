@@ -37,3 +37,5 @@ SELECT * FROM stage_hfp.invalidate(
 );
 
 SELECT * FROM stage_hfp.insert_to_journey_points_from_raw();
+
+SELECT * FROM stage_hfp.set_journey_points_segment_vals();
