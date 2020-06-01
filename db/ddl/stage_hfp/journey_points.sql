@@ -97,7 +97,9 @@ END;
 $$;
 
 DROP FUNCTION IF EXISTS stage_hfp.set_journey_points_segment_vals;
-CREATE OR REPLACE FUNCTION stage_hfp.set_journey_points_segment_vals()
+CREATE OR REPLACE FUNCTION stage_hfp.set_journey_points_segment_vals(
+  search_distance double precision
+)
 RETURNS TABLE (table_name text, rows_affected bigint)
 VOLATILE
 LANGUAGE PLPGSQL
@@ -125,22 +127,21 @@ BEGIN
         ON sg.linkid = li.linkid
         AND sg.i_node = li.inode
         AND sg.j_node = li.jnode
-      WHERE sg.ttid IN (
-        SELECT DISTINCT ttid
-        FROM stage_hfp.journeys
-      )
+      INNER JOIN stage_hfp.journeys           AS jr
+        ON sg.ttid = jr.ttid
+      WHERE cardinality(jr.invalid_reasons) = 0
     ),
-    to_update AS (
+    journey_points_to_update AS (
       SELECT
         jp.jrnid,
         jp.tst,
-        jp.event,
         jp.sub_id,
         sg.linkid,
         sg.reversed,
         sg.i_rel_dist,
         sg.j_rel_dist,
-        sg.seg_geom
+        ST_Distance(jp.geom, sg.seg_geom)         AS seg_offset,
+        ST_LineLocatePoint(sg.seg_geom, jp.geom)  AS seg_rel_loc
       FROM stage_hfp.journey_points AS jp
       INNER JOIN stage_hfp.journeys AS jrn
         ON jp.jrnid = jrn.jrnid
@@ -148,6 +149,7 @@ BEGIN
           SELECT swr.*
           FROM segs_with_relranks AS swr
           WHERE swr.ttid = jrn.ttid
+            AND ST_DWithin(jp.geom, swr.seg_geom, search_distance)
           ORDER BY
             jp.geom <-> swr.seg_geom,
             abs(jp.rel_rank - swr.seg_rel_rank)
@@ -160,16 +162,14 @@ BEGIN
       SET
         seg_linkid    = tu.linkid,
         seg_reversed  = tu.reversed,
-        seg_offset    = ST_Distance(geom, tu.seg_geom),
-        seg_rel_loc   = ST_LineLocatePoint(tu.seg_geom, geom),
-        seg_pt_geom   = ST_ClosestPoint(tu.seg_geom, geom),
-        rel_dist      = tu.i_rel_dist + ST_LineLocatePoint(tu.seg_geom, geom) * (tu.j_rel_dist - tu.i_rel_dist)
+        seg_offset    = tu.seg_offset,
+        seg_rel_loc   = tu.seg_rel_loc,
+        rel_dist      = tu.i_rel_dist + tu.seg_rel_loc * (tu.j_rel_dist - tu.i_rel_dist)
       FROM (
-        SELECT * FROM to_update
+        SELECT * FROM journey_points_to_update
       ) AS tu
       WHERE upd.jrnid   = tu.jrnid
         AND upd.tst     = tu.tst
-        AND upd.event   = tu.event
         AND upd.sub_id  = tu.sub_id
       RETURNING *
     )
