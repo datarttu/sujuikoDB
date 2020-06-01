@@ -2,7 +2,6 @@ DROP TABLE IF EXISTS stage_hfp.journey_points CASCADE;
 CREATE TABLE stage_hfp.journey_points (
   jrnid             uuid                  NOT NULL REFERENCES stage_hfp.journeys(jrnid),
   tst               timestamptz           NOT NULL,
-  sub_id            smallint              NOT NULL, -- Some records are duplicated over jrnid and tst ...
 
   odo               integer,
   drst              boolean,
@@ -19,27 +18,32 @@ CREATE TABLE stage_hfp.journey_points (
   seg_reversed      boolean,
   seg_offset        real,
   seg_rel_loc       double precision,
-  seg_pt_geom       geometry(POINT, 3067),
+  seg_abs_loc       real,
 
   rel_dist          double precision,
+  abs_dist          real,
+
+  d_odo_ahead       real,
+  dx_ahead          real,
+  dt_ahead          real,
 
   invalid_reasons   text[]                DEFAULT '{}',
 
-  PRIMARY KEY (jrnid, tst, sub_id)
+  PRIMARY KEY (jrnid, tst)
 );
 
 SELECT *
 FROM create_hypertable('stage_hfp.journey_points', 'tst', chunk_time_interval => interval '1 hour');
 
 CREATE INDEX ON stage_hfp.journey_points USING GIST(geom);
-CREATE INDEX ON stage_hfp.journey_points USING GIST(seg_pt_geom);
 --CREATE INDEX ON stage_hfp.journey_points USING BTREE(jrnid, seg_offset);
 --CREATE INDEX ON stage_hfp.journey_points USING BTREE(jrnid, rel_dist);
 CREATE INDEX ON stage_hfp.journey_points USING BTREE(cardinality(invalid_reasons));
 
 DROP FUNCTION IF EXISTS stage_hfp.insert_to_journey_points_from_raw;
 CREATE OR REPLACE FUNCTION stage_hfp.insert_to_journey_points_from_raw(
-  max_gps_tolerance  real
+  max_gps_tolerance   double precision,
+  within_segment      double precision
 )
 RETURNS TABLE (table_name text, rows_inserted bigint)
 VOLATILE
@@ -60,7 +64,7 @@ BEGIN
     mark_significant_observations AS (
       SELECT
         jrnid, tst, odo, drst, stop, geom,
-        row_number() OVER (PARTITION BY jrnid, tst) AS obs_num,
+        row_number() OVER (PARTITION BY jrnid ORDER BY tst) AS obs_num,
         CASE WHEN (
               odo   IS DISTINCT FROM lag(odo)   OVER w_tst
           OR  odo   IS DISTINCT FROM lead(odo)  OVER w_tst
@@ -74,21 +78,110 @@ BEGIN
       FROM ongoing_vp_valid
       WINDOW w_tst AS (PARTITION BY jrnid ORDER BY tst)
     ),
+    journey_points AS (
+      SELECT DISTINCT ON (jrnid, tst)
+        jrnid,
+        tst,
+        odo,
+        drst,
+        stop,
+        geom,
+        obs_num,
+        percent_rank() OVER (PARTITION BY jrnid ORDER BY tst) AS rel_rank
+      FROM mark_significant_observations
+      WHERE is_significant IS true
+    ),
+    segs_with_relranks AS (
+      SELECT
+        sg.ttid,
+        sg.linkid,
+        sg.i_node,
+        sg.j_node,
+        sg.i_rel_dist,
+        sg.j_rel_dist,
+        sum(li.cost) OVER (
+          PARTITION BY sg.ttid
+          ORDER BY sg.i_time
+        ) - li.cost             AS i_cumul_cost,
+        percent_rank() OVER (
+          PARTITION BY sg.ttid
+          ORDER BY sg.i_time
+        )                       AS seg_rel_rank,
+        li.geom                 AS seg_geom,
+        li.reversed,
+        li.cost
+      FROM sched.segments                     AS sg
+      INNER JOIN nw.view_links_with_reverses  AS li
+        ON sg.linkid = li.linkid
+        AND sg.i_node = li.inode
+        AND sg.j_node = li.jnode
+      INNER JOIN stage_hfp.journeys           AS jr
+        ON sg.ttid = jr.ttid
+      WHERE cardinality(jr.invalid_reasons) = 0
+    ),
+    points_with_seg_refs AS (
+      SELECT
+        jp.jrnid,
+        jp.tst,
+        jp.odo,
+        jp.drst,
+        jp.stop,
+        jp.geom,
+        jp.obs_num,
+        jp.rel_rank,
+        sg.linkid                                 AS seg_linkid,
+        sg.reversed                               AS seg_reversed,
+        ST_Distance(jp.geom, sg.seg_geom)         AS seg_offset,
+        ST_LineLocatePoint(sg.seg_geom, jp.geom)  AS seg_rel_loc,
+        sg.i_rel_dist,
+        sg.j_rel_dist,
+        sg.i_cumul_cost,
+        sg.cost
+      FROM journey_points AS jp
+      INNER JOIN stage_hfp.journeys AS jrn
+        ON jp.jrnid = jrn.jrnid
+      LEFT JOIN LATERAL (
+          SELECT swr.*
+          FROM segs_with_relranks AS swr
+          WHERE swr.ttid = jrn.ttid
+            AND ST_DWithin(jp.geom, swr.seg_geom, within_segment)
+          ORDER BY
+            jp.geom <-> swr.seg_geom
+            , abs(jp.rel_rank - swr.seg_rel_rank)
+          LIMIT 1
+        ) AS sg
+        ON true
+    ),
+    points_with_abs_values AS (
+      SELECT
+        *,
+        cost * seg_rel_loc                                    AS seg_abs_loc,
+        i_cumul_cost + cost * seg_rel_loc                     AS abs_dist,
+        i_rel_dist + (j_rel_dist - i_rel_dist) * seg_rel_loc  AS rel_dist
+      FROM points_with_seg_refs
+    ),
     inserted AS (
       INSERT INTO stage_hfp.journey_points (
-        jrnid, tst, sub_id, odo, drst, stop, geom, obs_num, rel_rank
+        jrnid, tst, odo, drst, stop, geom, obs_num, rel_rank,
+        seg_linkid, seg_reversed, seg_offset,
+        seg_rel_loc, seg_abs_loc,
+        rel_dist, abs_dist,
+        d_odo_ahead, dx_ahead, dt_ahead
       )
-        SELECT
-          jrnid,
-          tst,
-          row_number() OVER (PARTITION BY jrnid, tst) AS sub_id,
-          odo,
-          drst,
-          stop,
-          geom,
-          obs_num,
-          percent_rank() OVER (PARTITION BY jrnid ORDER BY tst)
-        FROM mark_significant_observations
+      SELECT
+        jrnid, tst, odo, drst, stop, geom, obs_num, rel_rank,
+        seg_linkid, seg_reversed, seg_offset,
+        seg_rel_loc, seg_abs_loc,
+        rel_dist, abs_dist,
+        (lead(odo) OVER w_tst - odo)::real    AS d_odo_ahead,
+        lead(abs_dist) OVER w_tst - abs_dist  AS dx_ahead,
+        extract(
+          epoch FROM (lead(tst) OVER w_tst - tst)
+        )                                     AS dt_ahead
+      FROM points_with_abs_values
+      WINDOW w_tst AS (PARTITION BY jrnid ORDER BY tst)
+      ORDER BY jrnid, tst
+
       RETURNING *
     )
   SELECT 'journey_points', count(*)

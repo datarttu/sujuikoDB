@@ -36,6 +36,6 @@ SELECT * FROM stage_hfp.invalidate(
   'ttid IS NULL'
 );
 
-SELECT * FROM stage_hfp.insert_to_journey_points_from_raw(0.5);
+SELECT * FROM stage_hfp.insert_to_journey_points_from_raw(0.5, 30.0);
 
-SELECT * FROM stage_hfp.set_journey_points_segment_vals(30.0);
+--SELECT * FROM stage_hfp.set_journey_points_segment_vals(30.0);
