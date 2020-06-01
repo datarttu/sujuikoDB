@@ -2,17 +2,16 @@ DROP TABLE IF EXISTS stage_hfp.journey_points CASCADE;
 CREATE TABLE stage_hfp.journey_points (
   jrnid             uuid                  NOT NULL REFERENCES stage_hfp.journeys(jrnid),
   tst               timestamptz           NOT NULL,
-  event             public.event_type     NOT NULL,
-  sub_id            smallint              NOT NULL, -- Some records are duplicated over jrnid, tst, event ...
+  sub_id            smallint              NOT NULL, -- Some records are duplicated over jrnid and tst ...
 
   odo               integer,
   drst              boolean,
   stop              integer,
   geom              geometry(POINT, 3067),
 
-  -- Running number ordered by 1) tst 2) event
+  -- Running number, calculated before insignificant observations were omitted
   obs_num           integer               NOT NULL,
-  -- Relative rank ordered by 1) tst 2) event
+  -- Relative rank ordered by tst
   rel_rank          double precision,
 
   -- Segment values (calculate by joining the closest corresponding trip template segment)
@@ -26,7 +25,7 @@ CREATE TABLE stage_hfp.journey_points (
 
   invalid_reasons   text[]                DEFAULT '{}',
 
-  PRIMARY KEY (jrnid, tst, event, sub_id)
+  PRIMARY KEY (jrnid, tst, sub_id)
 );
 
 SELECT *
@@ -39,40 +38,58 @@ CREATE INDEX ON stage_hfp.journey_points USING GIST(seg_pt_geom);
 CREATE INDEX ON stage_hfp.journey_points USING BTREE(cardinality(invalid_reasons));
 
 DROP FUNCTION IF EXISTS stage_hfp.insert_to_journey_points_from_raw;
-CREATE OR REPLACE FUNCTION stage_hfp.insert_to_journey_points_from_raw()
+CREATE OR REPLACE FUNCTION stage_hfp.insert_to_journey_points_from_raw(
+  max_gps_tolerance  real
+)
 RETURNS TABLE (table_name text, rows_inserted bigint)
 VOLATILE
 LANGUAGE PLPGSQL
 AS $$
 BEGIN
   RETURN QUERY
-  WITH inserted AS (
-    INSERT INTO stage_hfp.journey_points (
-      jrnid, tst, event, sub_id, odo, drst, stop, geom, obs_num, rel_rank
-    )
+  WITH
+    ongoing_vp_valid AS (
+      SELECT r.jrnid, r.tst, r.odo, r.drst, r.stop, r.geom
+      FROM stage_hfp.raw            AS r
+      INNER JOIN stage_hfp.journeys AS j
+        ON r.jrnid = j.jrnid
+      WHERE r.is_ongoing IS true
+        AND r.event_type = 'VP'
+        AND cardinality(j.invalid_reasons) = 0
+    ),
+    mark_significant_observations AS (
       SELECT
-        rw.jrnid,
-        rw.tst,
-        rw.event_type::public.event_type    AS event,
-        row_number() OVER (
-          PARTITION BY rw.jrnid, rw.tst, rw.event_type
-        )                                   AS sub_id,
-        rw.odo,
-        rw.drst,
-        rw.stop,
-        rw.geom                             AS geom_orig,
-        row_number() OVER w_tst_event       AS obs_num,
-        percent_rank() OVER w_tst_event     AS rel_rank
-      FROM stage_hfp.raw  AS rw
-      INNER JOIN stage_hfp.journeys AS jrn
-        ON rw.jrnid = jrn.jrnid
-      WHERE rw.is_ongoing IS true
-        AND cardinality(jrn.invalid_reasons) = 0
-      WINDOW w_tst_event AS (
-        PARTITION BY rw.jrnid
-        ORDER BY rw.tst, rw.event_type::public.event_type
+        jrnid, tst, odo, drst, stop, geom,
+        row_number() OVER (PARTITION BY jrnid, tst) AS obs_num,
+        CASE WHEN (
+              odo   IS DISTINCT FROM lag(odo)   OVER w_tst
+          OR  odo   IS DISTINCT FROM lead(odo)  OVER w_tst
+          OR  drst  IS DISTINCT FROM lag(drst)  OVER w_tst
+          OR  drst  IS DISTINCT FROM lead(drst) OVER w_tst
+          OR  ST_Distance(geom, lag(geom) OVER w_tst) > max_gps_tolerance
+          OR  ST_Distance(geom, lead(geom) OVER w_tst) > max_gps_tolerance
+          ) THEN true
+          ELSE false
+        END AS is_significant
+      FROM ongoing_vp_valid
+      WINDOW w_tst AS (PARTITION BY jrnid ORDER BY tst)
+    ),
+    inserted AS (
+      INSERT INTO stage_hfp.journey_points (
+        jrnid, tst, sub_id, odo, drst, stop, geom, obs_num, rel_rank
       )
-    RETURNING *
+        SELECT
+          jrnid,
+          tst,
+          row_number() OVER (PARTITION BY jrnid, tst) AS sub_id,
+          odo,
+          drst,
+          stop,
+          geom,
+          obs_num,
+          percent_rank() OVER (PARTITION BY jrnid ORDER BY tst)
+        FROM mark_significant_observations
+      RETURNING *
     )
   SELECT 'journey_points', count(*)
   FROM inserted;
