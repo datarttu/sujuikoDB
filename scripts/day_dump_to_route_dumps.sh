@@ -13,11 +13,25 @@
 
 set -e
 
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+log() {
+  echo "[$(date +'%Y-%m-%d %H:%M:%S%:z')] $1"
+}
+LOG_FILE="$DIR""/dumps.log"
+exec 1>>"$LOG_FILE"
+exec 2>&1
+
 infile="$1"
-outdir="${infile%%.csv*}"
+outdir="${infile%%.csv*}""_routes"
+
+log "Start $infile -> $outdir"
 
 mkdir -p "$outdir"
 
-awk -v outd="$outdir" -F ',' 'NR>1 {print > (outd "/route_" $15 ".csv")}' "$infile"
+gzip -cd "$infile" | awk -v outd="$outdir" -F ',' 'NR>1 {print > (outd "/route_" $15 ".csv")}'
+rm "$outdir""/route_.csv"
+cd "$outdir"
+find . -type f -name '*.csv' -exec gzip "{}" \;
+cd -
 
-# NOTE: Result files do not have csv headers!
+log "End $infile -> $outdir"
