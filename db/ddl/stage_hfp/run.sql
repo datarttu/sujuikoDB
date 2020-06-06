@@ -4,6 +4,7 @@
 
 \ir journeys.sql
 \ir journey_points.sql
+\ir seg_aggregates.sql
 
 SELECT * FROM stage_hfp.insert_to_journeys_from_raw();
 
@@ -38,4 +39,4 @@ SELECT * FROM stage_hfp.invalidate(
 
 SELECT * FROM stage_hfp.insert_to_journey_points_from_raw(0.5, 30.0);
 
---SELECT * FROM stage_hfp.set_journey_points_segment_vals(30.0);
+SELECT * FROM stage_hfp.insert_to_seg_aggregates();

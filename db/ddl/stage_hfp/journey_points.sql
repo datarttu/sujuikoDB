@@ -60,6 +60,8 @@ BEGIN
       WHERE r.is_ongoing IS true
         AND r.event_type = 'VP'
         AND cardinality(j.invalid_reasons) = 0
+        AND r.geom IS NOT NULL
+        AND r.odo IS NOT NULL
     ),
     mark_significant_observations AS (
       SELECT
@@ -99,10 +101,7 @@ BEGIN
         sg.j_node,
         sg.i_rel_dist,
         sg.j_rel_dist,
-        sum(li.cost) OVER (
-          PARTITION BY sg.ttid
-          ORDER BY sg.i_time
-        ) - li.cost             AS i_cumul_cost,
+        ST_Length(tot.geom)     AS total_cost,
         percent_rank() OVER (
           PARTITION BY sg.ttid
           ORDER BY sg.i_time
@@ -115,6 +114,8 @@ BEGIN
         ON sg.linkid = li.linkid
         AND sg.i_node = li.inode
         AND sg.j_node = li.jnode
+      INNER JOIN sched.mw_trip_template_geoms AS tot
+        ON sg.ttid = tot.ttid
       INNER JOIN stage_hfp.journeys           AS jr
         ON sg.ttid = jr.ttid
       WHERE cardinality(jr.invalid_reasons) = 0
@@ -135,7 +136,7 @@ BEGIN
         ST_LineLocatePoint(sg.seg_geom, jp.geom)  AS seg_rel_loc,
         sg.i_rel_dist,
         sg.j_rel_dist,
-        sg.i_cumul_cost,
+        sg.total_cost,
         sg.cost
       FROM journey_points AS jp
       INNER JOIN stage_hfp.journeys AS jrn
@@ -156,8 +157,8 @@ BEGIN
       SELECT
         *,
         cost * seg_rel_loc                                    AS seg_abs_loc,
-        i_cumul_cost + cost * seg_rel_loc                     AS abs_dist,
-        i_rel_dist + (j_rel_dist - i_rel_dist) * seg_rel_loc  AS rel_dist
+        i_rel_dist + (j_rel_dist - i_rel_dist) * seg_rel_loc  AS rel_dist,
+        total_cost * i_rel_dist + cost * seg_rel_loc          AS abs_dist
       FROM points_with_seg_refs
     ),
     inserted AS (
