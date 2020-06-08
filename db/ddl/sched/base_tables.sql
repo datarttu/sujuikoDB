@@ -1,3 +1,5 @@
+CREATE SCHEMA IF NOT EXISTS sched;
+
 CREATE TABLE sched.routes (
   route      text              PRIMARY KEY,
   mode       public.mode_type  NOT NULL
