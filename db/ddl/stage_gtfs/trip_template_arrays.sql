@@ -1,3 +1,98 @@
+CREATE TABLE stage_gtfs.patterns (
+  ptid              text          PRIMARY KEY,
+  route             text          NOT NULL,
+  dir               smallint      NOT NULL CHECK (dir IN (1, 2)),
+  trip_ids          text[],
+  stopids           integer[],
+  nodeids           integer[],
+  restricted_links  integer[],
+  path_found        boolean       DEFAULT false,
+  shape_id          text,
+  rel_distances     double precision[]
+);
+CREATE INDEX ON stage_gtfs.patterns USING GIN(trip_ids);
+COMMENT ON TABLE stage_gtfs.patterns IS
+'Staging table for `sched.patterns` and `.segments`.
+Each `ptid` represents a variant of `route & dir` consisting of a unique sequence of stops `stopids`.
+Using the network model, `stopids` are converted to `nodeids` that are used to find an itinerary
+along the network.
+`restricted_links` can be used to mark network links (edges) that shall not be used
+to find shortest paths between stops for that pattern.
+If a complete path is found, `path_found` is marked `true`,
+and the data can be transferred to `sched` schema.
+`shape_id` refers to the corresponding GTFS shape and can be used to compare the shape and
+the network path.';
+
+CREATE FUNCTION stage_gtfs.extract_trip_stop_patterns(where_sql text DEFAULT NULL)
+RETURNS TABLE (
+  table_name    text,
+  rows_affected bigint
+)
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+BEGIN
+  RAISE NOTICE 'Extracting trip stop patterns to stage_gtfs.patterns ...';
+  RETURN QUERY
+  WITH
+    arrays_by_trip_id AS (
+      SELECT
+        trip_id,
+        array_agg(stop_id ORDER BY stop_sequence)           AS stopids,
+        array_agg(rel_dist_traveled ORDER BY stop_sequence) AS rel_distances
+      FROM stage_gtfs.normalized_stop_times
+      GROUP BY trip_id
+    ),
+    records_by_patterns AS (
+      SELECT
+        twd.route_id            AS route,
+        twd.direction_id        AS dir,
+        twd.shape_id            AS shape_id,
+        arr.stopids             AS stopids,
+        /* NOTE: We use (arbitrarily) min() here to get exactly one array record for each group.
+         *       Should there be more of different rel_distances variants per route-dir-shape_id-stopids,
+         *       the rest of them are discarded now.
+         */
+        min(arr.rel_distances)  AS rel_distances,
+        array_agg(arr.trip_id ORDER BY arr.trip_id) AS trip_ids
+      FROM arrays_by_trip_id                  AS arr
+      INNER JOIN stage_gtfs.trips_with_dates  AS twd
+        ON arr.trip_id = twd.trip_id
+      GROUP BY route, dir, shape_id, stopids
+      ORDER BY route, dir
+    ),
+    inserted AS (
+      INSERT INTO stage_gtfs.patterns (
+        ptid, route, dir, trip_ids, stopids, shape_id, rel_distances
+      )
+      SELECT
+        concat_ws(
+          '_',
+          route, dir,
+          row_number() OVER (PARTITION BY route, dir)
+        ) AS ptid,
+        route, dir, trip_ids, stopids, shape_id, rel_distances
+      FROM records_by_patterns
+      RETURNING *
+    )
+    SELECT 'stage_gtfs.patterns' AS table_name, count(*) AS rows_affected
+    FROM inserted;
+END;
+$$;
+COMMENT ON FUNCTION stage_gtfs.extract_trip_stop_patterns IS
+'Populate stage_gtfs.patterns by extracting unique stop sequences
+by route and direction from stage_gtfs.normalized_stop_times.
+This will not check if the target table is already populated,
+but running this on non-empty table will probably fail since `ptid` values are
+always generated with running numbers from 1, which can lead to conflicts with existing values.
+- `where_sql`: NOT IMPLEMENTED YET. Use this to filter the set of records read
+  from `stage_gtfs.normalized_stop_times`.
+NOTE: Unique stop patterns are found by grouping by `route`, `dir` AND `shape_id`,
+      to make sure we get exactly one `shape_id` per record. Technically it is possible
+      that `shape_id` is the only attribute making a difference between two records
+      with same route and direction, but such a case is probably either an error
+      or then there really is a route divertion (e.g. building site) that does not affect the stops.';
+
 CREATE TABLE stage_gtfs.trip_template_arrays (
   /*
    * This will be just a surrogate pkey with a running number.
