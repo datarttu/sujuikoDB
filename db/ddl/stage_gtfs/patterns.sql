@@ -447,3 +447,29 @@ COMMENT ON FUNCTION stage_gtfs.set_pattern_stops_shape_geoms IS
 'For each stop pair in `.pattern_stops`, set `shape_geom` by extracting the corresponding
 subsection from the related GTFS shape from `.shape_lines`.
 The subsection is interpolated linearly with `ij_shape_dists`.';
+
+CREATE OR REPLACE FUNCTION stage_gtfs.set_pattern_stops_path_found()
+RETURNS TABLE (
+  table_name    text,
+  rows_affected bigint
+)
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+BEGIN
+  RAISE NOTICE 'Setting path_found flags in stage_gtfs.pattern_stops ...';
+  RETURN QUERY
+  WITH updated AS (
+    UPDATE stage_gtfs.pattern_stops AS upd
+    SET path_found = true
+    FROM (
+      SELECT DISTINCT ptid, stop_seq
+      FROM stage_gtfs.pattern_paths
+    ) AS pp
+    WHERE upd.ptid = pp.ptid AND upd.stop_seq = pp.stop_seq
+    RETURNING *
+  )
+  SELECT 'stage_gtfs.pattern_stops' AS table_name, count(*) AS rows_affected
+  FROM updated;
+END;
+$$;
