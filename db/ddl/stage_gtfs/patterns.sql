@@ -61,7 +61,10 @@ CREATE TABLE stage_gtfs.pattern_paths (
   FOREIGN KEY (ptid, stop_seq) REFERENCES stage_gtfs.pattern_stops(ptid, stop_seq)
 );
 COMMENT ON TABLE stage_gtfs.pattern_paths IS
-'TODO doc';
+'Segments comprising the network paths between stop node pairs `stop_seq` belonging to pattern `ptid`.
+Note that paths not found are not included here, so there can be "holes" in `stop_seq` values.
+If `reversed` is true, then the segment uses the link `linkid` in the opposite direction,
+i.e. start and end nodes are flipped (`seg_nodes`).';
 
 CREATE TABLE stage_gtfs.stop_pairs (
   ij_stops          integer[]   PRIMARY KEY,
