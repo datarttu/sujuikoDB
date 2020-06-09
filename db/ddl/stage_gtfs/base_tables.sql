@@ -1,3 +1,5 @@
+CREATE SCHEMA IF NOT EXISTS stage_gtfs;
+
 CREATE TABLE stage_gtfs.routes (
   route_id          text        PRIMARY KEY,
   agency_id         text,
