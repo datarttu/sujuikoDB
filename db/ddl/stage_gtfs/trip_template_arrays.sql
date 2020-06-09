@@ -49,6 +49,22 @@ as stop-to-stop pairs `ij_stops` ordered by `stop_seq`.
 - `invalid_reasons`: reasons to invalidate a record can be gathered here, e.g.
   no network path exists, or the network path differs too much from the GTFS shape';
 
+CREATE TABLE stage_gtfs.stop_pairs (
+  ij_stops          integer[]   PRIMARY KEY,
+  ij_nodes          integer[],
+  ptids             text[],
+  n_patterns        integer,
+  path_found        boolean     DEFAULT false
+);
+COMMENT ON TABLE stage_gtfs.stop_pairs IS
+'Unique pairs of stops, as two-element arrays, that occur successively on any stop pattern
+in `stage_gtfs.pattern_stops`.
+- `ij_nodes`: nw.nodes node ids corresponding to the stops, used as start and end vertices for routing
+- `ptids`: which patterns `ptid` do use the stop pair?
+- `n_patterns`: how many patterns in `.pattern_stops` do use the stop pair?
+  (Effectively the same as `ptids` length).
+- `path_found`: has a network path between the stops been found?';
+
 CREATE FUNCTION stage_gtfs.extract_trip_stop_patterns(where_sql text DEFAULT NULL)
 RETURNS TABLE (
   table_name    text,
@@ -150,6 +166,59 @@ but running this on non-empty tables will probably fail since `ptid` values are
 always generated with running numbers from 1, which can lead to conflicts with existing values.
 - `where_sql`: NOT IMPLEMENTED YET. Use this to filter the set of records read
   from `stage_gtfs.normalized_stop_times`.';
+
+
+CREATE OR REPLACE FUNCTION stage_gtfs.extract_unique_stop_pairs()
+RETURNS TABLE (
+  table_name    text,
+  rows_affected bigint
+)
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+DECLARE
+  cnt       bigint;
+  cnt_nulls bigint;
+BEGIN
+  RAISE NOTICE 'Extracting unique stop pairs from stage_gtfs.pattern_stops ...';
+  WITH
+    unique_pairs AS (
+      SELECT
+        ij_stops,
+        array_agg(ptid) AS ptids,
+        count(*)        AS n_patterns
+      FROM stage_gtfs.pattern_stops
+      GROUP BY ij_stops
+    ),
+    inserted AS (
+      INSERT INTO stage_gtfs.stop_pairs (
+        ij_stops, ij_nodes, ptids, n_patterns
+      )
+      SELECT
+        up.ij_stops,
+        ARRAY[s1.nodeid, s2.nodeid]::integer[]  AS ij_nodes,
+        up.ptids,
+        up.n_patterns
+      FROM unique_pairs   AS up
+      LEFT JOIN nw.stops  AS s1
+        ON s1.stopid = up.ij_stops[1]
+      LEFT JOIN nw.stops  AS s2
+        ON s2.stopid = up.ij_stops[2]
+      RETURNING *
+    )
+  SELECT INTO cnt count(*) FROM inserted;
+
+  SELECT INTO cnt_nulls count(*)
+  FROM stage_gtfs.stop_pairs
+  WHERE ij_nodes[1] IS NULL OR ij_nodes[2] IS NULL;
+  IF cnt_nulls > 0 THEN
+    RAISE WARNING '% rows where one or both node ids are NULL in stage_gtfs.stop_pairs', cnt_nulls;
+  END IF;
+
+  RETURN QUERY
+  SELECT 'stage_gtfs.stop_pairs' AS table_name, cnt AS rows_affected;
+END;
+$$;
 
 CREATE TABLE stage_gtfs.trip_template_arrays (
   /*
