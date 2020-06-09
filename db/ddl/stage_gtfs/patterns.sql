@@ -49,6 +49,20 @@ as stop-to-stop pairs `ij_stops` ordered by `stop_seq`.
 - `invalid_reasons`: reasons to invalidate a record can be gathered here, e.g.
   no network path exists, or the network path differs too much from the GTFS shape';
 
+CREATE TABLE stage_gtfs.pattern_paths (
+  ptid              text        NOT NULL,
+  stop_seq          smallint    NOT NULL,
+  path_seq          integer     NOT NULL,
+  linkid            integer     NOT NULL,
+  seg_nodes         integer[]   NOT NULL,
+  reversed          boolean     NOT NULL,
+
+  PRIMARY KEY (ptid, stop_seq, path_seq),
+  FOREIGN KEY (ptid, stop_seq) REFERENCES stage_gtfs.pattern_stops(ptid, stop_seq)
+);
+COMMENT ON TABLE stage_gtfs.pattern_paths IS
+'TODO doc';
+
 CREATE TABLE stage_gtfs.stop_pairs (
   ij_stops          integer[]   PRIMARY KEY,
   ij_nodes          integer[],
@@ -324,6 +338,71 @@ COMMENT ON FUNCTION stage_gtfs.find_stop_pair_paths IS
 'Find a path sequence along nw.links
 for each non-null stop node pair in `stage_gtfs.stop_pairs`, using pgr_Dijkstra.
 Store results in `stage_gtfs.stop_pair_paths`.';
+
+CREATE OR REPLACE FUNCTION stage_gtfs.set_pattern_paths(where_sql text DEFAULT NULL)
+RETURNS TABLE (
+  table_name    text,
+  rows_affected bigint
+)
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+DECLARE
+  cnt_path_records  bigint;
+  cnt_pair_paths    bigint;
+  cnt_full_paths    bigint;
+BEGIN
+  RAISE NOTICE 'Setting pattern stop paths in stage_gtfs.pattern_paths ...';
+
+  -- TODO: Implement where_sql
+
+  WITH stop_pair_segments AS (
+    SELECT
+      ARRAY[inode, jnode]::integer[]                      AS stop_nodes,
+      path_seq,
+      linkid,
+      ARRAY[nodeid, lead(nodeid) OVER w_pair]::integer[]  AS seg_nodes
+    FROM stage_gtfs.stop_pair_paths
+    WINDOW w_pair AS (PARTITION BY inode, jnode ORDER BY path_seq)
+    ORDER BY inode, jnode, path_seq
+  )
+  INSERT INTO stage_gtfs.pattern_paths (
+    ptid, stop_seq, path_seq, linkid, seg_nodes, reversed
+  )
+  SELECT
+    ps.ptid,
+    ps.stop_seq,
+    sg.path_seq,
+    sg.linkid,
+    sg.seg_nodes,
+    (sg.seg_nodes[2] = li.inode AND sg.seg_nodes[1] = li.jnode) AS reversed
+  FROM stage_gtfs.pattern_stops     AS ps
+  INNER JOIN stage_gtfs.stop_pairs  AS sp
+    ON ps.ij_stops = sp.ij_stops
+  INNER JOIN stop_pair_segments      AS sg
+    ON sp.ij_nodes = sg.stop_nodes
+  INNER JOIN nw.links                AS li
+    ON sg.linkid = li.linkid
+  WHERE sg.linkid > -1
+  ORDER BY ps.ptid, ps.stop_seq, sg.path_seq;
+
+  GET DIAGNOSTICS cnt_path_records = ROW_COUNT;
+
+  -- TODO: Implement "manual" routing for pairs with restricted_links;
+  --       UPDATE these records as they were already populated above
+  --       to ensure consistency
+
+  RETURN QUERY
+  SELECT 'stage_gtfs.pattern_paths' AS table_name, cnt_path_records AS rows_affected;
+END;
+$$;
+COMMENT ON FUNCTION stage_gtfs.set_pattern_paths IS
+'Find network path for each stop pair of pattern `ptid` in `stage_gtfs.pattern_stops`,
+store results in `stage_gtfs.pattern_paths`.
+1)  If there are no `restricted_links`, then look up the paths by node pairs from `.stop_pair_paths`.
+2)  Otherwise, run pgr_Dijkstra for the pair in question with the `restricted_links` omitted from the network.
+    NOT IMPLEMENTED YET.';
+
 CREATE OR REPLACE FUNCTION stage_gtfs.set_pattern_stops_shape_geoms(where_sql text DEFAULT NULL)
 RETURNS TABLE (
   table_name    text,
