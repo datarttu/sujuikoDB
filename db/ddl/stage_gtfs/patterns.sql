@@ -496,3 +496,32 @@ BEGIN
   FROM updated;
 END;
 $$;
+
+CREATE OR REPLACE FUNCTION stage_gtfs.set_pattern_stops_max_offset()
+RETURNS TABLE (
+  table_name    text,
+  rows_affected bigint
+)
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+BEGIN
+  RAISE NOTICE 'Calculating max_offset in stage_gtfs.pattern_stops ...';
+
+  -- TODO: Use Frechet distance or something else?
+
+  RETURN QUERY
+  WITH updated AS (
+    UPDATE stage_gtfs.pattern_stops AS upd
+    SET max_offset = ST_FrechetDistance(shape_geom, vpsg.geom)
+    FROM (
+      SELECT ptid, stop_seq, geom
+      FROM stage_gtfs.view_pattern_stops_geom
+    ) AS vpsg
+    WHERE upd.ptid = vpsg.ptid AND upd.stop_seq = vpsg.stop_seq
+    RETURNING *
+  )
+  SELECT 'stage_gtfs.pattern_stops' AS table_name, count(*) AS rows_affected
+  FROM updated;
+END;
+$$;
