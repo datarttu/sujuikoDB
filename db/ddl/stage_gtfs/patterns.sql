@@ -324,3 +324,44 @@ COMMENT ON FUNCTION stage_gtfs.find_stop_pair_paths IS
 'Find a path sequence along nw.links
 for each non-null stop node pair in `stage_gtfs.stop_pairs`, using pgr_Dijkstra.
 Store results in `stage_gtfs.stop_pair_paths`.';
+CREATE OR REPLACE FUNCTION stage_gtfs.set_pattern_stops_shape_geoms(where_sql text DEFAULT NULL)
+RETURNS TABLE (
+  table_name    text,
+  rows_affected bigint
+)
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+BEGIN
+  RAISE NOTICE 'Setting GTFS shape subsections (shape_geom) in stage_gtfs.pattern_stops ...';
+  -- TODO: Implement where_sql
+  RETURN QUERY
+  WITH
+    subsections AS (
+      SELECT
+        ps.ptid,
+        ps.stop_seq,
+        ST_LineSubstring(sl.geom, ps.ij_shape_dists[1], ps.ij_shape_dists[2]) AS shape_geom
+      FROM stage_gtfs.pattern_stops     AS ps
+      INNER JOIN stage_gtfs.patterns    AS p
+        ON ps.ptid = p.ptid
+      INNER JOIN stage_gtfs.shape_lines AS sl
+        ON p.shape_id = sl.shape_id
+    ),
+    updated AS (
+      UPDATE stage_gtfs.pattern_stops AS upd
+      SET shape_geom = ss.shape_geom
+      FROM (
+        SELECT * FROM subsections
+      ) AS ss
+      WHERE upd.ptid = ss.ptid AND upd.stop_seq = ss.stop_seq
+      RETURNING *
+    )
+    SELECT 'stage_gtfs.pattern_stops' AS table_name, count(*) AS rows_affected
+    FROM updated;
+END;
+$$;
+COMMENT ON FUNCTION stage_gtfs.set_pattern_stops_shape_geoms IS
+'For each stop pair in `.pattern_stops`, set `shape_geom` by extracting the corresponding
+subsection from the related GTFS shape from `.shape_lines`.
+The subsection is interpolated linearly with `ij_shape_dists`.';
