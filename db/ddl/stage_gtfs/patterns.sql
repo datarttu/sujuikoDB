@@ -23,7 +23,6 @@ CREATE TABLE stage_gtfs.pattern_stops (
   ptid              text                        NOT NULL REFERENCES stage_gtfs.patterns(ptid),
   stop_seq          smallint                    NOT NULL,
   ij_stops          integer[]                   NOT NULL CHECK (cardinality(ij_stops) = 2),
-  ij_nodes          integer[],
   ij_shape_dists    double precision[],
   restricted_links  integer[],
   path_found        boolean                     DEFAULT false,
@@ -34,12 +33,10 @@ CREATE TABLE stage_gtfs.pattern_stops (
   PRIMARY KEY (ptid, stop_seq)
 );
 CREATE INDEX ON stage_gtfs.pattern_stops USING GIN(ij_stops);
-CREATE INDEX ON stage_gtfs.pattern_stops USING GIN(ij_nodes);
 CREATE INDEX ON stage_gtfs.pattern_stops USING GIST(shape_geom);
 COMMENT ON TABLE stage_gtfs.pattern_stops IS
 'Describes the stop sequences of patterns `ptid`, belonging to `stage_gtfs.patterns`,
 as stop-to-stop pairs `ij_stops` ordered by `stop_seq`.
-- `ij_nodes`: nodes on the network corresponding to the stop ids
 - `ij_shape_dists`: relative distances along the GTFS shape,
   used to extract the linestring subsection that corresponds to the stop pair
 - `restricted_links`: can be populated manually, before finding the shortest paths,
