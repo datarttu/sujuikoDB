@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS stage_gtfs.patterns CASCADE;
 CREATE TABLE stage_gtfs.patterns (
   ptid              text          PRIMARY KEY,
   route             text          NOT NULL REFERENCES sched.routes(route),
@@ -17,6 +18,7 @@ e.g. in case of a diverted itinerary variant that differs only between a stop pa
 - `invalid_reasons`: reasons to invalidate a record can be gathered here, e.g.
   no complete network path exists, or the network path differs too much from the GTFS shape';
 
+DROP TABLE IF EXISTS stage_gtfs.pattern_stops CASCADE;
 CREATE TABLE stage_gtfs.pattern_stops (
   ptid              text                        NOT NULL REFERENCES stage_gtfs.patterns(ptid),
   stop_seq          smallint                    NOT NULL,
@@ -49,6 +51,7 @@ as stop-to-stop pairs `ij_stops` ordered by `stop_seq`.
 - `invalid_reasons`: reasons to invalidate a record can be gathered here, e.g.
   no network path exists, or the network path differs too much from the GTFS shape';
 
+DROP TABLE IF EXISTS stage_gtfs.pattern_paths CASCADE;
 CREATE TABLE stage_gtfs.pattern_paths (
   ptid              text        NOT NULL,
   stop_seq          smallint    NOT NULL,
@@ -66,6 +69,7 @@ Note that paths not found are not included here, so there can be "holes" in `sto
 If `reversed` is true, then the segment uses the link `linkid` in the opposite direction,
 i.e. start and end nodes are flipped (`seg_nodes`).';
 
+DROP VIEW IF EXISTS stage_gtfs.view_pattern_paths_geom CASCADE;
 CREATE OR REPLACE VIEW stage_gtfs.view_pattern_paths_geom AS (
   SELECT
     pp.*,
@@ -78,6 +82,7 @@ CREATE OR REPLACE VIEW stage_gtfs.view_pattern_paths_geom AS (
     ON pp.linkid = li.linkid
 );
 
+DROP VIEW IF EXISTS stage_gtfs.view_pattern_stops_geom CASCADE;
 CREATE OR REPLACE VIEW stage_gtfs.view_pattern_stops_geom AS (
   SELECT
     ps.*,
@@ -89,6 +94,7 @@ CREATE OR REPLACE VIEW stage_gtfs.view_pattern_stops_geom AS (
   GROUP BY ps.ptid, ps.stop_seq
 );
 
+DROP TABLE IF EXISTS stage_gtfs.stop_pairs CASCADE;
 CREATE TABLE stage_gtfs.stop_pairs (
   ij_stops          integer[]   PRIMARY KEY,
   ij_nodes          integer[],
@@ -105,6 +111,7 @@ in `stage_gtfs.pattern_stops`.
   (Effectively the same as `ptids` length).
 - `path_found`: has a network path between the stops been found?';
 
+DROP TABLE IF EXISTS stage_gtfs.stop_pair_paths CASCADE;
 CREATE TABLE stage_gtfs.stop_pair_paths (
   inode       integer     NOT NULL,
   jnode       integer     NOT NULL,
@@ -114,6 +121,7 @@ CREATE TABLE stage_gtfs.stop_pair_paths (
   PRIMARY KEY (inode, jnode, path_seq)
 );
 
+DROP FUNCTION IF EXISTS stage_gtfs.extract_trip_stop_patterns(text);
 CREATE FUNCTION stage_gtfs.extract_trip_stop_patterns(where_sql text DEFAULT NULL)
 RETURNS TABLE (
   table_name    text,
@@ -216,7 +224,7 @@ always generated with running numbers from 1, which can lead to conflicts with e
 - `where_sql`: NOT IMPLEMENTED YET. Use this to filter the set of records read
   from `stage_gtfs.normalized_stop_times`.';
 
-
+DROP FUNCTION IF EXISTS stage_gtfs.extract_unique_stop_pairs;
 CREATE OR REPLACE FUNCTION stage_gtfs.extract_unique_stop_pairs()
 RETURNS TABLE (
   table_name    text,
@@ -269,6 +277,7 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS stage_gtfs.find_stop_pair_paths(text);
 CREATE OR REPLACE FUNCTION stage_gtfs.find_stop_pair_paths(where_sql text DEFAULT NULL)
 RETURNS TABLE (
   table_name    text,
@@ -365,6 +374,7 @@ COMMENT ON FUNCTION stage_gtfs.find_stop_pair_paths IS
 for each non-null stop node pair in `stage_gtfs.stop_pairs`, using pgr_Dijkstra.
 Store results in `stage_gtfs.stop_pair_paths`.';
 
+DROP FUNCTION IF EXISTS stage_gtfs.set_pattern_paths(text);
 CREATE OR REPLACE FUNCTION stage_gtfs.set_pattern_paths(where_sql text DEFAULT NULL)
 RETURNS TABLE (
   table_name    text,
@@ -429,6 +439,7 @@ store results in `stage_gtfs.pattern_paths`.
 2)  Otherwise, run pgr_Dijkstra for the pair in question with the `restricted_links` omitted from the network.
     NOT IMPLEMENTED YET.';
 
+DROP FUNCTION IF EXISTS stage_gtfs.set_pattern_stops_shape_geoms(text);
 CREATE OR REPLACE FUNCTION stage_gtfs.set_pattern_stops_shape_geoms(where_sql text DEFAULT NULL)
 RETURNS TABLE (
   table_name    text,
@@ -471,6 +482,7 @@ COMMENT ON FUNCTION stage_gtfs.set_pattern_stops_shape_geoms IS
 subsection from the related GTFS shape from `.shape_lines`.
 The subsection is interpolated linearly with `ij_shape_dists`.';
 
+DROP FUNCTION IF EXISTS stage_gtfs.set_pattern_stops_path_found;
 CREATE OR REPLACE FUNCTION stage_gtfs.set_pattern_stops_path_found()
 RETURNS TABLE (
   table_name    text,
