@@ -26,7 +26,7 @@ CREATE TABLE stage_gtfs.pattern_stops (
   restricted_links  integer[],
   path_found        boolean                     DEFAULT false,
   shape_geom        geometry(LINESTRING, 3067),
-  max_offset        double precision,
+  nw_vs_shape_coeff double precision,
   invalid_reasons   text[]                      DEFAULT '{}',
 
   PRIMARY KEY (ptid, stop_seq)
@@ -44,8 +44,8 @@ as stop-to-stop pairs `ij_stops` ordered by `stop_seq`.
   to restrict certain link/edge ids from being used for routing
 - `path_found`: flag after finding the shortest paths - does a path exist for this pair?
 - `shape_geom`: corresponding subsection of the GTFS shape
-- `max_offset`: maximum distance between `shape_geom` and the network path,
-  if this is too high then the network path differs too much from the designed path in GTFS
+- `nw_vs_shape_coeff`: `network path length / GTFS shape length`. If this differs considerably
+  from `1.0`, then the network path is likely to be incorrect and should be fixed.
 - `invalid_reasons`: reasons to invalidate a record can be gathered here, e.g.
   no network path exists, or the network path differs too much from the GTFS shape';
 
@@ -497,7 +497,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION stage_gtfs.set_pattern_stops_max_offset()
+CREATE OR REPLACE FUNCTION stage_gtfs.set_pattern_stops_nw_vs_shape_coeff()
 RETURNS TABLE (
   table_name    text,
   rows_affected bigint
@@ -506,14 +506,16 @@ LANGUAGE PLPGSQL
 VOLATILE
 AS $$
 BEGIN
-  RAISE NOTICE 'Calculating max_offset in stage_gtfs.pattern_stops ...';
-
-  -- TODO: Use Frechet distance or something else?
+  RAISE NOTICE 'Calculating nw_vs_shape_coeff in stage_gtfs.pattern_stops ...';
 
   RETURN QUERY
   WITH updated AS (
     UPDATE stage_gtfs.pattern_stops AS upd
-    SET max_offset = ST_FrechetDistance(shape_geom, vpsg.geom)
+    SET nw_vs_shape_coeff =  (CASE
+                                WHEN shape_geom IS NULL THEN NULL
+                                WHEN ST_Length(shape_geom) = 0.0 THEN 0.0
+                                ELSE ST_Length(vpsg.geom) / ST_Length(shape_geom)
+                              END)
     FROM (
       SELECT ptid, stop_seq, geom
       FROM stage_gtfs.view_pattern_stops_geom
