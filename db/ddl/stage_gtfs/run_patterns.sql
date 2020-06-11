@@ -6,6 +6,7 @@ SELECT * FROM stage_gtfs.set_pattern_paths();
 SELECT * FROM stage_gtfs.set_pattern_stops_path_found();
 SELECT * FROM stage_gtfs.set_patterns_length_values();
 
+SELECT * FROM invalidate('stage_gtfs.pattern_stops', 'No network path', 'path_found IS false');
 SELECT * FROM invalidate('stage_gtfs.pattern_stops', 'Network path too long', 'nw_vs_shape_coeff > 1.2');
 SELECT * FROM invalidate('stage_gtfs.pattern_stops', 'Network path too short', 'nw_vs_shape_coeff < 0.8');
 SELECT * FROM stage_gtfs.count_pattern_stops_invalidations();
