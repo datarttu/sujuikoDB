@@ -15,3 +15,5 @@ SELECT * FROM invalidate('stage_gtfs.pattern_stops', 'Network path too short', '
 --SELECT * FROM stage_gtfs.count_pattern_stops_invalidations();
 SELECT * FROM invalidate('stage_gtfs.patterns', 'Network path too long', 'nw_vs_shape_coeff > 1.1');
 SELECT * FROM invalidate('stage_gtfs.patterns', 'Network path too short', 'nw_vs_shape_coeff < 0.9');
+
+SELECT * FROM stage_gtfs.extract_trip_templates();
