@@ -573,38 +573,3 @@ BEGIN
   SELECT 'stage_gtfs.patterns' AS table_name, cnt_patterns AS rows_affected;
 END;
 $$;
-
-DROP FUNCTION IF EXISTS stage_gtfs.count_pattern_stops_invalidations;
-CREATE OR REPLACE FUNCTION stage_gtfs.count_pattern_stops_invalidations()
-RETURNS TABLE (
-  table_name    text,
-  rows_affected bigint
-)
-LANGUAGE PLPGSQL
-VOLATILE
-AS $$
-BEGIN
-  RAISE NOTICE 'Marking invalid stage_gtfs.pattern_stops records to stage_gtfs.patterns ...';
-
-  RETURN QUERY
-  WITH
-    updated AS (
-      UPDATE stage_gtfs.patterns  AS upd
-      SET invalid_reasons = array_append(
-        invalid_reasons,
-        ivd.cnt_invalid || ' invalid records in pattern_stops'
-      )
-      FROM (
-        SELECT ptid, count(*) AS cnt_invalid
-        FROM stage_gtfs.pattern_stops
-        WHERE invalid_reasons IS NOT NULL
-          AND cardinality(invalid_reasons) > 0
-        GROUP BY ptid
-      ) AS ivd
-      WHERE ivd.ptid = upd.ptid
-      RETURNING *
-    )
-  SELECT 'stage_gtfs.patterns' AS table_name, count(*) AS rows_affected
-  FROM updated;
-END;
-$$;
