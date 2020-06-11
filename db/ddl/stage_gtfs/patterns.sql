@@ -1,11 +1,14 @@
 DROP TABLE IF EXISTS stage_gtfs.patterns CASCADE;
 CREATE TABLE stage_gtfs.patterns (
-  ptid              text          PRIMARY KEY,
-  route             text          NOT NULL REFERENCES sched.routes(route),
-  dir               smallint      NOT NULL CHECK (dir IN (1, 2)),
-  shape_id          text          NOT NULL REFERENCES stage_gtfs.shape_lines(shape_id),
+  ptid              text              PRIMARY KEY,
+  route             text              NOT NULL REFERENCES sched.routes(route),
+  dir               smallint          NOT NULL CHECK (dir IN (1, 2)),
+  shape_id          text              NOT NULL REFERENCES stage_gtfs.shape_lines(shape_id),
   trip_ids          text[],
-  invalid_reasons   text[]        DEFAULT '{}'
+  shape_len_total   double precision,
+  nw_len_total      double precision,
+  nw_vs_shape_coeff double precision,
+  invalid_reasons   text[]            DEFAULT '{}'
 );
 CREATE INDEX ON stage_gtfs.patterns USING GIN(trip_ids);
 COMMENT ON TABLE stage_gtfs.patterns IS
@@ -506,7 +509,8 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION stage_gtfs.set_pattern_stops_nw_vs_shape_coeff()
+DROP FUNCTION IF EXISTS stage_gtfs.set_patterns_length_values;
+CREATE OR REPLACE FUNCTION stage_gtfs.set_patterns_length_values()
 RETURNS TABLE (
   table_name    text,
   rows_affected bigint
@@ -514,25 +518,58 @@ RETURNS TABLE (
 LANGUAGE PLPGSQL
 VOLATILE
 AS $$
+DECLARE
+  cnt_stops     bigint;
+  cnt_patterns  bigint;
 BEGIN
   RAISE NOTICE 'Calculating nw_vs_shape_coeff in stage_gtfs.pattern_stops ...';
 
-  RETURN QUERY
-  WITH updated AS (
-    UPDATE stage_gtfs.pattern_stops AS upd
-    SET nw_vs_shape_coeff =  (CASE
+  WITH
+    updated_stops AS (
+      UPDATE stage_gtfs.pattern_stops AS upd
+      SET nw_vs_shape_coeff = CASE
                                 WHEN shape_geom IS NULL THEN NULL
                                 WHEN ST_Length(shape_geom) = 0.0 THEN 0.0
                                 ELSE ST_Length(vpsg.geom) / ST_Length(shape_geom)
-                              END)
-    FROM (
-      SELECT ptid, stop_seq, geom
-      FROM stage_gtfs.view_pattern_stops_geom
-    ) AS vpsg
-    WHERE upd.ptid = vpsg.ptid AND upd.stop_seq = vpsg.stop_seq
-    RETURNING *
-  )
-  SELECT 'stage_gtfs.pattern_stops' AS table_name, count(*) AS rows_affected
-  FROM updated;
+                              END
+      FROM (
+        SELECT ptid, stop_seq, geom
+        FROM stage_gtfs.view_pattern_stops_geom
+      ) AS vpsg
+      WHERE upd.ptid = vpsg.ptid AND upd.stop_seq = vpsg.stop_seq
+      RETURNING *
+    )
+  SELECT INTO cnt_stops count(*) FROM updated_stops;
+
+  RAISE NOTICE 'Calculating shape and nw total lengths in stage_gtfs.patterns ...';
+
+  WITH
+    updated_patterns AS (
+      UPDATE stage_gtfs.patterns AS upd
+      SET
+        shape_len_total   = vpsg.shape_len_total,
+        nw_len_total      = vpsg.nw_len_total,
+        nw_vs_shape_coeff = CASE
+                              WHEN vpsg.shape_len_total IS NULL THEN NULL
+                              WHEN vpsg.shape_len_total = 0.0 THEN 0.0
+                              ELSE vpsg.nw_len_total / vpsg.shape_len_total
+                            END
+      FROM (
+        SELECT
+          ptid,
+          sum( ST_Length(shape_geom) )  AS shape_len_total,
+          sum( ST_Length(geom) )        AS nw_len_total
+        FROM stage_gtfs.view_pattern_stops_geom
+        GROUP BY ptid
+      ) AS vpsg
+      WHERE upd.ptid = vpsg.ptid
+      RETURNING *
+    )
+  SELECT INTO cnt_patterns count(*) FROM updated_patterns;
+
+  RETURN QUERY
+  SELECT 'stage_gtfs.pattern_stops' AS table_name, cnt_stops AS rows_affected
+  UNION
+  SELECT 'stage_gtfs.patterns' AS table_name, cnt_patterns AS rows_affected;
 END;
 $$;
