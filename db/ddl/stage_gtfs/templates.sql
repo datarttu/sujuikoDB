@@ -5,7 +5,8 @@ CREATE TABLE stage_gtfs.templates (
   arr_times         interval[],
   dep_times         interval[],
   stop_seqs         smallint[],
-  trip_ids          text[]
+  trip_ids          text[],
+  invalid_reasons   text[]        NOT NULL DEFAULT '{}'
 );
 COMMENT ON TABLE stage_gtfs.templates IS
 'Staging table for `sched.templates`.
@@ -32,7 +33,8 @@ CREATE TABLE stage_gtfs.template_stops (
   ttid            text              NOT NULL REFERENCES stage_gtfs.templates(ttid),
   ij_stop_seqs    smallint[]        NOT NULL CHECK (cardinality(ij_stop_seqs) = 2),
   ij_times        interval[]        NOT NULL CHECK (cardinality(ij_times) = 2),
-  ij_seconds      double precision  NOT NULL CHECK (ij_seconds > 0.0),
+  ij_seconds      double precision  NOT NULL,
+  invalid_reasons text[]            NOT NULL DEFAULT '{}',
 
   PRIMARY KEY (ttid, ij_stop_seqs)
 );
