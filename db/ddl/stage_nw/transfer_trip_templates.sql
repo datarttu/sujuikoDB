@@ -1,3 +1,8 @@
+/*
+ * TODO: This is outdated since we no longer use trip_template_arrays.
+ *       Replace this with transfer routines in stage_gtfs schema.
+ */
+
 CREATE OR REPLACE FUNCTION stage_nw.transfer_trip_templates()
 RETURNS TEXT
 LANGUAGE PLPGSQL
