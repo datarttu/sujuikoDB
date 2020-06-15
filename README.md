@@ -34,7 +34,7 @@ I use this to establish the node-link network and to find the shortest paths for
 Smart timestamp column based table partitioning needed to manage huge amounts of the HFP data.
 
 Unfortunately, there is no automated deployment process.
-Having installed the aforementioned software, create a database named `hfp` as `postgres` superuser, and you should be able to run the DDL scripts in [`db/ddl`](/db/ddl).
+Having installed the aforementioned software, create a database named `sujuiko` as `postgres` superuser, and you should be able to run the DDL scripts in [`db/ddl`](/db/ddl).
 *NOTE:* Due to ongoing development, the scripts cannot be yet run neatly "as a whole" from scratch.
 
 # Data model & data import and transformation
