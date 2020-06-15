@@ -180,3 +180,11 @@ BEGIN
   SELECT 'stage_gtfs.template_stops' AS table_name, cnt_stops AS rows_affected;
 END;
 $$;
+COMMENT ON FUNCTION stage_gtfs.extract_trip_templates(text) IS
+'Populates `stage_gtfs.template_*` tables.
+- Source tables: `stage_gtfs.patterns`,
+                 `stage_gtfs.normalized_stop_times`,
+                 `stage_gtfs.trips_with_dates`
+- Target tables: `stage_gtfs.templates`,
+                 `stage_gtfs.template_timestamps`,
+                 `stage_gtfs.template_stops`';

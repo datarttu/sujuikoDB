@@ -215,14 +215,18 @@ BEGIN
     FROM insert_stops;
 END;
 $$;
-COMMENT ON FUNCTION stage_gtfs.extract_trip_stop_patterns IS
+COMMENT ON FUNCTION stage_gtfs.extract_trip_stop_patterns(text) IS
 'Populate `stage_gtfs.patterns` and `.pattern_stops` by extracting unique stop sequences
 by route and direction from `stage_gtfs.normalized_stop_times`.
 This will not check if the target tables are already populated,
 but running this on non-empty tables will probably fail since `ptid` values are
 always generated with running numbers from 1, which can lead to conflicts with existing values.
 - `where_sql`: NOT IMPLEMENTED YET. Use this to filter the set of records read
-  from `stage_gtfs.normalized_stop_times`.';
+  from `stage_gtfs.normalized_stop_times`.
+- Source tables: `stage_gtfs.normalized_stop_times`,
+                 `stage_gtfs.trips_with_dates`
+- Target tables: `stage_gtfs.patterns`,
+                 `stage_gtfs.pattern_stops`';
 
 DROP FUNCTION IF EXISTS stage_gtfs.extract_unique_stop_pairs;
 CREATE OR REPLACE FUNCTION stage_gtfs.extract_unique_stop_pairs()
@@ -276,6 +280,12 @@ BEGIN
   SELECT 'stage_gtfs.stop_pairs' AS table_name, cnt AS rows_affected;
 END;
 $$;
+COMMENT ON FUNCTION stage_gtfs.extract_unique_stop_pairs IS
+'Find pairs of stop ids that occur after each other in the stop sequence of
+any transit route pattern, also find the respective node ids.
+- Source tables: `stage_gtfs.pattern_stops`,
+                 `nw.stops`
+- Target tables: `stage_gtfs.stop_pairs`';
 
 DROP FUNCTION IF EXISTS stage_gtfs.find_stop_pair_paths(text);
 CREATE OR REPLACE FUNCTION stage_gtfs.find_stop_pair_paths(where_sql text DEFAULT NULL)
@@ -372,7 +382,10 @@ $$;
 COMMENT ON FUNCTION stage_gtfs.find_stop_pair_paths IS
 'Find a path sequence along nw.links
 for each non-null stop node pair in `stage_gtfs.stop_pairs`, using pgr_Dijkstra.
-Store results in `stage_gtfs.stop_pair_paths`.';
+- `where_sql`: NOT IMPLEMENTED YET
+- Source tables: `stage_gtfs.stop_pairs`
+- Target tables: `stage_gtfs.stop_pairs` (updated),
+                 `stage_gtfs.stop_pair_paths`';
 
 DROP FUNCTION IF EXISTS stage_gtfs.set_pattern_paths(text);
 CREATE OR REPLACE FUNCTION stage_gtfs.set_pattern_paths(where_sql text DEFAULT NULL)
@@ -437,7 +450,11 @@ COMMENT ON FUNCTION stage_gtfs.set_pattern_paths IS
 store results in `stage_gtfs.pattern_paths`.
 1)  If there are no `restricted_links`, then look up the paths by node pairs from `.stop_pair_paths`.
 2)  Otherwise, run pgr_Dijkstra for the pair in question with the `restricted_links` omitted from the network.
-    NOT IMPLEMENTED YET.';
+    NOT IMPLEMENTED YET.
+- `where_sql`: NOT IMPLEMENTED YET
+- Source tables: `stage_gtfs.stop_pair_paths`,
+                 `nw.links`
+- Target tables: `stage_gtfs.pattern_paths`';
 
 DROP FUNCTION IF EXISTS stage_gtfs.set_pattern_stops_shape_geoms(text);
 CREATE OR REPLACE FUNCTION stage_gtfs.set_pattern_stops_shape_geoms(where_sql text DEFAULT NULL)
@@ -480,7 +497,11 @@ $$;
 COMMENT ON FUNCTION stage_gtfs.set_pattern_stops_shape_geoms IS
 'For each stop pair in `.pattern_stops`, set `shape_geom` by extracting the corresponding
 subsection from the related GTFS shape from `.shape_lines`.
-The subsection is interpolated linearly with `ij_shape_dists`.';
+The subsection is interpolated linearly with `ij_shape_dists`.
+- `where_sql`: NOT IMPLEMENTED YET
+- Source tables: `stage_gtfs.pattern_stops`,
+                 `stage_gtfs.shape_lines`
+- Target tables: `stage_gtfs.pattern_stops` (updated)';
 
 DROP FUNCTION IF EXISTS stage_gtfs.set_pattern_stops_path_found;
 CREATE OR REPLACE FUNCTION stage_gtfs.set_pattern_stops_path_found()
@@ -508,6 +529,11 @@ BEGIN
   FROM updated;
 END;
 $$;
+COMMENT ON FUNCTION stage_gtfs.set_pattern_stops_path_found IS
+'Check which pattern stop pairs got a path in stage_gtfs.pattern_paths
+and mark them in stage_gtfs.pattern_stops for validation.
+- Source tables: `stage_gtfs.pattern_paths`
+- Target tables: `stage_gtfs.pattern_stops` (updated)';
 
 DROP FUNCTION IF EXISTS stage_gtfs.set_patterns_length_values;
 CREATE OR REPLACE FUNCTION stage_gtfs.set_patterns_length_values()
@@ -573,3 +599,8 @@ BEGIN
   SELECT 'stage_gtfs.patterns' AS table_name, cnt_patterns AS rows_affected;
 END;
 $$;
+COMMENT ON FUNCTION stage_gtfs.set_patterns_length_values IS
+'Set network and GTFS path length values for validation.
+- Source tables: `stage_gtfs.view_pattern_stops_geom`
+- Target tables: `stage_gtfs.pattern_stops` (updated),
+                 `stage_gtfs.patterns` (updated)';
