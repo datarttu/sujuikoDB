@@ -1,3 +1,5 @@
+CREATE SCHEMA IF NOT EXISTS nw;
+
 CREATE TABLE nw.nodes (
   nodeid        integer           PRIMARY KEY,
   cnt           integer,
