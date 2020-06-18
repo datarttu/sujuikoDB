@@ -42,7 +42,7 @@ COMMENT ON TABLE stage_gtfs.template_stops IS
 'Stop times (relative to trip start time) of templates `ttid` as [from_stop-to_stop] arrays,
 where both stops are time equalization stops, i.e., `timepoint IS true` for them.
 The terminus stop of a trip is always treated as timepoint stop.
-This means that not even nearly every of a pattern `ptid` is included here.
+This means that not even nearly every stop of a pattern `ptid` is included here.
 Non-timepoint stops, as well as between-stop segments, get their time values
 as interpolated along the network between the timepoint stops.
 - `ij_stop_seqs`: `stop_seq` values of start and end timepoint stops of the pattern part,
