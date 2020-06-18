@@ -80,6 +80,19 @@ this is at least the case at the start of the GTFS dataset validity time.
 
 For example, see trips with `service_id = '1020N_20191031_20191031_Ke'`.
 
+## Routing issues
+
+### Ignoring turning loops that should be part of the pattern path
+
+![Example of missing turning loop from 1018, Tali.](img/path_ignores_turn_loop.png)
+
+In the example above, the orange line is the GTFS geometry, showing how the pattern itinerary goes through a turning loop after the stop point, so the "dead-end" part of the pattern can be traversed in the other direction.
+The shortest path routing between stops (run in `stage_gtfs` schema) cannot take this into account but turns back immediately after the stop.
+This makes the network path too short and incorrect.
+
+Currently, using turn-restricted routing algorithm would not help, since the routing is done separately for each stop pair, so the stop pair occurring after the back turn does not "know" that the link just before the stop was just traversed in the other direction.
+These cases just have to be detected as too short path sections (path vs. GTFS distance) and fixed manually.
+
 ## HFP issues
 
 ### Missing coordinates
