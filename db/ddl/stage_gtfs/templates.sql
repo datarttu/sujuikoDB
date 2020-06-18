@@ -110,7 +110,8 @@ BEGIN
     stop_seqs,
     array_agg(trip_id)  AS trip_ids
   FROM timepoint_arrays
-  GROUP BY ptid, arr_times, dep_times, stop_seqs;
+  GROUP BY ptid, arr_times, dep_times, stop_seqs
+  ON CONFLICT DO NOTHING;
 
   GET DIAGNOSTICS cnt_templates = ROW_COUNT;
 
@@ -135,7 +136,8 @@ BEGIN
   INSERT INTO stage_gtfs.template_timestamps (ttid, start_timestamp)
   SELECT DISTINCT ttid, start_timestamp
   FROM unnest_dates
-  ORDER BY ttid, start_timestamp;
+  ORDER BY ttid, start_timestamp
+  ON CONFLICT DO NOTHING;
 
   GET DIAGNOSTICS cnt_timestamps = ROW_COUNT;
 
@@ -168,7 +170,8 @@ BEGIN
     extract(epoch FROM ij_times[2] - ij_times[1])::double precision AS ij_seconds
   FROM all_pairs
   WHERE ij_stop_seqs[2] IS NOT NULL
-  ORDER BY ttid, ij_stop_seqs;
+  ORDER BY ttid, ij_stop_seqs
+  ON CONFLICT DO NOTHING;
 
   GET DIAGNOSTICS cnt_stops = ROW_COUNT;
 
