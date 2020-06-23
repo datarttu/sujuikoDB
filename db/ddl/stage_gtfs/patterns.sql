@@ -604,3 +604,113 @@ COMMENT ON FUNCTION stage_gtfs.set_patterns_length_values IS
 - Source tables: `stage_gtfs.view_pattern_stops_geom`
 - Target tables: `stage_gtfs.pattern_stops` (updated),
                  `stage_gtfs.patterns` (updated)';
+
+DROP FUNCTION IF EXISTS stage_gtfs.transfer_patterns(text);
+CREATE OR REPLACE FUNCTION stage_gtfs.transfer_patterns(where_sql text DEFAULT NULL)
+RETURNS TABLE (
+  table_name    text,
+  rows_affected bigint
+)
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+BEGIN
+  RAISE NOTICE 'Transferring stage_gtfs.patterns to sched.patterns ...';
+  RETURN QUERY
+  WITH
+    inserted AS (
+      INSERT INTO sched.patterns (
+        ptid, route, dir, total_dist, gtfs_shape_id
+      )
+      SELECT
+        ptid,
+        route,
+        dir,
+        nw_len_total  AS total_dist,
+        shape_id      AS gtfs_shape_id
+      FROM stage_gtfs.patterns
+      WHERE cardinality(invalid_reasons) = 0
+      RETURNING *
+    )
+  SELECT 'sched.patterns' AS table_name, count(*) AS rows_affected
+  FROM inserted;
+END;
+$$;
+COMMENT ON FUNCTION stage_gtfs.transfer_patterns(text) IS
+'Populate `sched.patterns` with valid records from `stage_gtfs.patterns`.
+- `where_sql`: NOT IMPLEMENTED YET
+- Source tables:  `stage_gtfs.patterns`
+- Target tables:  `sched.patterns`';
+
+DROP FUNCTION IF EXISTS stage_gtfs.transfer_pattern_segments(text);
+CREATE OR REPLACE FUNCTION stage_gtfs.transfer_pattern_segments(where_sql text DEFAULT NULL)
+RETURNS TABLE (
+  table_name    text,
+  rows_affected bigint
+)
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+BEGIN
+  RAISE NOTICE 'Populating sched.segments ...';
+  RETURN QUERY
+  WITH
+    inserted AS (
+      INSERT INTO sched.segments (
+        ptid, segno, linkid, reversed, ij_stops, ij_dist_span, stop_seq
+      )
+      SELECT
+        p.ptid,
+        row_number() OVER (PARTITION BY p.ptid ORDER BY ps.stop_seq, pp.path_seq) AS segno,
+        pp.linkid,
+        pp.reversed,
+        ARRAY[
+          CASE
+            WHEN pp.path_seq = 1
+              THEN ps.ij_stops[1]
+            ELSE NULL
+          END,
+          CASE
+            WHEN pp.path_seq = max(pp.path_seq) OVER (PARTITION BY p.ptid, ps.stop_seq)
+              THEN ps.ij_stops[2]
+            ELSE NULL
+          END
+        ]::integer[]  AS ij_stops,
+        numrange(
+          (sum(l.cost) OVER (
+            PARTITION BY p.ptid
+            ORDER BY ps.stop_seq, pp.path_seq
+          ) - l.cost)::numeric,
+          (sum(l.cost) OVER (
+            PARTITION BY p.ptid
+            ORDER BY ps.stop_seq, pp.path_seq
+          ))::numeric
+        )             AS ij_dist_span,
+        ps.stop_seq
+      FROM sched.patterns     AS p
+      INNER JOIN stage_gtfs.pattern_stops   AS ps
+        ON p.ptid = ps.ptid
+      INNER JOIN stage_gtfs.pattern_paths   AS pp
+        ON  ps.ptid = pp.ptid
+        AND ps.stop_seq = pp.stop_seq
+      INNER JOIN nw.links                   AS l
+        ON pp.linkid = l.linkid
+      ORDER BY p.ptid, ps.stop_seq, pp.path_seq
+      RETURNING *
+    )
+  SELECT 'sched.segments' AS table_name, count(*) AS rows_affected
+  FROM inserted;
+END;
+$$;
+COMMENT ON FUNCTION stage_gtfs.transfer_pattern_segments(text) IS
+'Populate `sched.segments` from `stage_gtfs` pattern table hierarchy;
+determine if the i / j node is a stop, and calculate cumulative distance ranges
+for each segment along the network path.
+Note that `sched.patterns` is used as a basis, and it is assumed to contain
+valid patterns only, so validity of the input records is not checked otherwise.
+- `where_sql`: NOT IMPLEMENTED YET
+- Source tables:  `sched.patterns`,
+                  `stage_gtfs.pattern_stops`,
+                  `stage_gtfs.pattern_paths`,
+                  `nw.links`
+- Target tables:  `sched.segments`';
