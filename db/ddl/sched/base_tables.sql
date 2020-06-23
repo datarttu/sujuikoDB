@@ -59,18 +59,22 @@ COMMENT ON TABLE sched.segments IS
 CREATE TABLE sched.templates (
   ttid              text              PRIMARY KEY,
   ptid              text              NOT NULL REFERENCES sched.patterns(ptid),
-  start_times       interval[]        NOT NULL,
-  dates             date[]            NOT NULL,
   gtfs_trip_ids     text[]
 );
 CREATE INDEX ON sched.templates USING BTREE (ptid);
-CREATE INDEX ON sched.templates USING GIN (start_times);
-CREATE INDEX ON sched.templates USING GIN (dates);
 CREATE INDEX ON sched.templates USING GIN (gtfs_trip_ids);
 COMMENT ON TABLE sched.templates IS
-'Realizations of patterns `ptid` that share common operating times (see `segment_times`),
-initial departure times `start_times` and operating days `dates`.
+'Realizations of patterns `ptid` that share common operating times (see `segment_times`).
 - `gtfs_trip_ids` contains the GTFS trip ids of which the template has been originally composed.';
+
+CREATE TABLE sched.template_timestamps (
+  ttid              text              NOT NULL REFERENCES sched.templates(ttid),
+  start_ts          timestamptz       NOT NULL,
+  PRIMARY KEY (ttid, start_ts)
+);
+COMMENT ON TABLE sched.template_timestamps IS
+'Absolute timestamps of scheduled departure times of trips
+that belong to the template `ttid`.';
 
 CREATE TABLE sched.segment_times (
   ttid              text              NOT NULL REFERENCES sched.templates(ttid),
