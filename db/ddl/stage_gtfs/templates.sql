@@ -191,3 +191,42 @@ COMMENT ON FUNCTION stage_gtfs.extract_trip_templates(text) IS
 - Target tables: `stage_gtfs.templates`,
                  `stage_gtfs.template_timestamps`,
                  `stage_gtfs.template_stops`';
+
+DROP FUNCTION IF EXISTS stage_gtfs.transfer_templates(text);
+CREATE OR REPLACE FUNCTION stage_gtfs.transfer_templates(where_sql text DEFAULT NULL)
+RETURNS TABLE (
+  table_name    text,
+  rows_affected bigint
+)
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+BEGIN
+  RAISE NOTICE 'Transferring stage_gtfs.templates to sched.templates ...';
+  IF NOT EXISTS (SELECT * FROM sched.patterns LIMIT 1) THEN
+    RAISE WARNING 'sched.patterns is empty, populate it first!';
+  END IF;
+  RETURN QUERY
+  WITH
+    inserted AS (
+      INSERT INTO sched.templates (
+        ttid, ptid, gtfs_trip_ids
+      )
+      SELECT
+        t.ttid, t.ptid, t.trip_ids AS gtfs_trip_ids
+      FROM stage_gtfs.templates AS t
+      INNER JOIN sched.patterns AS p
+        ON t.ptid = p.ptid
+      WHERE cardinality(t.invalid_reasons) = 0
+      RETURNING *
+    )
+  SELECT 'sched.templates' AS table_name, count(*) AS rows_affected
+  FROM inserted;
+END;
+$$;
+COMMENT ON FUNCTION stage_gtfs.transfer_templates(text) IS
+'Populate `sched.templates` with valid records from `stage_gtfs.templates`.
+- `where_sql`: NOT IMPLEMENTED YET
+- Source tables:  `stage_gtfs.templates`,
+                  `sched.patterns`
+- Target tables:  `sched.templates`';

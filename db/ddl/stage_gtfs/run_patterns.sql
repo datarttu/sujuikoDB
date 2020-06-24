@@ -22,3 +22,5 @@ SELECT * FROM propagate_invalidations('stage_gtfs.template_stops', 'stage_gtfs.t
 
 SELECT * FROM stage_gtfs.transfer_patterns();
 SELECT * FROM stage_gtfs.transfer_pattern_segments();
+
+SELECT * FROM stage_gtfs.transfer_templates();
