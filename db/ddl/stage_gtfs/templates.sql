@@ -269,3 +269,87 @@ that have a corresponding `ttid` record in `sched.templates`.
 - Source tables:  `stage_gtfs.template_timestamps`,
                   `sched.templates`
 - Target tables:  `sched.template_timestamps`';
+
+DROP FUNCTION IF EXISTS stage_gtfs.transfer_segment_times(text);
+CREATE OR REPLACE FUNCTION stage_gtfs.transfer_segment_times(where_sql text DEFAULT NULL)
+RETURNS TABLE (
+  table_name    text,
+  rows_affected bigint
+)
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+BEGIN
+  RAISE NOTICE 'Populating sched.segment_times ...';
+  IF NOT EXISTS (SELECT * FROM sched.templates LIMIT 1) THEN
+    RAISE WARNING 'sched.templates is empty, populate it first!';
+  END IF;
+  RETURN QUERY
+  WITH
+    timepoint_spans_to_segs AS (
+      SELECT
+        ts.ttid,
+        sg.segno,
+        ts.ij_seconds,
+        ts.ij_times,
+        ts.ij_stop_seqs,
+        rn_length(sg.ij_dist_span)    AS seg_dist,
+        max(upper(sg.ij_dist_span)) OVER (
+          PARTITION BY ts.ttid, ts.ij_stop_seqs
+          )                           AS section_dist,
+        ARRAY[
+          sg.stop_seq = ts.ij_stop_seqs[1]
+          AND sg.ij_stops[1] IS NOT NULL,
+          sg.stop_seq = ts.ij_stop_seqs[2] - 1
+          AND sg.ij_stops[2] IS NOT NULL
+        ]                             AS ij_timepoints
+      FROM stage_gtfs.template_stops  AS ts
+      INNER JOIN sched.templates      AS tp
+        ON  ts.ttid = tp.ttid
+      INNER JOIN sched.segments       AS sg
+        ON  sg.ptid = tp.ptid
+        AND sg.stop_seq >= ts.ij_stop_seqs[1]
+        AND sg.stop_seq < ts.ij_stop_seqs[2]
+    ),
+    cumul_times AS (
+      SELECT
+        ttid,
+        segno,
+        ij_times,
+        ij_seconds * (seg_dist / section_dist)  AS seg_seconds,
+        sum(ij_seconds * (seg_dist / section_dist)) OVER (
+          PARTITION BY ttid, ij_stop_seqs ORDER BY segno
+        ) AS cumul_seg_seconds,
+        ij_timepoints
+      FROM timepoint_spans_to_segs
+    ),
+    inserted AS (
+      INSERT INTO sched.segment_times (
+        ttid, segno, ij_times, ij_timepoints
+      )
+      SELECT
+        ttid,
+        segno,
+        ARRAY[
+          ij_times[1] + make_interval(secs => cumul_seg_seconds - seg_seconds),
+          make_interval(secs => cumul_seg_seconds)
+        ] AS ij_times,
+        ij_timepoints
+      FROM cumul_times
+      ORDER BY ttid, segno
+      RETURNING *
+    )
+  SELECT 'sched.segment_times' AS table_name, count(*) AS rows_affected
+  FROM inserted;
+END;
+$$;
+COMMENT ON FUNCTION stage_gtfs.transfer_templates(text) IS
+'Populate `sched.segment_times` from `stage_gtfs` templates table hierarchy.`
+Effectively, timepoint stop time pairs in `stage_gtfs.template_stops` are "spanned"
+over the network path such that each segment gets enter and exit times interpolated
+by the cumulative path distance.
+- `where_sql`: NOT IMPLEMENTED YET
+- Source tables   `stage_gtfs.template_stops`,
+                  `sched.templates`,
+                  `sched.segments`
+- Target tables:  `sched.segment_times`';
