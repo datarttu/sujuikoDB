@@ -17,6 +17,15 @@ AS $$
   SELECT upper($1) - lower($1);
 $$;
 
+CREATE OR REPLACE FUNCTION rn_length(numrange)
+RETURNS numeric
+LANGUAGE SQL
+IMMUTABLE
+PARALLEL SAFE
+AS $$
+  SELECT upper($1) - lower($1);
+$$;
+
 DROP FUNCTION IF EXISTS invalidate;
 CREATE OR REPLACE FUNCTION invalidate(
   tb_name     text,
