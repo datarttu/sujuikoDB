@@ -24,3 +24,4 @@ SELECT * FROM stage_gtfs.transfer_patterns();
 SELECT * FROM stage_gtfs.transfer_pattern_segments();
 
 SELECT * FROM stage_gtfs.transfer_templates();
+SELECT * FROM stage_gtfs.transfer_template_timestamps();

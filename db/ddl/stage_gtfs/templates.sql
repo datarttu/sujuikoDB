@@ -230,3 +230,42 @@ COMMENT ON FUNCTION stage_gtfs.transfer_templates(text) IS
 - Source tables:  `stage_gtfs.templates`,
                   `sched.patterns`
 - Target tables:  `sched.templates`';
+
+DROP FUNCTION IF EXISTS stage_gtfs.transfer_template_timestamps(text);
+CREATE OR REPLACE FUNCTION stage_gtfs.transfer_template_timestamps(where_sql text DEFAULT NULL)
+RETURNS TABLE (
+  table_name    text,
+  rows_affected bigint
+)
+LANGUAGE PLPGSQL
+VOLATILE
+AS $$
+BEGIN
+  RAISE NOTICE 'Transferring stage_gtfs.template_timestamps to sched.template_timestamps ...';
+  IF NOT EXISTS (SELECT * FROM sched.templates LIMIT 1) THEN
+    RAISE WARNING 'sched.templates is empty, populate it first!';
+  END IF;
+  RETURN QUERY
+  WITH
+    inserted AS (
+      INSERT INTO sched.template_timestamps (
+        ttid, start_ts
+      )
+      SELECT
+        tt.ttid, tt.start_timestamp AS start_ts
+      FROM stage_gtfs.template_timestamps AS tt
+      INNER JOIN sched.templates          AS t
+        ON tt.ttid = t.ttid
+      RETURNING *
+    )
+  SELECT 'sched.template_timestamps' AS table_name, count(*) AS rows_affected
+  FROM inserted;
+END;
+$$;
+COMMENT ON FUNCTION stage_gtfs.transfer_templates(text) IS
+'Populate `sched.template_timestamps` with valid records from stage_gtfs.template_timestamps`
+that have a corresponding `ttid` record in `sched.templates`.
+- `where_sql`: NOT IMPLEMENTED YET
+- Source tables:  `stage_gtfs.template_timestamps`,
+                  `sched.templates`
+- Target tables:  `sched.template_timestamps`';
