@@ -17,6 +17,19 @@ Where do the vehicles tend to stop, and for how long at each location?
 - How do these measures vary in time, e.g., between two different weeks, working days vs. weekends, or peak hours vs. off-peak?
 - What are the "worst" links on the network causing delays, in relation to a weight measure such as number of scheduled trips per link?
 
+The general idea is that we do not store every single HFP observation as a point geometry but instead, we store a reference to a network link that is used by a set of successive observations, and an array of relative time and location values for those observations along the link.
+As a result, we can inspect time-space profiles along sequences of links like these ...
+
+![Example of a driving time profile](docs/img/1088_optime_example.png)
+
+![Example of a speed profile](docs/img/1088_speed_example.png)
+
+... and, finally, aggregate that data by link, route or other common attributes.
+
+To reliably project the HFP data onto the network links, we also need a reasonable schedule and trip path model.
+This enables finding a "planned entity" for each HFP journey by route, direction and start time.
+The schedule model in turn enables analyzing planned-vs-operated time metrics such as schedule adherence, in addition to metrics that come purely from the HFP and network data (such as average operating time through a set of links).
+
 # Requirements
 
 You will need the following:
