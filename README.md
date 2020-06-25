@@ -55,7 +55,7 @@ Note that the current tool does *not* support incremental changes to the transit
 It assumes that these data remain static, which is a relatively realistic assumption when we analyse data from a single month only.
 For longer term analyses, it should of course be possible to import new GTFS data on top of older data, and to account for network changes as the time goes by (e.g. building sites, new or moved stops, etc).
 
-**TODO: reference to database model & data flow docs.**
+**Database model in more detail in [`db README`](db)**.
 
 # Author
 
