@@ -2,7 +2,7 @@
 
 ## Creating the data model and functions
 
-First, run the [`ddl`](ddl) scripts to create the database schemas, extensions, functions etc.
+First, run the [`ddl`](ddl) (*TODO*) scripts to create the database schemas, extensions, functions etc.
 Then you should be ready to populate the database with raw GTFS and OSM data, and transform it by running the scripts in this directory.
 
 ## Raw data importing
