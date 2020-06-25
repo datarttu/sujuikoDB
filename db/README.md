@@ -236,3 +236,28 @@ Example:
  1001H_1_1_1 │ 2019-11-03 19:22:00+00
  1001H_1_1_1 │ 2019-11-03 19:34:00+00
 ```
+
+### `obs`, `stage_hfp`
+
+*This is currently work in progress and cannot be demonstrated yet.*
+
+`obs` schema:
+
+`journey` describes a realization of a scheduled trip.
+It has an initial start datetime value `start_ts` and it is operated by a unique vehicle `oper & veh`.
+Note that the observation model does not include every possible journey that has been really operated during a time span:
+some HFP data is missing in general, some data is not complete enough for our model, e.g. due to missing GPS values.
+Also, our model does NOT support exceptional routes currently: if the journey has gone too far away (say, > 20 m) from its planned network path, we just have to discard it, or at least those segments that have not got reliable observations.
+
+For faster queries, `journey` table is partitioned as TimescaleDB hypertable by the `start_ts` timestamp column.
+
+`segment` describes how the observations of a `journey` traverse through the segment belonging to the journey's respective `template` and `pattern` from the `sched` schema.
+It includes the valid observations projected to the link and stored as arrays of time and location values: location is described as meters relative to the link start and end.
+In addition, each observation has point velocity, door open / closed, original observation sequence number (before filtering the raw HFP) and original point geometry vs. projected link point offset distance value in their respective arrays.
+Calculated from these array values, per-segment aggregates can be accessed directly: total driving time through the segment, time spent halted (zero velocity), time spent with doors open, and number of times the vehicle came to a halt on the segment.
+
+`segment` table is partitioned as TimescaleDB hypertable by the `enter_ts` timestamp column.
+Time values in `pt_times` array are relative to the `enter_ts`.
+
+`stage_hfp` is meant for filtering and transforming raw HFP data for the `obs` schema.
+Its tables could be used directly as well, but we aim to use them and their indexes as *templates* for temporary tables that can be created on the fly when importing an individual raw data dump using an individual db connection.
