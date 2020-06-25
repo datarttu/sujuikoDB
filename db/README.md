@@ -50,6 +50,10 @@ The idea is that the production schemas model the data as it is needed for queri
 The `stage_*` schemas model a particular (current) way to import the data from GTFS and OSM.
 Later we might want to import this data from elsewhere, such as JORE, so we can write a new schema for that or do it completely outside the database and just dump the results into the corresponding production schema.
 
+Diagram of the production tables:
+
+![Production tables](../docs/img/sujuikoDB-production.png)
+
 ### Notes on the terminology
 
 - `link` describes a road section in the network. pgRouting refers to links as "edges".
