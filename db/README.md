@@ -50,9 +50,21 @@ The idea is that the production schemas model the data as it is needed for queri
 The `stage_*` schemas model a particular (current) way to import the data from GTFS and OSM.
 Later we might want to import this data from elsewhere, such as JORE, so we can write a new schema for that or do it completely outside the database and just dump the results into the corresponding production schema.
 
+### Notes on the terminology
+
+- `link` describes a road section in the network. pgRouting refers to links as "edges".
+- `node` is a point in the network separating links. pgRouting refers to nodes as "vertices"; we prefer "nodes" as link start and end points, and should we use "vertices", they would mean the points that constitute the *geometry* of a link.
+- `segment` is an entity that *uses* a link: e.g. scheduled patterns, templates and finally individual trips traverse through links.
+Also a set of HFP observations belonging to a `journey` and projected to a single link constitute an "observed segment" that can be used as a source for various analyses.
+- `path` is a sequence of segments along the network.
+- `trip` refers to a *planned* or *scheduled* individual transit operation departing at a datetime `start_ts` and traversing through transit stops along a network `path`.
+- `journey` refers to a *realized* and *observed* version of a trip.
+HFP observations with common vehicle, route, direction and start timestamp, ordered by observation timestamps, constitute a `journey`.
+- `observation` is a single HFP data point.
+
 ### `nw`, `stage_nw`, `stage_osm`
 
-= *network* schema and the staging / import schema for it.
+*Network* schema and the staging / import schema for it.
 The most important thing is the `nw.links` table that models the bus and tram network in the HSL area.
 Links provide the common structure by which we can describe transit service spatially.
 The HFP data is projected onto the links so it can be cleaned up, compared and aggregated.
@@ -87,3 +99,9 @@ Stops close to each other are merged into one point location, and links are spli
 Finally, links, nodes and stops are imported into the `nw` schema.
 
 *NOTE:* currently, if you detect incorrectly located stops, you should fix them in `stage_gtfs.stops_with_mode`, and if you detect network errors such as missing links, you should fix them in `stage_osm.combined_lines` - and then re-run `stage_nw` routines from scratch.
+
+### `sched`, `stage_gtfs`
+
+*Schedule* schema and staging schema for the schedule model.
+
+We do not want to model every possible transit trip as
