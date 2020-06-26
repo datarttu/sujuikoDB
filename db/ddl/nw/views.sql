@@ -1,6 +1,6 @@
-CREATE VIEW nw.view_links_with_reverses AS (
+CREATE MATERIALIZED VIEW nw.mw_links_with_reverses AS (
   SELECT
-    linkid, inode, jnode, mode, cost, rcost, osm_data, geom, wgs_geom,
+    linkid, inode, jnode, mode, cost, rcost, osm_data, geom,
     false AS reversed
   FROM nw.links
   UNION
@@ -13,16 +13,18 @@ CREATE VIEW nw.view_links_with_reverses AS (
     cost                  AS rcost,
     osm_data,
     ST_Reverse(geom)      AS geom,
-    ST_Reverse(wgs_geom)  AS wgs_geom,
     true                  AS reversed
   FROM  nw.links
   WHERE rcost > -1
-);
-COMMENT ON VIEW nw.view_links_with_reverses IS
+)
+WITH NO DATA;
+COMMENT ON MATERIALIZED VIEW nw.mw_links_with_reverses IS
 'All nw.links records plus separate records for two-way links,
-created by inverting inode and jnode, cost and rcost, and geoms.
+created by inverting inode and jnode, cost and rcost, and geom.
 Records should be unique and thus safely joinable on
 by linkid, inode and jnode.';
+CREATE INDEX ON nw.mw_links_with_reverses USING BTREE (linkid, reversed);
+CREATE INDEX ON nw.mw_links_with_reverses USING GIST (geom);
 
 DROP VIEW IF EXISTS nw.view_stop_nodes;
 CREATE VIEW nw.view_stop_nodes AS (
