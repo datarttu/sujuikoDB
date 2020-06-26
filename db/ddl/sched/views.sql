@@ -18,6 +18,32 @@ COMMENT ON VIEW sched.view_trips IS
 'Opens up trip templates into individual trips
 with unique trip ids and actual start datetimes.';
 
+DROP VIEW IF EXISTS sched.view_segment_shapes CASCADE;
+CREATE VIEW sched.view_segment_shapes AS (
+  SELECT
+    pt.ptid,
+    pt.route,
+    pt.dir,
+    pt.total_dist,
+    pt.gtfs_shape_id,
+    sg.segno,
+    sg.linkid,
+    sg.reversed,
+    sg.ij_stops,
+    sg.ij_dist_span,
+    sg.stop_seq,
+    lwr.geom
+  FROM sched.patterns                   AS pt
+  INNER JOIN sched.segments             AS sg
+    ON pt.ptid = sg.ptid
+  INNER JOIN nw.mw_links_with_reverses  AS lwr
+    ON  sg.linkid = lwr.linkid
+    AND sg.reversed = lwr.reversed
+);
+COMMENT ON VIEW sched.view_segment_shapes IS
+'Pattern segments with their link geometries
+and common pattern attributes.';
+
 DROP MATERIALIZED VIEW IF EXISTS sched.mw_pattern_shapes CASCADE;
 CREATE MATERIALIZED VIEW sched.mw_pattern_shapes AS (
   SELECT
