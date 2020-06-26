@@ -18,18 +18,26 @@ COMMENT ON VIEW sched.view_trips IS
 'Opens up trip templates into individual trips
 with unique trip ids and actual start datetimes.';
 
-DROP MATERIALIZED VIEW IF EXISTS sched.mw_trip_template_geoms CASCADE;
-CREATE MATERIALIZED VIEW sched.mw_trip_template_geoms AS (
+DROP MATERIALIZED VIEW IF EXISTS sched.mw_pattern_shapes CASCADE;
+CREATE MATERIALIZED VIEW sched.mw_pattern_shapes AS (
   SELECT
-    ttid,
-    ST_MakeLine(geom ORDER BY i_time) AS geom
-  FROM sched.view_segment_geoms
-  GROUP BY ttid
+    pt.ptid,
+    pt.route,
+    pt.dir,
+    pt.total_dist,
+    pt.gtfs_shape_id,
+    ST_MakeLine(lwr.geom ORDER BY sg.segno) AS geom
+  FROM sched.patterns       AS pt
+  INNER JOIN sched.segments AS sg
+    ON pt.ptid = sg.ptid
+  INNER JOIN nw.mw_links_with_reverses  AS lwr
+    ON  sg.linkid = lwr.linkid
+    AND sg.reversed = lwr.reversed
+  GROUP BY pt.ptid
 );
-COMMENT ON MATERIALIZED VIEW sched.mw_trip_template_geoms IS
-'Linestring geometries of entire trip templates.';
-
-CREATE INDEX ON sched.mw_trip_template_geoms USING GIST(geom);
+COMMENT ON MATERIALIZED VIEW sched.mw_pattern_shapes IS
+'Linestring geometries and common attributes of entire patterns.';
+CREATE INDEX ON sched.mw_pattern_shapes USING GIST(geom);
 
 DROP VIEW IF EXISTS sched.view_trip_template_stops CASCADE;
 CREATE VIEW sched.view_trip_template_stops AS (
