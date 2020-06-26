@@ -39,30 +39,47 @@ COMMENT ON MATERIALIZED VIEW sched.mw_pattern_shapes IS
 'Linestring geometries and common attributes of entire patterns.';
 CREATE INDEX ON sched.mw_pattern_shapes USING GIST(geom);
 
-DROP VIEW IF EXISTS sched.view_trip_template_stops CASCADE;
-CREATE VIEW sched.view_trip_template_stops AS (
-  WITH stopids AS (
-    SELECT ttid, stopid, stoptime
-    FROM (
-      SELECT ttid, i_stop AS stopid, i_time AS stoptime
+DROP MATERIALIZED VIEW IF EXISTS sched.mw_pattern_stops CASCADE;
+CREATE MATERIALIZED VIEW sched.mw_pattern_stops AS (
+  WITH
+    stopids AS (
+      SELECT
+        ptid,
+        unnest(ij_stops)  AS stopid,
+        segno
       FROM sched.segments
-      WHERE i_stop IS NOT NULL
-      UNION
-      SELECT ttid, j_stop AS stopid, j_time AS stoptime
-      FROM sched.segments
-      WHERE j_stop IS NOT NULL
-    ) AS a
-    ORDER BY ttid, stoptime
-  )
+    ),
+    unique_stopids AS (
+      SELECT
+        ptid,
+        stopid,
+        max(segno) AS segno
+      FROM stopids
+      WHERE stopid IS NOT NULL
+      GROUP BY ptid, stopid
+      ORDER BY ptid, segno
+    )
   SELECT
-    si.ttid,
-    si.stopid,
-    si.stoptime,
+    us.ptid,
+    pt.route,
+    pt.dir,
+    us.stopid,
+    -- This is because otherwise last stop would not get the correct stop seq:
+    row_number() OVER (PARTITION BY us.ptid ORDER BY us.segno)  AS stop_seq,
+    st.code,
+    st.name,
+    st.parent,
     nd.nodeid,
     nd.geom
-  FROM stopids AS si
-  LEFT JOIN nw.stops  AS st
-    ON si.stopid = st.stopid
-  LEFT JOIN nw.nodes  AS nd
+  FROM unique_stopids       AS us
+  INNER JOIN sched.patterns AS pt
+    ON us.ptid = pt.ptid
+  INNER JOIN nw.stops       AS st
+    ON us.stopid = st.stopid
+  INNER JOIN nw.nodes       AS nd
     ON st.nodeid = nd.nodeid
 );
+COMMENT ON MATERIALIZED VIEW sched.mw_pattern_stops IS
+'Stop point geometries belonging to patterns
+with common pattern and stop attributes.';
+CREATE INDEX ON sched.mw_pattern_stops USING GIST (geom);
