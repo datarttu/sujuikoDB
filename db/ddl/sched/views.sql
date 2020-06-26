@@ -1,37 +1,18 @@
 DROP VIEW IF EXISTS sched.view_trips CASCADE;
 CREATE VIEW sched.view_trips AS (
-  WITH
-    unnest_dates AS (
-     SELECT
-       ttid,
-       route,
-       dir,
-       start_times,
-       unnest(dates)  AS service_date
-     FROM sched.trip_templates
-    ),
-    unnest_starttimes AS (
-      SELECT
-        *,
-        unnest(start_times) AS start_time
-      FROM unnest_dates
-    )
   SELECT
-    ttid,
-    md5(
-      concat_ws(
-        '_',
-        service_date, start_time, route, dir
-      )
-    )::uuid         AS tripid,
-    route,
-    dir,
-    service_date,
-    start_time,
-    (service_date
-     || ' Europe/Helsinki')::timestamptz
-     + start_time   AS start_ts
-  FROM unnest_starttimes
+    pt.ptid,
+    tp.ttid,
+    pt.route,
+    pt.dir,
+    tt.start_ts,
+    (tt.start_ts AT TIME ZONE 'Europe/Helsinki')::date            AS start_date,
+    (tt.start_ts AT TIME ZONE 'Europe/Helsinki')::time::interval  AS start_time
+  FROM sched.patterns AS pt
+  INNER JOIN sched.templates  AS tp
+    ON pt.ptid = tp.ptid
+  INNER JOIN sched.template_timestamps  AS tt
+    ON tp.ttid = tt.ttid
 );
 COMMENT ON VIEW sched.view_trips IS
 'Opens up trip templates into individual trips
