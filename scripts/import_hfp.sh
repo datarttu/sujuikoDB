@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Import a day-route HFP dump to stage_hfp schema.
-# Argument 1: Path of csv file to import (on the server and readable by postgres user).
+# Argument 1: Path of csv.gz file to import (on the server and readable by postgres user).
 
 set -e
+source ../.env
 
 connstring=${PG_CONN:-"dbname='sujuiko' host='localhost' port='5432' user='postgres'"}
 csvpath="$1"
@@ -24,7 +25,7 @@ COPY stage_hfp.raw (
   stop,
   route
 )
-FROM '$csvpath'
+FROM PROGRAM 'gzip -cd $csvpath'
 WITH CSV;
 "
 # echo "$sql_statement"
