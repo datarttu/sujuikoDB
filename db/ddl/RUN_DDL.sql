@@ -41,6 +41,7 @@
 \ir stage_gtfs/shape_lines.sql
 \ir stage_gtfs/populate_routes_from_gtfs.sql
 \ir stage_gtfs/stops_with_mode.sql
+\ir stage_gtfs/fix_direction_id.sql
 \ir stage_gtfs/trips_with_dates.sql
 \ir stage_gtfs/normalized_stop_times.sql
 \ir stage_gtfs/patterns.sql
