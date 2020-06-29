@@ -29,8 +29,6 @@
 \set stops              :gtfs_dir'stops.txt'
 \set ON_ERROR_STOP on
 
-\c sujuiko;
-
 BEGIN;
 
 \timing on
