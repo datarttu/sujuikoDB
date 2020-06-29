@@ -7,8 +7,6 @@
 
 \set ON_ERROR_STOP on
 
-\c test_sujuiko
-
 -- Global objects.
 \ir extensions_types.sql
 \ir functions.sql
