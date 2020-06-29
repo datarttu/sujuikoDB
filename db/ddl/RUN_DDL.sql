@@ -24,7 +24,7 @@
 \ir obs/base_tables.sql
 
 -- OSM staging schema.
-\ir stage_osm/create_schema.sql
+\ir stage_osm/base_tables.sql
 \ir stage_osm/combined_lines.sql
 
 -- Network staging schema.

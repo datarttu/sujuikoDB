@@ -1,22 +1,3 @@
-/*
- * Following tables are created by ogr2ogr when importing data:
- * CREATE TABLE stage_osm.raw_bus_lines (
- *   fid                          serial    PRIMARY KEY,
- *   osm_id                       varchar,  -- Unique, will cast to int
- *   oneway                       varchar,  -- Only values 'yes', 'no', null
- *   highway                      varchar,  -- Text values
- *   lanes                        varchar,  -- Will cast to int
- *   junction                     varchar,  -- Text values
- *   geom                         geometry(LINESTRING, 4326)
- * );
- * CREATE TABLE stage_osm.raw_tram_lines (
- *   fid                          serial    PRIMARY KEY,
- *   osm_id                       varchar,  -- Unique, will cast to int
- *   tram_segregation_physical    varchar,  -- Text values
- *   geom                         geometry(LINESTRING, 4326)
- * );
- */
-
 CREATE TABLE stage_osm.combined_lines (
   fid                         serial              PRIMARY KEY,
   osm_id                      bigint                  NULL,
