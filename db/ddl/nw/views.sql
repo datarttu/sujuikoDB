@@ -16,8 +16,7 @@ CREATE MATERIALIZED VIEW nw.mw_links_with_reverses AS (
     true                  AS reversed
   FROM  nw.links
   WHERE rcost > -1
-)
-WITH NO DATA;
+);
 COMMENT ON MATERIALIZED VIEW nw.mw_links_with_reverses IS
 'All nw.links records plus separate records for two-way links,
 created by inverting inode and jnode, cost and rcost, and geom.
