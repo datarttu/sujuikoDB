@@ -1,5 +1,11 @@
-SELECT * FROM stage_gtfs.extract_trip_stop_patterns();
-SELECT * FROM stage_gtfs.set_pattern_stops_shape_geoms();
+/*
+ * Form pattern and template data for the schedule model,
+ * and populate the sched schema.
+ */
+\set ON_ERROR_STOP on
+
+BEGIN;
+
 SELECT * FROM stage_gtfs.extract_unique_stop_pairs();
 SELECT * FROM stage_gtfs.find_stop_pair_paths();
 SELECT * FROM stage_gtfs.set_pattern_paths();
@@ -26,3 +32,5 @@ SELECT * FROM stage_gtfs.transfer_pattern_segments();
 SELECT * FROM stage_gtfs.transfer_templates();
 SELECT * FROM stage_gtfs.transfer_template_timestamps();
 SELECT * FROM stage_gtfs.transfer_segment_times();
+
+COMMIT;
