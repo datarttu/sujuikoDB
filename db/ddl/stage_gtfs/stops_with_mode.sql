@@ -45,16 +45,10 @@ AS $$
 BEGIN
   RETURN QUERY
   WITH
-    mode_routes AS (
-      SELECT
-        route,
-        mode
-      FROM sched.routes
-    ),
     mode_trips AS (
       SELECT t.trip_id, r.mode
       FROM stage_gtfs.trips     AS t
-        INNER JOIN mode_routes  AS r
+      INNER JOIN sched.routes   AS r
         ON t.route_id = r.route
     ),
     mode_stoptimes AS (
