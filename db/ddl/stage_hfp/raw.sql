@@ -17,7 +17,11 @@ CREATE TABLE stage_hfp.raw (
   route         text,
   jrnid         uuid,
   start_ts      timestamptz,
-  geom          geometry(POINT, 3067)
+  geom          geometry(POINT, 3067),
+  -- speeds[1]: lag -> current, speeds[2]: current -> lead
+  speeds        double precision[],
+  -- acceleration values: the same way
+  accs          double precision[]
 );
 
 CREATE INDEX ON stage_hfp.raw USING BTREE (jrnid, tst);
