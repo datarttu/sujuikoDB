@@ -53,6 +53,3 @@ CREATE TRIGGER fill_additional_fields
 BEFORE INSERT ON stage_hfp.raw
 FOR EACH ROW
 EXECUTE PROCEDURE stage_hfp.set_raw_additional_fields();
-
-SELECT *
-FROM create_hypertable('stage_hfp.raw', 'tst', chunk_time_interval => interval '1 hour');
