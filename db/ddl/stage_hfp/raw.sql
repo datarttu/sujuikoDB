@@ -49,7 +49,7 @@ BEGIN
 END;
 $$;
 
-CREATE TRIGGER fill_additional_fields
+CREATE TRIGGER aa_fill_additional_fields
 BEFORE INSERT ON stage_hfp.raw
 FOR EACH ROW
 EXECUTE PROCEDURE stage_hfp.set_raw_additional_fields();
