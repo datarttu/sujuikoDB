@@ -24,7 +24,7 @@ CREATE TABLE stage_hfp.raw (
   accs          double precision[]
 );
 
-CREATE INDEX ON stage_hfp.raw USING BTREE (jrnid, tst);
+CREATE INDEX jrnid_tst_idx ON stage_hfp.raw USING BTREE (jrnid, tst);
 CREATE INDEX ON stage_hfp.raw USING BTREE (start_ts, route, dir);
 CREATE INDEX ON stage_hfp.raw USING GIST (geom);
 
