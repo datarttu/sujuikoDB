@@ -35,16 +35,27 @@ LANGUAGE PLPGSQL
 AS $$
 BEGIN
   IF
-    NEW.is_ongoing IS true
-    AND NEW.event_type = 'VP'
-  THEN RETURN NEW;
-  ELSE RETURN NULL;
+    NEW.is_ongoing IS false OR NEW.is_ongoing IS NULL
+    OR NEW.event_type <> 'VP' OR NEW.event_type IS NULL
+    OR NEW.tst    IS NULL
+    OR NEW.route  IS NULL
+    OR NEW.dir    IS NULL
+    OR NEW.oday   IS NULL
+    OR NEW.start  IS NULL
+    OR NEW.oper   IS NULL
+    OR NEW.veh    IS NULL
+    OR NEW.lon    IS NULL
+    OR NEW.lat    IS NULL
+  THEN RETURN NULL;
+  ELSE RETURN NEW;
   END IF;
 END;
 $$;
-COMMENT ON FUNCTION stage_hfp.ignore_inserts() IS
-'Blocks from insertion any row where is_ongoing is not true and / or
-event_type is other than VP.';
+COMMENT ON FUNCTION stage_hfp.ignore_invalid_raw_rows() IS
+'Blocks from insertion any row where any of the conditions apply:
+- is_ongoing is not true
+- event_type is other than VP
+- tst, route, dir, oday, start, oper, veh, lon or lat is null';
 
 CREATE TRIGGER aaa_ignore_inserts
 BEFORE INSERT ON stage_hfp.raw
