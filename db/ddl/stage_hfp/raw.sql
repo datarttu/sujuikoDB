@@ -47,6 +47,11 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+COMMENT ON FUNCTION stage_hfp.set_raw_additional_fields() IS
+'On insert, calculates the following fields based on source values on the row:
+- `geom`
+- `start_ts`
+- `jrnid`';
 
 CREATE TRIGGER aa_fill_additional_fields
 BEFORE INSERT ON stage_hfp.raw
