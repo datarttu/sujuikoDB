@@ -19,10 +19,9 @@ CREATE TABLE stage_hfp.raw (
   geom          geometry(POINT, 3067)
 );
 
-CREATE INDEX ON stage_hfp.raw USING BTREE (route, dir);
-CREATE INDEX ON stage_hfp.raw USING BRIN (oday, start);
-CREATE INDEX ON stage_hfp.raw USING BTREE (is_ongoing);
-CREATE INDEX ON stage_hfp.raw USING BTREE (jrnid);
+CREATE INDEX ON stage_hfp.raw USING BTREE (jrnid, tst);
+CREATE INDEX ON stage_hfp.raw USING BTREE (start_ts, route, dir);
+CREATE INDEX ON stage_hfp.raw USING GIST (geom);
 
 CREATE FUNCTION stage_hfp.set_raw_additional_fields()
 RETURNS trigger
