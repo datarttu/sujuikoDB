@@ -2,7 +2,6 @@
  * Corrections on raw OSM data after importing.
  */
 \set ON_ERROR_STOP on
-\c sujuiko;
 
 BEGIN;
 
