@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS stage_hfp.raw;
 CREATE TABLE stage_hfp.raw (
   is_ongoing    boolean,
   event_type    text,
@@ -23,6 +24,7 @@ CREATE INDEX ON stage_hfp.raw USING BTREE (jrnid, tst);
 CREATE INDEX ON stage_hfp.raw USING BTREE (start_ts, route, dir);
 CREATE INDEX ON stage_hfp.raw USING GIST (geom);
 
+DROP FUNCTION IF EXISTS stage_hfp.ignore_inserts;
 CREATE FUNCTION stage_hfp.ignore_inserts()
 RETURNS trigger
 LANGUAGE PLPGSQL
@@ -45,6 +47,7 @@ BEFORE INSERT ON stage_hfp.raw
 FOR EACH ROW
 EXECUTE PROCEDURE stage_hfp.ignore_inserts();
 
+DROP FUNCTION IF EXISTS stage_hfp.set_raw_additional_fields;
 CREATE FUNCTION stage_hfp.set_raw_additional_fields()
 RETURNS trigger
 LANGUAGE PLPGSQL
