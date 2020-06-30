@@ -48,7 +48,7 @@
 \ir stage_gtfs/templates.sql
 
 -- HFP staging schema.
-\ir stage_hfp/create_schema.sql
+\ir stage_hfp/schema.sql
 \ir stage_hfp/raw.sql
 \ir stage_hfp/journeys.sql
 \ir stage_hfp/journey_points.sql
