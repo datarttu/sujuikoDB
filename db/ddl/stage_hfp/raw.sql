@@ -28,8 +28,8 @@ CREATE INDEX ON stage_hfp.raw USING BTREE (jrnid, tst);
 CREATE INDEX ON stage_hfp.raw USING BTREE (start_ts, route, dir);
 CREATE INDEX ON stage_hfp.raw USING GIST (geom);
 
-DROP FUNCTION IF EXISTS stage_hfp.ignore_inserts;
-CREATE FUNCTION stage_hfp.ignore_inserts()
+DROP FUNCTION IF EXISTS stage_hfp.ignore_invalid_raw_rows;
+CREATE FUNCTION stage_hfp.ignore_invalid_raw_rows()
 RETURNS trigger
 LANGUAGE PLPGSQL
 AS $$
@@ -57,10 +57,10 @@ COMMENT ON FUNCTION stage_hfp.ignore_invalid_raw_rows() IS
 - event_type is other than VP
 - tst, route, dir, oday, start, oper, veh, lon or lat is null';
 
-CREATE TRIGGER aaa_ignore_inserts
+CREATE TRIGGER t10_ignore_invalid_raw_rows
 BEFORE INSERT ON stage_hfp.raw
 FOR EACH ROW
-EXECUTE PROCEDURE stage_hfp.ignore_inserts();
+EXECUTE PROCEDURE stage_hfp.ignore_invalid_raw_rows();
 
 DROP FUNCTION IF EXISTS stage_hfp.set_raw_additional_fields;
 CREATE FUNCTION stage_hfp.set_raw_additional_fields()
@@ -93,7 +93,7 @@ COMMENT ON FUNCTION stage_hfp.set_raw_additional_fields() IS
 - `start_ts`
 - `jrnid`';
 
-CREATE TRIGGER aa_fill_additional_fields
+CREATE TRIGGER t20_set_raw_additional_fields
 BEFORE INSERT ON stage_hfp.raw
 FOR EACH ROW
 EXECUTE PROCEDURE stage_hfp.set_raw_additional_fields();
