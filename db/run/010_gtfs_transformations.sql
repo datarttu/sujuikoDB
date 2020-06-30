@@ -17,7 +17,5 @@ SELECT stage_gtfs.populate_service_dates();
 SELECT stage_gtfs.populate_trips_with_dates();
 SELECT stage_gtfs.populate_normalized_stop_times();
 SELECT * FROM stage_gtfs.populate_stops_with_mode();
-SELECT * FROM stage_gtfs.extract_trip_stop_patterns();
-SELECT * FROM stage_gtfs.set_pattern_stops_shape_geoms();
 
 COMMIT;

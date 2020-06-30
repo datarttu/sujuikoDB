@@ -6,6 +6,8 @@
 
 BEGIN;
 
+SELECT * FROM stage_gtfs.extract_trip_stop_patterns();
+SELECT * FROM stage_gtfs.set_pattern_stops_shape_geoms();
 SELECT * FROM stage_gtfs.extract_unique_stop_pairs();
 SELECT * FROM stage_gtfs.find_stop_pair_paths();
 SELECT * FROM stage_gtfs.set_pattern_paths();
