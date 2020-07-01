@@ -19,8 +19,9 @@ CREATE TABLE stage_hfp.raw (
   start_ts      timestamptz,
   geom          geometry(POINT, 3067),
   obs_num       bigint,
-  -- spd, acc and hdg are to be calcluated by lag -> current,
+  -- Movement values are to be calcluated by lag -> current,
   -- except for the first record per jrnid current -> lead
+  dx            double precision,
   spd           double precision,
   acc           double precision,
   hdg           double precision
@@ -170,16 +171,18 @@ BEGIN
         delta_time,
         degrees(
           ST_Azimuth(start_point, end_point)
-        )::double precision   AS hdg,
+        )::double precision                 AS hdg,
+        ST_Distance(start_point, end_point) AS dx,
         CASE
           WHEN delta_time = 0.0 THEN NULL
           ELSE ST_Distance(start_point, end_point) / delta_time
-        END                   AS spd
+        END                                 AS spd
       FROM src_points
     ),
     hdg_spd_acc AS (
       SELECT
         ctid,
+        dx,
         hdg,
         spd,
         CASE
@@ -191,6 +194,7 @@ BEGIN
     )
     UPDATE %1$I.%2$I AS upd
     SET
+      dx  = hsa.dx,
       spd = hsa.spd,
       acc = hsa.acc,
       hdg = hsa.hdg
