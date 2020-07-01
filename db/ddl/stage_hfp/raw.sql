@@ -138,7 +138,7 @@ RETURNS TRIGGER
 LANGUAGE PLPGSQL
 AS $$
 BEGIN
-  RAISE NOTICE '% % Updating spd, acc, hdg values ...', TG_WHEN, TG_OP;
+  RAISE NOTICE '% % Updating movement values ...', TG_WHEN, TG_OP;
   EXECUTE format(
     $s$
     WITH
