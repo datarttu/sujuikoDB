@@ -214,7 +214,7 @@ BEGIN
 END;
 $$;
 COMMENT ON FUNCTION stage_hfp.set_movement_values() IS
-'Updates `spd`, `acc` and `hdg` values of the target table
+'Updates `dodo`, `dx`, `spd`, `acc` and `hdg` of the target table
 by window functions partitioned by `jrnid` and ordered by `tst`.
 Values are calculated from lag to current row,
 except for the first of `jrnid` from current to lead row.
