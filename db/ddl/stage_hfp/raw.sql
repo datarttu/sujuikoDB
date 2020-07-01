@@ -21,6 +21,7 @@ CREATE TABLE stage_hfp.raw (
   obs_num       bigint,
   -- Movement values are to be calcluated by lag -> current,
   -- except for the first record per jrnid current -> lead
+  dodo          double precision,
   dx            double precision,
   spd           double precision,
   acc           double precision,
@@ -146,6 +147,7 @@ BEGIN
         ctid,
         jrnid,
         tst,
+        odo,
         CASE
           WHEN obs_num = 1 THEN geom
           ELSE lag(geom) OVER w_tst
@@ -168,6 +170,7 @@ BEGIN
         ctid,
         jrnid,
         tst,
+        odo,
         delta_time,
         degrees(
           ST_Azimuth(start_point, end_point)
@@ -188,16 +191,19 @@ BEGIN
         CASE
           WHEN delta_time = 0.0 THEN NULL
           ELSE (spd - coalesce(lag(spd) OVER w_tst, 0.0)) / delta_time
-        END                   AS acc
+        END                     AS acc,
+        coalesce(odo - (lag(odo) OVER w_tst),
+          0)::double precision  AS dodo
       FROM hdg_spd
       WINDOW w_tst AS (PARTITION BY jrnid ORDER BY tst)
     )
     UPDATE %1$I.%2$I AS upd
     SET
-      dx  = hsa.dx,
-      spd = hsa.spd,
-      acc = hsa.acc,
-      hdg = hsa.hdg
+      dodo  = hsa.dodo,
+      dx    = hsa.dx,
+      spd   = hsa.spd,
+      acc   = hsa.acc,
+      hdg   = hsa.hdg
     FROM (SELECT * FROM hdg_spd_acc) AS hsa
     WHERE upd.ctid = hsa.ctid
     $s$,
