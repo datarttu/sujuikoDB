@@ -59,11 +59,6 @@ COMMENT ON FUNCTION stage_hfp.ignore_invalid_raw_rows() IS
 - event_type is other than VP
 - tst, route, dir, oday, start, oper, veh, lon or lat is null';
 
-CREATE TRIGGER t10_ignore_invalid_raw_rows
-BEFORE INSERT ON stage_hfp.raw
-FOR EACH ROW
-EXECUTE PROCEDURE stage_hfp.ignore_invalid_raw_rows();
-
 DROP FUNCTION IF EXISTS stage_hfp.set_raw_additional_fields;
 CREATE FUNCTION stage_hfp.set_raw_additional_fields()
 RETURNS trigger
@@ -94,11 +89,6 @@ COMMENT ON FUNCTION stage_hfp.set_raw_additional_fields() IS
 - `geom`
 - `start_ts`
 - `jrnid`';
-
-CREATE TRIGGER t20_set_raw_additional_fields
-BEFORE INSERT ON stage_hfp.raw
-FOR EACH ROW
-EXECUTE PROCEDURE stage_hfp.set_raw_additional_fields();
 
 DROP FUNCTION IF EXISTS stage_hfp.set_obs_nums;
 CREATE FUNCTION stage_hfp.set_obs_nums()
@@ -137,11 +127,6 @@ COMMENT ON FUNCTION stage_hfp.set_obs_nums() IS
 ordered by `tst` for each `jrnid` partition.
 Since this is a trigger function, target schema and table are automatically
 resolved by `TG_TABLE_SCHEMA` and `TG_TABLE_NAME`.';
-
-CREATE TRIGGER t30_set_obs_nums
-AFTER INSERT ON stage_hfp.raw
-FOR EACH STATEMENT
-EXECUTE PROCEDURE stage_hfp.set_obs_nums();
 
 DROP FUNCTION IF EXISTS stage_hfp.set_movement_values;
 CREATE FUNCTION stage_hfp.set_movement_values()
@@ -221,8 +206,3 @@ by window functions partitioned by `jrnid` and ordered by `tst`.
 Values are calculated from lag to current row,
 except for the first of `jrnid` from current to lead row.
 This function should be run again if rows have been deleted.';
-
-CREATE TRIGGER t40_set_movement_values
-AFTER INSERT ON stage_hfp.raw
-FOR EACH STATEMENT
-EXECUTE PROCEDURE stage_hfp.set_movement_values();
