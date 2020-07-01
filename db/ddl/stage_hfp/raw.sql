@@ -142,3 +142,87 @@ CREATE TRIGGER t30_set_obs_nums
 AFTER INSERT ON stage_hfp.raw
 FOR EACH STATEMENT
 EXECUTE PROCEDURE stage_hfp.set_obs_nums();
+
+DROP FUNCTION IF EXISTS stage_hfp.set_movement_values;
+CREATE FUNCTION stage_hfp.set_movement_values()
+RETURNS TRIGGER
+LANGUAGE PLPGSQL
+AS $$
+BEGIN
+  EXECUTE format(
+    $s$
+    WITH
+    src_points AS (
+      SELECT
+        ctid,
+        jrnid,
+        tst,
+        CASE
+          WHEN obs_num = 1 THEN geom
+          ELSE lag(geom) OVER w_tst
+        END   AS start_point,
+        CASE
+          WHEN obs_num = 1 THEN lead(geom) OVER w_tst
+          ELSE geom
+        END   AS end_point,
+        extract (epoch FROM
+          CASE
+            WHEN obs_num = 1 THEN (lead(tst) OVER w_tst) - tst
+            ELSE tst - lag(tst) OVER w_tst
+          END
+        )     AS delta_time -- in seconds
+      FROM %1$I.%2$I
+      WINDOW w_tst AS (PARTITION BY jrnid ORDER BY tst)
+    ),
+    hdg_spd AS (
+      SELECT
+        ctid,
+        jrnid,
+        tst,
+        delta_time,
+        degrees(
+          ST_Azimuth(start_point, end_point)
+        )::double precision   AS hdg,
+        CASE
+          WHEN delta_time = 0.0 THEN NULL
+          ELSE ST_Distance(start_point, end_point) / delta_time
+        END                   AS spd
+      FROM src_points
+    ),
+    hdg_spd_acc AS (
+      SELECT
+        ctid,
+        hdg,
+        spd,
+        CASE
+          WHEN delta_time = 0.0 THEN NULL
+          ELSE (spd - coalesce(lag(spd) OVER w_tst, 0.0)) / delta_time
+        END                   AS acc
+      FROM hdg_spd
+      WINDOW w_tst AS (PARTITION BY jrnid ORDER BY tst)
+    )
+    UPDATE %1$I.%2$I AS upd
+    SET
+      spd = hsa.spd,
+      acc = hsa.acc,
+      hdg = hsa.hdg
+    FROM (SELECT * FROM hdg_spd_acc) AS hsa
+    WHERE upd.ctid = hsa.ctid
+    $s$,
+    TG_TABLE_SCHEMA, TG_TABLE_NAME
+  );
+
+  RETURN NULL;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.set_movement_values() IS
+'Updates `spd`, `acc` and `hdg` values of the target table
+by window functions partitioned by `jrnid` and ordered by `tst`.
+Values are calculated from lag to current row,
+except for the first of `jrnid` from current to lead row.
+This function should be run again if rows have been deleted.';
+
+CREATE TRIGGER t40_set_movement_values
+AFTER INSERT ON stage_hfp.raw
+FOR EACH STATEMENT
+EXECUTE PROCEDURE stage_hfp.set_movement_values();
