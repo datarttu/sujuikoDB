@@ -101,72 +101,36 @@ EXECUTE PROCEDURE stage_hfp.set_raw_additional_fields();
 
 DROP FUNCTION IF EXISTS stage_hfp.set_obs_nums;
 CREATE FUNCTION stage_hfp.set_obs_nums(
-  target_table text DEFAULT 'stage_hfp.raw'
+  target_table    regclass
 )
-RETURNS TEXT
+RETURNS VOID
 LANGUAGE PLPGSQL
 AS $$
-DECLARE
-  tbname_arr      text[];
-  sel_string      text;
-  upd_string      text;
-  curs            refcursor;
-  current_record  record;
-  current_jrnid   uuid;
-  counter         bigint;
 BEGIN
-  -- Make schema-qualified name into correct parts.
-  tbname_arr := string_to_array(target_table, '.');
-  IF cardinality(tbname_arr) = 1 THEN
-    sel_string := format(
-      $s$SELECT jrnid, obs_num FROM %I FOR UPDATE;$s$,
-      tbname_arr[1]
-    );
-    upd_string := format(
-      $s$UPDATE %I SET obs_num = $1 WHERE CURRENT OF $2;$s$,
-      tbname_arr[1]
-    );
-  ELSIF cardinality(tbname_arr) > 2 THEN
-    RAISE EXCEPTION 'Too many "." in table_name: should be "schema.table" or "table"';
-  ELSE
-    sel_string := format(
-      $s$SELECT jrnid FROM %I.%I FOR UPDATE;$s$,
-      tbname_arr[1],
-      tbname_arr[2]
-    );
-    upd_string := format(
-      $s$UPDATE %I.%I SET obs_num = $1 WHERE CURRENT OF $2;$s$,
-      tbname_arr[1], tbname_arr[2]
-    );
-  END IF;
-
-  RAISE NOTICE 'sel_string: %', sel_string;
-  RAISE NOTICE 'upd_string: %', upd_string;
-
-  OPEN curs FOR EXECUTE sel_string;
-
-  LOOP
-    FETCH NEXT FROM curs INTO current_record;
-    EXIT WHEN NOT FOUND;
-
-    IF current_jrnid IS NULL
-      OR current_jrnid IS DISTINCT FROM current_record.jrnid
-    THEN
-      current_jrnid := current_record.jrnid;
-      counter       := 1;
-      RAISE NOTICE '%, %', current_jrnid, counter;
-    END IF;
-
-    --EXECUTE upd_string USING counter, curs;
-    EXECUTE format(
-      $s$UPDATE stage_hfp.raw SET obs_num = $1 WHERE CURRENT OF $2;$s$
-    ) USING counter, curs;
-
-    counter := counter + 1;
-  END LOOP;
-
-  CLOSE curs;
-
-  RETURN 'Done';
+  /*
+   * Window functions cannot be used directly in an UPDATE statement
+   * but require a self join.
+   * Since the target table does not have a reliable primary key for self join,
+   * we use PG's system column "ctid" that is included in every table
+   * identifying the unique position of each row.
+   * Note that ctid values are safe and durable only inside the same transaction.
+   */
+  EXECUTE format(
+    'WITH rownums AS (
+      SELECT
+        row_number() OVER (PARTITION BY jrnid ORDER BY tst)  AS obs_num,
+        ctid
+      FROM %1$s
+    )
+    UPDATE %1$s AS upd
+    SET obs_num = rn.obs_num
+    FROM (SELECT * FROM rownums) AS rn
+    WHERE upd.ctid = rn.ctid',
+    target_table
+  );
 END;
 $$;
+COMMENT ON FUNCTION stage_hfp.set_obs_nums(regclass) IS
+'Updates the `obs_num` field of `target_table` with a running number from 1
+ordered by `tst` for each `jrnid` partition.
+`target_table` can be temporary table and / or possibly schema-qualified.';
