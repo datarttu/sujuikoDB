@@ -133,12 +133,14 @@ Since this is a trigger function, target schema and table are automatically
 resolved by `TG_TABLE_SCHEMA` and `TG_TABLE_NAME`.';
 
 DROP FUNCTION IF EXISTS stage_hfp.set_movement_values;
-CREATE FUNCTION stage_hfp.set_movement_values()
-RETURNS TRIGGER
+CREATE FUNCTION stage_hfp.set_movement_values(
+  target_table  regclass
+)
+RETURNS VOID
 LANGUAGE PLPGSQL
 AS $$
 BEGIN
-  RAISE NOTICE '% % Updating movement values ...', TG_WHEN, TG_OP;
+  RAISE NOTICE 'Updating movement values ...';
   EXECUTE format(
     $s$
     WITH
@@ -162,7 +164,7 @@ BEGIN
             ELSE tst - lag(tst) OVER w_tst
           END
         )     AS delta_time -- in seconds
-      FROM %1$I.%2$I
+      FROM %1$s
       WINDOW w_tst AS (PARTITION BY jrnid ORDER BY tst)
     ),
     hdg_spd AS (
@@ -197,7 +199,7 @@ BEGIN
       FROM hdg_spd
       WINDOW w_tst AS (PARTITION BY jrnid ORDER BY tst)
     )
-    UPDATE %1$I.%2$I AS upd
+    UPDATE %1$s AS upd
     SET
       dodo  = hsa.dodo,
       dx    = hsa.dx,
@@ -207,28 +209,30 @@ BEGIN
     FROM (SELECT * FROM hdg_spd_acc) AS hsa
     WHERE upd.ctid = hsa.ctid
     $s$,
-    TG_TABLE_SCHEMA, TG_TABLE_NAME
+    target_table
   );
 
-  RETURN NULL;
+  RETURN;
 END;
 $$;
-COMMENT ON FUNCTION stage_hfp.set_movement_values() IS
-'Updates `dodo`, `dx`, `spd`, `acc` and `hdg` of the target table
+COMMENT ON FUNCTION stage_hfp.set_movement_values(regclass) IS
+'Updates `dodo`, `dx`, `spd`, `acc` and `hdg` of the `target_table`
 by window functions partitioned by `jrnid` and ordered by `tst`.
 Values are calculated from lag to current row,
 except for the first of `jrnid` from current to lead row.
 This function should be run again if rows have been deleted.';
 
 DROP FUNCTION IF EXISTS stage_hfp.delete_duplicates_by_tst;
-CREATE FUNCTION stage_hfp.delete_duplicates_by_tst()
-RETURNS TRIGGER
+CREATE FUNCTION stage_hfp.delete_duplicates_by_tst(
+  target_table  regclass
+)
+RETURNS VOID
 LANGUAGE PLPGSQL
 AS $$
 DECLARE
   cnt_del   bigint;
 BEGIN
-  RAISE NOTICE '% % Deleting duplicates by jrnid, tst ...', TG_WHEN, TG_OP;
+  RAISE NOTICE 'Deleting duplicates by jrnid, tst ...';
   EXECUTE format(
     $s$
     WITH
@@ -240,7 +244,7 @@ BEGIN
         dodo,
         spd,
         count(*) OVER (PARTITION BY jrnid, tst) AS cnt
-      FROM %1$I.%2$I
+      FROM %1$s
     ),
     having_duplicates AS (
       SELECT *
@@ -253,7 +257,7 @@ BEGIN
       FROM having_duplicates
     ),
     deleted AS (
-      DELETE FROM %1$I.%2$I
+      DELETE FROM %1$s
       WHERE ctid IN (
         SELECT ctid FROM having_duplicates
         EXCEPT
@@ -263,16 +267,16 @@ BEGIN
     )
     SELECT count(*) FROM deleted;
     $s$,
-    TG_TABLE_SCHEMA, TG_TABLE_NAME
+    target_table
   ) INTO cnt_del;
 
   RAISE NOTICE '% duplicate rows deleted', cnt_del;
 
-  RETURN NULL;
+  RETURN;
 END;
 $$;
-COMMENT ON FUNCTION stage_hfp.delete_duplicates_by_tst() IS
-'Deletes rows that are duplicated over `jrnid` and `tst`.
+COMMENT ON FUNCTION stage_hfp.delete_duplicates_by_tst(regclass) IS
+'Deletes from `target_table` rows that are duplicated over `jrnid` and `tst`.
 The row left in the table has
 1)  maximum `dodo` of the duplicates, i.e. assumed to have most information
     about real movement, and at the same time

@@ -12,18 +12,3 @@ CREATE TRIGGER t30_set_obs_nums
 AFTER INSERT ON stage_hfp.raw
 FOR EACH STATEMENT
 EXECUTE PROCEDURE stage_hfp.set_obs_nums();
-
-CREATE TRIGGER t40_set_movement_values
-AFTER INSERT ON stage_hfp.raw
-FOR EACH STATEMENT
-EXECUTE PROCEDURE stage_hfp.set_movement_values();
-
-CREATE TRIGGER t50_delete_duplicates_by_tst
-AFTER INSERT ON stage_hfp.raw
-FOR EACH STATEMENT
-EXECUTE PROCEDURE stage_hfp.delete_duplicates_by_tst();
-
-CREATE TRIGGER t60_set_movement_values
-AFTER DELETE ON stage_hfp.raw
-FOR EACH STATEMENT
-EXECUTE PROCEDURE stage_hfp.set_movement_values();
