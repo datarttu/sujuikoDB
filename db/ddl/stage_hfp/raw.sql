@@ -19,10 +19,11 @@ CREATE TABLE stage_hfp.raw (
   start_ts      timestamptz,
   geom          geometry(POINT, 3067),
   obs_num       bigint,
-  -- speeds[1]: lag -> current, speeds[2]: current -> lead
-  speeds        double precision[],
-  -- acceleration values: the same way
-  accs          double precision[]
+  -- spd, acc and hdg are to be calcluated by lag -> current,
+  -- except for the first record per jrnid current -> lead
+  spd           double precision,
+  acc           double precision,
+  hdg           double precision
 );
 
 CREATE INDEX jrnid_tst_idx ON stage_hfp.raw USING BTREE (jrnid, tst);
