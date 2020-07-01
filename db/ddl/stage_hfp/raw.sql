@@ -48,6 +48,7 @@ BEGIN
     OR NEW.veh    IS NULL
     OR NEW.lon    IS NULL
     OR NEW.lat    IS NULL
+    OR NEW.odo    IS NULL
   THEN RETURN NULL;
   ELSE RETURN NEW;
   END IF;
@@ -57,7 +58,7 @@ COMMENT ON FUNCTION stage_hfp.ignore_invalid_raw_rows() IS
 'Blocks from insertion any row where any of the conditions apply:
 - is_ongoing is not true
 - event_type is other than VP
-- tst, route, dir, oday, start, oper, veh, lon or lat is null';
+- tst, route, dir, oday, start, oper, veh, lon, lat or odo is null';
 
 DROP FUNCTION IF EXISTS stage_hfp.set_raw_additional_fields;
 CREATE FUNCTION stage_hfp.set_raw_additional_fields()
