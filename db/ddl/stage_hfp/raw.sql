@@ -96,6 +96,7 @@ RETURNS TRIGGER
 LANGUAGE PLPGSQL
 AS $$
 BEGIN
+  RAISE NOTICE 'Updating obs_num values ...';
   /*
    * Window functions cannot be used directly in an UPDATE statement
    * but require a self join.
@@ -134,6 +135,7 @@ RETURNS TRIGGER
 LANGUAGE PLPGSQL
 AS $$
 BEGIN
+  RAISE NOTICE 'Updating spd, acc, hdg values ...';
   EXECUTE format(
     $s$
     WITH
