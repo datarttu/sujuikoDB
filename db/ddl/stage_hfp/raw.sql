@@ -115,7 +115,8 @@ BEGIN
    * Note that ctid values are safe and durable only inside the same transaction.
    */
   EXECUTE format(
-    'WITH rownums AS (
+    $s$
+    WITH rownums AS (
       SELECT
         row_number() OVER (PARTITION BY jrnid ORDER BY tst)  AS obs_num,
         ctid
@@ -124,7 +125,8 @@ BEGIN
     UPDATE %1$I.%2$I AS upd
     SET obs_num = rn.obs_num
     FROM (SELECT * FROM rownums) AS rn
-    WHERE upd.ctid = rn.ctid',
+    WHERE upd.ctid = rn.ctid
+    $s$,
     TG_TABLE_SCHEMA, TG_TABLE_NAME
   );
   RETURN NULL;
