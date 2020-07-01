@@ -219,3 +219,62 @@ by window functions partitioned by `jrnid` and ordered by `tst`.
 Values are calculated from lag to current row,
 except for the first of `jrnid` from current to lead row.
 This function should be run again if rows have been deleted.';
+
+DROP FUNCTION IF EXISTS stage_hfp.delete_duplicates_by_tst;
+CREATE FUNCTION stage_hfp.delete_duplicates_by_tst()
+RETURNS TRIGGER
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  cnt_del   bigint;
+BEGIN
+  RAISE NOTICE '% % Deleting duplicates by jrnid, tst ...', TG_WHEN, TG_OP;
+  EXECUTE format(
+    $s$
+    WITH
+    counts AS (
+      SELECT
+        ctid,
+        jrnid,
+        tst,
+        dodo,
+        spd,
+        count(*) OVER (PARTITION BY jrnid, tst) AS cnt
+      FROM %1$I.%2$I
+    ),
+    having_duplicates AS (
+      SELECT *
+      FROM counts
+      WHERE cnt > 1
+      ORDER BY dodo DESC, spd ASC NULLS LAST
+    ),
+    spared AS (
+      SELECT DISTINCT ON (jrnid, tst) ctid
+      FROM having_duplicates
+    ),
+    deleted AS (
+      DELETE FROM %1$I.%2$I
+      WHERE ctid IN (
+        SELECT ctid FROM having_duplicates
+        EXCEPT
+        SELECT ctid FROM spared
+      )
+      RETURNING *
+    )
+    SELECT count(*) FROM deleted;
+    $s$,
+    TG_TABLE_SCHEMA, TG_TABLE_NAME
+  ) INTO cnt_del;
+
+  RAISE NOTICE '% duplicate rows deleted', cnt_del;
+
+  RETURN NULL;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.delete_duplicates_by_tst() IS
+'Deletes rows that are duplicated over `jrnid` and `tst`.
+The row left in the table has
+1)  maximum `dodo` of the duplicates, i.e. assumed to have most information
+    about real movement, and at the same time
+2)  minimum non-null `spd`, i.e. least GPS movement, by which we aim to eliminate
+    rows with clear GPS error.';
