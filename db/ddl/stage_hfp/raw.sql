@@ -100,10 +100,8 @@ FOR EACH ROW
 EXECUTE PROCEDURE stage_hfp.set_raw_additional_fields();
 
 DROP FUNCTION IF EXISTS stage_hfp.set_obs_nums;
-CREATE FUNCTION stage_hfp.set_obs_nums(
-  target_table    regclass
-)
-RETURNS VOID
+CREATE FUNCTION stage_hfp.set_obs_nums()
+RETURNS TRIGGER
 LANGUAGE PLPGSQL
 AS $$
 BEGIN
@@ -120,17 +118,24 @@ BEGIN
       SELECT
         row_number() OVER (PARTITION BY jrnid ORDER BY tst)  AS obs_num,
         ctid
-      FROM %1$s
+      FROM %1$I.%2$I
     )
-    UPDATE %1$s AS upd
+    UPDATE %1$I.%2$I AS upd
     SET obs_num = rn.obs_num
     FROM (SELECT * FROM rownums) AS rn
     WHERE upd.ctid = rn.ctid',
-    target_table
+    TG_TABLE_SCHEMA, TG_TABLE_NAME
   );
+  RETURN NULL;
 END;
 $$;
-COMMENT ON FUNCTION stage_hfp.set_obs_nums(regclass) IS
-'Updates the `obs_num` field of `target_table` with a running number from 1
+COMMENT ON FUNCTION stage_hfp.set_obs_nums() IS
+'Updates the `obs_num` field of the target table with a running number from 1
 ordered by `tst` for each `jrnid` partition.
-`target_table` can be temporary table and / or possibly schema-qualified.';
+Since this is a trigger function, target schema and table are automatically
+resolved by `TG_TABLE_SCHEMA` and `TG_TABLE_NAME`.';
+
+CREATE TRIGGER t30_set_obs_nums
+AFTER INSERT ON stage_hfp.raw
+FOR EACH STATEMENT
+EXECUTE PROCEDURE stage_hfp.set_obs_nums();
