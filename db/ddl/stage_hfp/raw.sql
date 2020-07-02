@@ -290,9 +290,9 @@ The row left in the table has
 DROP FUNCTION IF EXISTS stage_hfp.delete_by_movement_values;
 CREATE FUNCTION stage_hfp.delete_by_movement_values(
   target_table  regclass,
-  max_spd       double precision,
-  min_acc       double precision,
-  max_acc       double precision
+  max_spd       numeric,
+  min_acc       numeric,
+  max_acc       numeric
 )
 RETURNS BIGINT
 LANGUAGE PLPGSQL
@@ -327,3 +327,45 @@ COMMENT ON FUNCTION stage_hfp.delete_by_movement_values IS
 'Deletes from `target_table` rows where movement values `spd` and `acc`
 exceed any of the given limits. E.g., max speed could be 100 km/h,
 i.e. `100.0/3.6`, min acceleration -5.0 m/s and max acceleration 5.0 m/s.';
+
+DROP FUNCTION IF EXISTS stage_hfp.iterate_del_invalid_rows;
+CREATE FUNCTION stage_hfp.iterate_del_invalid_rows(
+  target_table  regclass,
+  max_spd       numeric,
+  min_acc       numeric,
+  max_acc       numeric,
+  max_iters     integer           DEFAULT 10
+)
+RETURNS smallint
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  counter   smallint;
+  cnt_del   bigint;
+  cnt_upd   bigint;
+BEGIN
+  counter := 0;
+  LOOP
+    counter := counter + 1;
+    EXIT WHEN counter > max_iters;
+    SELECT stage_hfp.delete_by_movement_values(
+      target_table  := target_table,
+      max_spd       := max_spd,
+      min_acc       := min_acc,
+      max_acc       := max_acc
+    ) INTO cnt_del;
+    EXIT WHEN cnt_del = 0;
+    SELECT stage_hfp.set_movement_values(
+      target_table := target_table
+    ) INTO cnt_upd;
+    RAISE NOTICE 'Iteration %: % deleted, % updated',
+      counter, cnt_del, cnt_upd;
+  END LOOP;
+
+  RETURN counter - 1;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.iterate_del_invalid_rows IS
+'Using `target_table`, keeps deleting rows with invalid movement values
+and updating them again (due to rows deleted from between)
+until 0 rows are deleted or `max_iters` iterations is reached.';
