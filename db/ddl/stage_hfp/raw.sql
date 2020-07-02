@@ -27,6 +27,13 @@ CREATE TABLE stage_hfp.raw (
   acc           double precision,
   hdg           double precision
 );
+COMMENT ON TABLE stage_hfp.raw IS
+'Accommodates raw HFP observations read from csv dumps.
+Fields from `is_ongoing` up to `route` are expected to be populated
+from the csv files. Fields `jrnid`-`geom` are calculated later
+using values from the same rows, `obs_num` as running number along `tst`
+within each `jrnid` group, `dodo`-`hdg` by window functions based on
+preceding or following rows.';
 
 CREATE INDEX jrnid_tst_idx ON stage_hfp.raw USING BTREE (jrnid, tst);
 CREATE INDEX ON stage_hfp.raw USING BTREE (start_ts, route, dir);
