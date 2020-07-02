@@ -70,27 +70,39 @@ COMMENT ON FUNCTION stage_hfp.extract_journeys_from_raw IS
 'Extracts common attributes of each journey `jrnid` as well as
 aggregate values of journeys from raw HFP table `raw_table`
 and inserts the results into journey table `journey_table`.';
-DROP FUNCTION IF EXISTS stage_hfp.set_journeys_ttid;
-CREATE OR REPLACE FUNCTION stage_hfp.set_journeys_ttid()
-RETURNS TABLE (table_name text, rows_updated bigint)
+
+DROP FUNCTION IF EXISTS stage_hfp.set_journeys_ttid_ptid;
+CREATE OR REPLACE FUNCTION stage_hfp.set_journeys_ttid_ptid(
+  target_table    regclass
+)
+RETURNS BIGINT
 VOLATILE
 LANGUAGE PLPGSQL
 AS $$
+DECLARE
+  cnt_upd   bigint;
 BEGIN
-  RETURN QUERY
-  WITH updated AS (
-    UPDATE stage_hfp.journeys AS jrn
-    SET ttid = vt.ttid
-    FROM (
-      SELECT ttid, start_ts, route, dir
-      FROM sched.view_trips
-    ) AS vt
-    WHERE jrn.start_ts = vt.start_ts
-      AND jrn.route = vt.route
-      AND jrn.dir = vt.dir
-    RETURNING *
-  )
-  SELECT 'journeys', count(*)
-  FROM updated;
+  EXECUTE format(
+    $s$
+    WITH updated AS (
+      UPDATE %1$s AS jrn
+      SET
+        ptid = vt.ptid,
+        ttid = vt.ttid
+      FROM (
+        SELECT ptid, ttid, start_ts, route, dir
+        FROM sched.view_trips
+      ) AS vt
+      WHERE jrn.start_ts = vt.start_ts
+        AND jrn.route = vt.route
+        AND jrn.dir = vt.dir
+      RETURNING *
+    )
+    SELECT count(*) FROM updated
+    $s$,
+    target_table
+  ) INTO cnt_upd;
+
+  RETURN cnt_upd;
 END;
 $$;
