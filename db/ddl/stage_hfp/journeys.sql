@@ -1,38 +1,26 @@
 DROP TABLE IF EXISTS stage_hfp.journeys CASCADE;
 CREATE TABLE stage_hfp.journeys (
-  -- Fields calculated immediately when inserting
-  jrnid             uuid        PRIMARY KEY,
-  start_ts          timestamptz NOT NULL,
-  route             text        NOT NULL,
-  dir               smallint    NOT NULL,
-  oper              smallint    NOT NULL,
-  veh               integer     NOT NULL,
-
-  tst_span          tstzrange,
-  n_ongoing         integer,
-  n_odo_values      integer,
-  odo_span          int4range,
-  n_geom_values     integer,
-  n_door_open       integer,
-  n_door_closed     integer,
-  n_uniq_stops      smallint,
-
-  -- Calculated using sched.view_trips
+  jrnid             uuid            PRIMARY KEY,
   ttid              text,
+  ptid              text,
 
-  -- Calculated from .journey_points if ttid was not null
-  line_raw_length   real,
-  line_tt_length    real,
-  line_ref_length   real,
-  ref_avg_dist      real,
-  ref_med_dist      real,
-  ref_max_dist      real,
-  ref_n_within      integer,
+  start_ts          timestamptz     NOT NULL,
+  route             text            NOT NULL,
+  dir               smallint        NOT NULL,
+  oper              smallint        NOT NULL,
+  veh               integer         NOT NULL,
 
-  actual_start_ts   timestamptz,
+  n_obs             integer,
+  n_dropen          integer,
+  tst_span          tstzrange,
+  odo_span          int4range,
+  raw_distance      double precision,
 
-  invalid_reasons   text[]      DEFAULT '{}'
+  invalid_reasons   text[]          DEFAULT '{}'
 );
+COMMENT ON TABLE stage_hfp.journeys IS
+'Common values and aggregates of each `jrnid` journey entry
+extracted from `stage_hfp.raw` or corresponding temp table.';
 
 DROP FUNCTION IF EXISTS stage_hfp.insert_to_journeys_from_raw;
 CREATE OR REPLACE FUNCTION stage_hfp.insert_to_journeys_from_raw()
