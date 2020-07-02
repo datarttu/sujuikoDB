@@ -226,7 +226,7 @@ DROP FUNCTION IF EXISTS stage_hfp.delete_duplicates_by_tst;
 CREATE FUNCTION stage_hfp.delete_duplicates_by_tst(
   target_table  regclass
 )
-RETURNS VOID
+RETURNS BIGINT
 LANGUAGE PLPGSQL
 AS $$
 DECLARE
@@ -272,7 +272,7 @@ BEGIN
 
   RAISE NOTICE '% duplicate rows deleted', cnt_del;
 
-  RETURN;
+  RETURN cnt_del;
 END;
 $$;
 COMMENT ON FUNCTION stage_hfp.delete_duplicates_by_tst(regclass) IS
