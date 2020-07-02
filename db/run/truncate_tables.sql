@@ -23,6 +23,7 @@ TRUNCATE TABLE stage_gtfs.template_stops;
 TRUNCATE TABLE stage_gtfs.templates CASCADE;
 TRUNCATE TABLE stage_gtfs.pattern_stops CASCADE;
 TRUNCATE TABLE stage_gtfs.pattern_paths;
+TRUNCATE TABLE stage_gtfs.patterns CASCADE;
 TRUNCATE TABLE stage_gtfs.stop_pairs;
 TRUNCATE TABLE stage_gtfs.stop_pair_paths;
 
