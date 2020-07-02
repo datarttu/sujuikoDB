@@ -136,11 +136,13 @@ DROP FUNCTION IF EXISTS stage_hfp.set_movement_values;
 CREATE FUNCTION stage_hfp.set_movement_values(
   target_table  regclass
 )
-RETURNS VOID
+RETURNS BIGINT
 LANGUAGE PLPGSQL
 AS $$
+DECLARE
+  cnt_upd   bigint;
 BEGIN
-  RAISE NOTICE 'Updating movement values ...';
+  RAISE NOTICE 'Setting movement values ...';
   EXECUTE format(
     $s$
     WITH
@@ -198,21 +200,25 @@ BEGIN
           0)::double precision  AS dodo
       FROM hdg_spd
       WINDOW w_tst AS (PARTITION BY jrnid ORDER BY tst)
+    ),
+    updated AS (
+      UPDATE %1$s AS upd
+      SET
+        dodo  = hsa.dodo,
+        dx    = hsa.dx,
+        spd   = hsa.spd,
+        acc   = hsa.acc,
+        hdg   = hsa.hdg
+      FROM (SELECT * FROM hdg_spd_acc) AS hsa
+      WHERE upd.ctid = hsa.ctid
+      RETURNING *
     )
-    UPDATE %1$s AS upd
-    SET
-      dodo  = hsa.dodo,
-      dx    = hsa.dx,
-      spd   = hsa.spd,
-      acc   = hsa.acc,
-      hdg   = hsa.hdg
-    FROM (SELECT * FROM hdg_spd_acc) AS hsa
-    WHERE upd.ctid = hsa.ctid
+    SELECT count(*) FROM updated
     $s$,
     target_table
-  );
+  ) INTO cnt_upd;
 
-  RETURN;
+  RETURN cnt_upd;
 END;
 $$;
 COMMENT ON FUNCTION stage_hfp.set_movement_values(regclass) IS
