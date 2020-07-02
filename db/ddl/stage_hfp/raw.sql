@@ -276,8 +276,6 @@ BEGIN
     target_table
   ) INTO cnt_del;
 
-  RAISE NOTICE '% duplicate rows deleted', cnt_del;
-
   RETURN cnt_del;
 END;
 $$;
@@ -321,8 +319,6 @@ BEGIN
     min_acc,
     max_acc
   ) INTO cnt_del;
-
-  RAISE NOTICE '% rows deleted', cnt_del;
 
   RETURN cnt_del;
 END;
