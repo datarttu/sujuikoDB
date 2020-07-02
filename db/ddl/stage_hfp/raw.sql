@@ -282,3 +282,46 @@ The row left in the table has
     about real movement, and at the same time
 2)  minimum non-null `spd`, i.e. least GPS movement, by which we aim to eliminate
     rows with clear GPS error.';
+
+DROP FUNCTION IF EXISTS stage_hfp.delete_by_movement_values;
+CREATE FUNCTION stage_hfp.delete_by_movement_values(
+  target_table  regclass,
+  max_spd       double precision,
+  min_acc       double precision,
+  max_acc       double precision
+)
+RETURNS BIGINT
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  cnt_del   bigint;
+BEGIN
+  RAISE NOTICE 'Deleting by spd > %, % <= acc <= % ...',
+    max_spd, min_acc, max_acc;
+  EXECUTE format(
+    $s$
+    WITH deleted AS (
+      DELETE FROM %1$s
+      WHERE
+        spd > %2$s
+        OR acc < %3$s
+        OR acc > %4$s
+      RETURNING *
+    )
+    SELECT count(*) FROM deleted;
+    $s$,
+    target_table,
+    max_spd,
+    min_acc,
+    max_acc
+  ) INTO cnt_del;
+
+  RAISE NOTICE '% rows deleted', cnt_del;
+
+  RETURN cnt_del;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.delete_by_movement_values IS
+'Deletes from `target_table` rows where movement values `spd` and `acc`
+exceed any of the given limits. E.g., max speed could be 100 km/h,
+i.e. `100.0/3.6`, min acceleration -5.0 m/s and max acceleration 5.0 m/s.';
