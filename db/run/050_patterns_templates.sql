@@ -35,4 +35,7 @@ SELECT * FROM stage_gtfs.transfer_templates();
 SELECT * FROM stage_gtfs.transfer_template_timestamps();
 SELECT * FROM stage_gtfs.transfer_segment_times();
 
+REFRESH MATERIALIZED VIEW sched.mw_pattern_shapes;
+REFRESH MATERIALIZED VIEW sched.mw_pattern_stops;
+
 COMMIT;

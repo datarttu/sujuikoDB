@@ -19,5 +19,6 @@ SELECT stage_nw.cluster_stops_on_edges();
 SELECT stage_nw.populate_nw_links();
 SELECT nw.create_node_table();
 SELECT stage_nw.populate_nw_stops();
+REFRESH MATERIALIZED VIEW nw.mw_links_with_reverses;
 
 COMMIT;
