@@ -22,47 +22,54 @@ COMMENT ON TABLE stage_hfp.journeys IS
 'Common values and aggregates of each `jrnid` journey entry
 extracted from `stage_hfp.raw` or corresponding temp table.';
 
-DROP FUNCTION IF EXISTS stage_hfp.insert_to_journeys_from_raw;
-CREATE OR REPLACE FUNCTION stage_hfp.insert_to_journeys_from_raw()
-RETURNS TABLE (table_name text, rows_inserted bigint)
-VOLATILE
+DROP FUNCTION IF EXISTS stage_hfp.extract_journeys_from_raw;
+CREATE OR REPLACE FUNCTION stage_hfp.extract_journeys_from_raw(
+  raw_table       regclass,
+  journey_table   regclass
+)
+RETURNS BIGINT
 LANGUAGE PLPGSQL
 AS $$
+DECLARE
+  cnt_ins   bigint;
 BEGIN
-  RETURN QUERY
-  WITH inserted AS (
-    INSERT INTO stage_hfp.journeys (
-      jrnid, start_ts, route, dir, oper, veh,
-      tst_span, n_ongoing, n_odo_values, odo_span,
-      n_geom_values, n_door_open, n_door_closed, n_uniq_stops
+  EXECUTE format(
+    $s$
+    WITH inserted AS (
+      INSERT INTO %1$s (
+        jrnid, start_ts, route, dir, oper, veh,
+        n_obs, n_dropen, tst_span, odo_span, raw_distance
+      )
+      SELECT
+        jrnid,
+        start_ts,
+        route,
+        dir,
+        oper,
+        veh,
+        count(*)                                AS n_obs,
+        count(*) filter(WHERE drst IS true)     AS n_dropen,
+        tstzrange(min(tst), max(tst))           AS tst_span,
+        int4range(min(odo), max(odo))           AS odo_span,
+        sum(dx)                                 AS raw_distance
+      FROM %2$s
+      GROUP BY jrnid, start_ts, route, dir, oper, veh
+      ORDER BY start_ts
+      RETURNING *
     )
-    SELECT
-      jrnid,
-      start_ts,
-      route,
-      dir,
-      oper,
-      veh,
-      tstzrange(min(tst), max(tst))           AS tst_span,
-      count(*)                                AS n_ongoing,
-      count(*) filter(WHERE odo IS NOT NULL)  AS n_odo_values,
-      int4range(min(odo), max(odo))           AS odo_span,
-      count(*) filter(WHERE geom IS NOT NULL) AS n_geom_values,
-      count(*) filter(WHERE drst IS true)     AS n_door_open,
-      count(*) filter(WHERE drst IS false)    AS n_door_closed,
-      count(DISTINCT stop) filter(WHERE stop IS NOT NULL) AS n_uniq_stops
-    FROM stage_hfp.raw
-    WHERE jrnid IS NOT NULL
-      AND is_ongoing IS true
-    GROUP BY jrnid, start_ts, route, dir, oper, veh
-    ORDER BY start_ts
-    RETURNING *
-  )
-  SELECT 'journeys', count(*)
-  FROM inserted;
+    SELECT count(*) FROM inserted
+    $s$,
+    journey_table,
+    raw_table
+  ) INTO cnt_ins;
+
+  RETURN cnt_ins;
 END;
 $$;
-
+COMMENT ON FUNCTION stage_hfp.extract_journeys_from_raw IS
+'Extracts common attributes of each journey `jrnid` as well as
+aggregate values of journeys from raw HFP table `raw_table`
+and inserts the results into journey table `journey_table`.';
 DROP FUNCTION IF EXISTS stage_hfp.set_journeys_ttid;
 CREATE OR REPLACE FUNCTION stage_hfp.set_journeys_ttid()
 RETURNS TABLE (table_name text, rows_updated bigint)
