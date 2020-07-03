@@ -108,3 +108,7 @@ BEGIN
   RETURN cnt_upd;
 END;
 $$;
+COMMENT ON FUNCTION stage_hfp.set_journeys_ttid_ptid IS
+'Look up template and pattern ids from sched schema,
+based on journey start timestamp, route and direction,
+and set their values in `target_table`.';
