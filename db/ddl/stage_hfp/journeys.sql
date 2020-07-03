@@ -112,3 +112,54 @@ COMMENT ON FUNCTION stage_hfp.set_journeys_ttid_ptid IS
 'Look up template and pattern ids from sched schema,
 based on journey start timestamp, route and direction,
 and set their values in `target_table`.';
+
+DROP FUNCTION IF EXISTS stage_hfp.discard_invalid_journeys;
+CREATE OR REPLACE FUNCTION stage_hfp.discard_invalid_journeys(
+  target_table      regclass,
+  log_to_discarded  boolean   DEFAULT true
+)
+RETURNS bigint
+VOLATILE
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  cnt_del   bigint;
+  del_sql   text;
+  end_sql   text;
+BEGIN
+  del_sql :=  format(
+    $s$
+    WITH deleted AS (
+      DELETE FROM %1$s
+      WHERE cardinality(invalid_reasons) > 0
+      RETURNING *
+    )
+    $s$,
+    target_table
+  );
+  IF log_to_discarded IS true THEN
+    end_sql := $s$
+    ,
+    logged AS (
+      INSERT INTO stage_hfp.discarded_journeys
+      SELECT *, now()
+      FROM deleted
+      RETURNING *
+    )
+    SELECT count(*) FROM logged
+    $s$;
+  ELSE
+    end_sql := $s$
+      SELECT count(*) FROM deleted
+    $s$;
+  END IF;
+
+  EXECUTE del_sql || end_sql INTO cnt_del;
+
+  RETURN cnt_del;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.discard_invalid_journeys IS
+'Delete from `target_table` rows with any `invalid_reasons` messages.
+If `log_to_discarded` is true (default), save the deleted rows
+into `stage_hfp.discarded_journeys`.';
