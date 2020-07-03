@@ -294,85 +294,129 @@ The row left in the table has
 2)  minimum non-null `spd`, i.e. least GPS movement, by which we aim to eliminate
     rows with clear GPS error.';
 
-DROP FUNCTION IF EXISTS stage_hfp.delete_by_movement_values;
-CREATE FUNCTION stage_hfp.delete_by_movement_values(
+DROP FUNCTION IF EXISTS stage_hfp.drop_with_invalid_movement_values;
+CREATE FUNCTION stage_hfp.drop_with_invalid_movement_values(
   target_table  regclass,
   max_spd       numeric,
   min_acc       numeric,
   max_acc       numeric
 )
-RETURNS BIGINT
+RETURNS TABLE (
+  n_deleted     bigint,
+  n_updated     bigint
+)
 LANGUAGE PLPGSQL
 AS $$
 DECLARE
-  cnt_del   bigint;
+  this_rec      record;
+  prev_rec      record;
+  delta_time    double precision;
+  n_deleted     bigint;
+  n_updated     bigint;
 BEGIN
-  RAISE NOTICE 'Deleting by spd > %, % <= acc <= % ...',
-    max_spd, min_acc, max_acc;
+  -- Storage for our rows to update and delete;
+  -- cannot do these operations directly to the table when looping.
+  CREATE TEMPORARY TABLE _to_update (
+    jrnid   uuid,
+    obs_num bigint,
+    dodo    double precision,
+    dx      double precision,
+    spd     double precision,
+    acc     double precision,
+    hdg     double precision
+  ) ON COMMIT DROP;
+  CREATE TEMPORARY TABLE _to_delete (
+    jrnid   uuid,
+    obs_num bigint
+  ) ON COMMIT DROP;
+
+  <<mainloop>>
+  FOR this_rec IN EXECUTE format(
+    $s$SELECT * FROM %1$s ORDER BY jrnid, obs_num$s$,
+    target_table
+  )
+  LOOP
+    -- First row of the jrnid partition is always trated as valid
+    -- so we do not need to do forward calculations.
+    IF this_rec.obs_num = 1 THEN
+      prev_rec := this_rec;
+      --rec_offset := 1;
+      CONTINUE mainloop;
+    END IF;
+
+    this_rec.dodo := (this_rec.odo - prev_rec.odo);
+    this_rec.dx   := ST_Distance(this_rec.geom, prev_rec.geom);
+    delta_time    := extract(epoch FROM this_rec.tst - prev_rec.tst);
+    this_rec.spd  := CASE
+                       WHEN delta_time = 0.0 THEN NULL
+                       ELSE this_rec.dx / delta_time
+                     END;
+    this_rec.acc  := CASE
+                       WHEN delta_time = 0.0 THEN NULL
+                       ELSE (this_rec.spd - coalesce(prev_rec.spd, 0.0)) / delta_time
+                     END;
+    this_rec.hdg  := degrees(ST_Azimuth(prev_rec.geom, this_rec.geom));
+
+    IF coalesce(this_rec.spd, 0.0) > max_spd
+      OR coalesce(this_rec.acc, 0.0) < min_acc
+      OR coalesce(this_rec.acc, 0.0) > max_acc
+      THEN
+      INSERT INTO _to_delete VALUES (
+        this_rec.jrnid, this_rec.obs_num
+      );
+    ELSE
+      INSERT INTO _to_update VALUES (
+        this_rec.jrnid, this_rec.obs_num,
+        this_rec.dodo, this_rec.dx,
+        this_rec.spd, this_rec.acc, this_rec.hdg
+      );
+      prev_rec  := this_rec;
+    END IF;
+
+  END LOOP mainloop;
+
+  EXECUTE format(
+    $s$
+    WITH updated AS (
+      UPDATE %1$s AS upd
+      SET
+        dodo  = tu.dodo,
+        dx    = tu.dx,
+        spd   = tu.spd,
+        acc   = tu.acc,
+        hdg   = tu.hdg
+      FROM (SELECT * FROM _to_update) AS tu
+      WHERE upd.jrnid = tu.jrnid AND upd.obs_num = tu.obs_num
+      RETURNING *
+    )
+    SELECT count(*) FROM updated
+    $s$,
+    target_table
+  ) INTO n_updated;
+  DROP TABLE _to_update;
+
   EXECUTE format(
     $s$
     WITH deleted AS (
-      DELETE FROM %1$s
-      WHERE
-        spd > %2$s
-        OR acc < %3$s
-        OR acc > %4$s
+      DELETE FROM %1$s AS del
+      USING _to_delete AS td
+      WHERE del.jrnid = td.jrnid AND del.obs_num = td.obs_num
       RETURNING *
     )
-    SELECT count(*) FROM deleted;
+    SELECT count(*) FROM deleted
     $s$,
-    target_table,
-    max_spd,
-    min_acc,
-    max_acc
-  ) INTO cnt_del;
+    target_table
+  ) INTO n_deleted;
+  DROP TABLE _to_delete;
 
-  RETURN cnt_del;
+  RETURN QUERY SELECT n_deleted, n_updated;
 END;
 $$;
-COMMENT ON FUNCTION stage_hfp.delete_by_movement_values IS
-'Deletes from `target_table` rows where movement values `spd` and `acc`
-exceed any of the given limits. E.g., max speed could be 100 km/h,
-i.e. `100.0/3.6`, min acceleration -5.0 m/s and max acceleration 5.0 m/s.';
-
-DROP FUNCTION IF EXISTS stage_hfp.iterate_del_invalid_rows;
-CREATE FUNCTION stage_hfp.iterate_del_invalid_rows(
-  target_table  regclass,
-  max_spd       numeric,
-  min_acc       numeric,
-  max_acc       numeric,
-  max_iters     integer           DEFAULT 10
-)
-RETURNS smallint
-LANGUAGE PLPGSQL
-AS $$
-DECLARE
-  counter   smallint;
-  cnt_del   bigint;
-  cnt_upd   bigint;
-BEGIN
-  counter := 0;
-  LOOP
-    counter := counter + 1;
-    EXIT WHEN counter > max_iters;
-    SELECT stage_hfp.delete_by_movement_values(
-      target_table  := target_table,
-      max_spd       := max_spd,
-      min_acc       := min_acc,
-      max_acc       := max_acc
-    ) INTO cnt_del;
-    EXIT WHEN cnt_del = 0;
-    SELECT stage_hfp.set_movement_values(
-      target_table := target_table
-    ) INTO cnt_upd;
-    RAISE NOTICE 'Iteration %: % deleted, % updated',
-      counter, cnt_del, cnt_upd;
-  END LOOP;
-
-  RETURN counter - 1;
-END;
-$$;
-COMMENT ON FUNCTION stage_hfp.iterate_del_invalid_rows IS
-'Using `target_table`, keeps deleting rows with invalid movement values
-and updating them again (due to rows deleted from between)
-until 0 rows are deleted or `max_iters` iterations is reached.';
+COMMENT ON FUNCTION stage_hfp.drop_with_invalid_movement_values IS
+'Deletes from `target_table` records considered invalid by `spd` and `acc` values,
+scanning through the table ordered by `jrnid` and `obs_num` and updating successive
+records "on the fly" if records are deleted from between.
+- `target_table`: schema-qualified or temporary table name
+- `max_spd`:      maximum speed m/s (not km/h!)
+- `min_acc`:      minimum acceleration m/s2 (note: should be negative)
+- `max_acc`:      maximum acceleration m/s2';
