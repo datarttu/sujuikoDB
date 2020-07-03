@@ -28,7 +28,7 @@ $$;
 
 DROP FUNCTION IF EXISTS invalidate;
 CREATE OR REPLACE FUNCTION invalidate(
-  tb_name     text,
+  tb_name     regclass,
   reason      text,
   where_cnd   text
 )
@@ -36,37 +36,20 @@ RETURNS TABLE (table_name text, invalid_reason text, rows_affected bigint)
 VOLATILE
 LANGUAGE PLPGSQL
 AS $$
-DECLARE
-  tbname_arr  text[];
-  schemaname  text;
-  tablename   text;
 BEGIN
-  tbname_arr := string_to_array(tb_name, '.');
-  IF cardinality(tbname_arr) = 1 THEN
-    schemaname := 'public';
-    tablename := tbname_arr[1];
-  ELSIF cardinality(tbname_arr) > 2 THEN
-    RAISE EXCEPTION 'Too many "." in table_name: should be "schema.table" or "table"';
-  ELSE
-    schemaname := tbname_arr[1];
-    tablename := tbname_arr[2];
-  END IF;
-
   RETURN QUERY EXECUTE format(
     $fmt$
     WITH updated AS (
-    UPDATE %1$I.%2$I
-    SET invalid_reasons = array_append(invalid_reasons, %3$L)
-    WHERE %4$s
-      AND array_position(invalid_reasons, %3$L) IS NULL
+    UPDATE %1$s
+    SET invalid_reasons = array_append(invalid_reasons, %2$L)
+    WHERE %3$s
+      AND array_position(invalid_reasons, %2$L) IS NULL
     RETURNING *)
-    SELECT %5$L, %3$L, count(*) FROM updated
+    SELECT %1$L, %2$L, count(*) FROM updated
     $fmt$,
-    schemaname,
-    tablename,
+    tb_name,
     reason,
-    where_cnd,
-    schemaname || '.' || tablename
+    where_cnd
   );
 END;
 $$;
