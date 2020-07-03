@@ -15,6 +15,7 @@ CREATE TABLE stage_hfp.journeys (
   tst_span          tstzrange,
   odo_span          int4range,
   raw_distance      double precision,
+  n_neg_dodo        integer,
 
   invalid_reasons   text[]          DEFAULT '{}'
 );
@@ -38,7 +39,7 @@ BEGIN
     WITH inserted AS (
       INSERT INTO %1$s (
         jrnid, start_ts, route, dir, oper, veh,
-        n_obs, n_dropen, tst_span, odo_span, raw_distance
+        n_obs, n_dropen, tst_span, odo_span, raw_distance, n_neg_dodo
       )
       SELECT
         jrnid,
@@ -51,7 +52,8 @@ BEGIN
         count(*) filter(WHERE drst IS true)     AS n_dropen,
         tstzrange(min(tst), max(tst))           AS tst_span,
         int4range(min(odo), max(odo))           AS odo_span,
-        sum(dx)                                 AS raw_distance
+        sum(dx)                                 AS raw_distance,
+        count(*) filter(WHERE dodo < 0)         AS n_neg_dodo
       FROM %2$s
       GROUP BY jrnid, start_ts, route, dir, oper, veh
       ORDER BY start_ts
