@@ -32,8 +32,6 @@ CREATE TABLE stage_hfp.journey_points (
   PRIMARY KEY (jrnid, tst)
 );
 
-SELECT *
-FROM create_hypertable('stage_hfp.journey_points', 'tst', chunk_time_interval => interval '1 hour');
 
 CREATE INDEX ON stage_hfp.journey_points USING GIST(geom);
 --CREATE INDEX ON stage_hfp.journey_points USING BTREE(jrnid, seg_offset);
