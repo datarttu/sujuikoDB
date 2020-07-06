@@ -151,3 +151,34 @@ COMMENT ON FUNCTION stage_hfp.set_segment_candidates IS
 list the segment numbers `segno` of those that are within maximum `max_distance`
 from the point and save to `seg_candidates` array such that the nearest
 segment is listed first.';
+
+DROP FUNCTION IF EXISTS stage_hfp.discard_outlier_points;
+CREATE FUNCTION stage_hfp.discard_outlier_points(
+  jrn_point_table regclass
+)
+RETURNS bigint
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  cnt_del   bigint;
+BEGIN
+  EXECUTE format(
+    $s$
+    WITH deleted AS (
+      DELETE FROM %1$s
+      WHERE seg_candidates IS NULL
+        OR cardinality(seg_candidates) = 0
+      RETURNING *
+    )
+    SELECT count(*) FROM deleted
+    $s$,
+    jrn_point_table
+  ) INTO cnt_del;
+
+  RETURN cnt_del;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.discard_outlier_points IS
+'From `jrn_point_table`, delete rows that do not have any `seg_candidates`,
+i.e. they lie too far away from any pattern segment.
+The distance threshold is defined earlier in `.set_segment_candidates()`.';
