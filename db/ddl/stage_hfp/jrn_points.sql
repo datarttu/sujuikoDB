@@ -23,7 +23,7 @@ CREATE TABLE stage_hfp.jrn_points (
   halted_push       double precision, -- how much pushed / pulled (-) along seg when clustering halted points by odo value
 
   is_redundant      boolean,
-  n_rdnt_after      integer
+  n_rdnt_after      integer,
 
   PRIMARY KEY (jrnid, obs_num)
 );
@@ -34,4 +34,4 @@ and whose location is within a valid range from the journey shape
 (defined when importing points).
 Matching points to the trip segments is done using this table.';
 
-CREATE INDEX ON stage_hfp.jrn_points USING GIST(geom_raw);
+CREATE INDEX ON stage_hfp.jrn_points USING GIST(geom);
