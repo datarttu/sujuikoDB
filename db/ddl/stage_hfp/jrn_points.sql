@@ -37,3 +37,54 @@ and whose location is within a valid range from the journey shape
 Matching points to the trip segments is done using this table.';
 
 CREATE INDEX ON stage_hfp.jrn_points USING GIST(geom);
+
+DROP FUNCTION IF EXISTS stage_hfp.extract_jrn_points_from_raw;
+CREATE OR REPLACE FUNCTION stage_hfp.extract_jrn_points_from_raw(
+  raw_table       regclass,
+  jrn_point_table regclass,
+  journey_table   regclass
+)
+RETURNS bigint
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  cnt_ins   bigint;
+BEGIN
+  EXECUTE format(
+    $s$
+    WITH inserted AS (
+      INSERT INTO %1$s (
+        jrnid, obs_num, tst, odo, drst, geom,
+        dodo, dx, spd, acc, hdg, ptid
+      )
+      SELECT
+        r.jrnid,
+        r.obs_num,
+        r.tst,
+        r.odo,
+        r.drst,
+        r.geom,
+        r.dodo,
+        r.dx,
+        r.spd,
+        r.acc,
+        r.hdg,
+        j.ptid
+      FROM %2$s                           AS r
+      INNER JOIN %3$s                     AS j
+        ON r.jrnid = j.jrnid
+      RETURNING *
+    )
+    SELECT count(*) FROM inserted
+    $s$,
+    jrn_point_table,
+    raw_table,
+    journey_table
+  ) INTO cnt_ins;
+
+  RETURN cnt_ins;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.extract_jrn_points_from_raw IS
+'Extracts from `raw_table` to `jrn_point_table` points that
+have a corresponding `jrnid` journey in `journey_table`.';
