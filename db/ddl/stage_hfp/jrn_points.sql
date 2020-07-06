@@ -14,6 +14,7 @@ CREATE TABLE stage_hfp.jrn_points (
 
   ptid              text,
   seg_candidates    smallint[],
+  candidate_dists   double precision[],
   seg_segno         smallint,         -- ref sched.segments
   seg_linkid        integer,          -- -""-
   seg_reversed      boolean,          -- -""-
