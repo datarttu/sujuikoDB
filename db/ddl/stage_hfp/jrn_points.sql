@@ -186,3 +186,95 @@ COMMENT ON FUNCTION stage_hfp.discard_outlier_points IS
 'From `jrn_point_table`, delete rows that do not have any `seg_candidates`,
 i.e. they lie too far away from any pattern segment.
 The distance threshold is defined earlier in `.set_segment_candidates()`.';
+
+-- TODO:  WIP, clean up!!
+--        I think headings have to be included as well,
+--        otherwise this does not work well in "stitches"
+--        where the old segment remains included in the candidate set.
+DROP FUNCTION IF EXISTS stage_hfp.set_best_match_segments;
+CREATE FUNCTION stage_hfp.set_best_match_segments(
+  jrn_point_table regclass
+)
+RETURNS bigint
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  rec             record;
+  current_jrnid   uuid;
+  current_segno   smallint;
+  last_segno      smallint;
+  cnt_upd         bigint;
+  cnt_nulls       bigint;
+BEGIN
+  cnt_upd := 0;
+  cnt_nulls := 0;
+  last_segno := 0;
+
+  FOR rec IN EXECUTE format(
+    $s$SELECT * FROM %1$s
+    -- TODO: Remove this criteria, it is here just for testing WIP
+    WHERE jrnid = 'b2b7a03d-df44-c726-d3d8-c54fed0b5186'
+    ORDER BY jrnid, obs_num$s$,
+    jrn_point_table
+  ) LOOP
+    CONTINUE WHEN rec.seg_candidates IS NULL;
+
+    IF current_jrnid IS DISTINCT FROM rec.jrnid THEN
+      current_jrnid := rec.jrnid;
+      SELECT INTO current_segno min(candidate)
+      FROM unnest(rec.seg_candidates) AS s(candidate);
+
+    ELSE
+      SELECT INTO current_segno candidate
+      FROM
+      unnest(
+        rec.seg_candidates,
+        rec.candidate_dists
+      ) AS s(candidate, dist)
+      WHERE candidate >= last_segno
+      ORDER BY candidate, dist
+      LIMIT 1;
+
+    END IF;
+
+    -- TODO: Remove
+    RAISE NOTICE '% % %', current_jrnid, rec.obs_num, current_segno;
+
+    EXECUTE format(
+      $s$
+      UPDATE %1$s
+      SET seg_segno = %2$s
+      WHERE jrnid = %3$L
+        AND obs_num = %4$s
+      $s$,
+      jrn_point_table,
+      quote_nullable(current_segno),
+      current_jrnid,
+      rec.obs_num
+    );
+
+    IF current_segno IS NOT NULL THEN
+      last_segno := current_segno;
+      cnt_upd := cnt_upd + 1;
+    ELSE
+      cnt_nulls := cnt_nulls + 1;
+    END IF;
+
+  END LOOP;
+
+  -- TODO: Remove, also cnt_nulls in general
+  RAISE NOTICE 'upd % nulls %', cnt_upd, cnt_nulls;
+
+  RETURN cnt_upd;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.set_best_match_segments IS
+'Set pattern segment references in `jrn_point_table`.
+As we advance along the journey points ordered by `obs_num`, i.e. time,
+we want to do the point -> segment matching such that we do not
+"jump back" to a segment with a smaller segment number `segno`
+after a segment with greater `segno` value has already been visited.
+This algorithm aims to find the best segment matches
+following this principle. One caveat is a case where a vehicle
+has really backed up along the itinerary, but such cases are
+relatively rare.';
