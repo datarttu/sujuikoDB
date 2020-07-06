@@ -1,42 +1,40 @@
-DROP TABLE IF EXISTS stage_hfp.journey_points CASCADE;
-CREATE TABLE stage_hfp.journey_points (
-  jrnid             uuid                  NOT NULL REFERENCES stage_hfp.journeys(jrnid),
+DROP TABLE IF EXISTS stage_hfp.jrn_points;
+CREATE TABLE stage_hfp.jrn_points (
+  jrnid             uuid                  NOT NULL,
+  obs_num           bigint                NOT NULL,
   tst               timestamptz           NOT NULL,
-
   odo               integer,
   drst              boolean,
-  stop              integer,
   geom              geometry(POINT, 3067),
+  dodo              double precision,
+  dx                double precision,
+  spd               double precision,
+  acc               double precision,
+  hdg               double precision,
 
-  -- Running number, calculated before insignificant observations were omitted
-  obs_num           integer               NOT NULL,
-  -- Relative rank ordered by tst
-  rel_rank          double precision,
+  seg_segno         smallint,         -- ref sched.segments
+  seg_linkid        integer,          -- -""-
+  seg_reversed      boolean,          -- -""-
+  seg_rel_loc       double precision, -- linear loc along seg 0 ... 1
+  seg_abs_loc       double precision, -- -""- but absolute 0 ... <seg_length>
+  pt_rel_loc        double precision, -- linear loc along pattern geom 0 ... 1
+  pt_abs_loc        double precision, -- -""- but absolute 0 ... <seg_length>
+  raw_offset        double precision, -- distance raw <-> ref point on seg
+  halted_push       double precision, -- how much pushed / pulled (-) along seg when clustering halted points by odo value
 
-  -- Segment values (calculate by joining the closest corresponding trip template segment)
-  seg_linkid        integer,
-  seg_reversed      boolean,
-  seg_offset        real,
-  seg_rel_loc       double precision,
-  seg_abs_loc       real,
+  is_redundant      boolean,
+  n_rdnt_after      integer
 
-  rel_dist          double precision,
-  abs_dist          real,
-
-  d_odo_ahead       real,
-  dx_ahead          real,
-  dt_ahead          real,
-
-  invalid_reasons   text[]                DEFAULT '{}',
-
-  PRIMARY KEY (jrnid, tst)
+  PRIMARY KEY (jrnid, obs_num)
 );
+COMMENT ON TABLE stage_hfp.jrn_points IS
+'Points from `stage_hfp.raw` or corresponding temp table
+whose `jrnid` represents a valid journey in `stage_hfp.journeys` (or corresp.)
+and whose location is within a valid range from the journey shape
+(defined when importing points).
+Matching points to the trip segments is done using this table.';
 
-
-CREATE INDEX ON stage_hfp.journey_points USING GIST(geom);
---CREATE INDEX ON stage_hfp.journey_points USING BTREE(jrnid, seg_offset);
---CREATE INDEX ON stage_hfp.journey_points USING BTREE(jrnid, rel_dist);
-CREATE INDEX ON stage_hfp.journey_points USING BTREE(cardinality(invalid_reasons));
+CREATE INDEX ON stage_hfp.jrn_points USING GIST(geom_raw);
 
 DROP FUNCTION IF EXISTS stage_hfp.insert_to_journey_points_from_raw;
 CREATE OR REPLACE FUNCTION stage_hfp.insert_to_journey_points_from_raw(
