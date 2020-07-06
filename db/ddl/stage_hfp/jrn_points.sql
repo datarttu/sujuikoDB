@@ -89,3 +89,65 @@ $$;
 COMMENT ON FUNCTION stage_hfp.extract_jrn_points_from_raw IS
 'Extracts from `raw_table` to `jrn_point_table` points that
 have a corresponding `jrnid` journey in `journey_table`.';
+
+DROP FUNCTION IF EXISTS stage_hfp.set_segment_candidates;
+CREATE FUNCTION stage_hfp.set_segment_candidates(
+  jrn_point_table regclass,
+  max_distance    numeric
+)
+RETURNS bigint
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  cnt_upd   bigint;
+BEGIN
+  EXECUTE format(
+    $s$
+    WITH candidates AS (
+      SELECT
+        pt.jrnid,
+        pt.obs_num,
+        array_agg(sg.segno ORDER BY sg.dist)  AS seg_candidates,
+        array_agg(sg.dist ORDER BY sg.dist)   AS candidate_dists
+      FROM %1$s AS pt
+      INNER JOIN LATERAL (
+        SELECT
+          seg.ptid,
+          seg.segno,
+          ST_Distance(pt.geom, l.geom)  AS dist
+        FROM sched.segments AS seg
+        INNER JOIN nw.links AS l
+          ON seg.linkid = l.linkid
+        WHERE seg.ptid = pt.ptid
+          AND ST_DWithin(pt.geom, l.geom, %2$s)
+        ORDER BY dist
+      ) AS sg
+      ON true
+      GROUP BY pt.jrnid, pt.obs_num
+    ),
+    updated AS (
+      UPDATE %1$s AS upd
+      SET
+        seg_candidates  = cd.seg_candidates,
+        candidate_dists = cd.candidate_dists
+      FROM (
+        SELECT * FROM candidates
+      ) AS cd
+      WHERE upd.jrnid = cd.jrnid
+        AND upd.obs_num = cd.obs_num
+      RETURNING *
+    )
+    SELECT count(*) FROM updated
+    $s$,
+    jrn_point_table,
+    max_distance
+  ) INTO cnt_upd;
+
+  RETURN cnt_upd;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.set_segment_candidates IS
+'Update `jrn_point_table`.`seg_candidates`: from pattern `ptid` segments,
+list the segment numbers `segno` of those that are within maximum `max_distance`
+from the point and save to `seg_candidates` array such that the nearest
+segment is listed first.';
