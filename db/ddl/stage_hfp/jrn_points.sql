@@ -256,6 +256,139 @@ These points are considered "halted", i.e. the vehicle
 is not moving, so we want to force them to the same location to get rid of
 movement values caused by GPS jitter.';
 
+DROP FUNCTION IF EXISTS stage_hfp.mark_redundant_jrn_points;
+CREATE FUNCTION stage_hfp.mark_redundant_jrn_points(
+  jrn_point_table regclass
+)
+RETURNS bigint
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  n_updated     bigint;
+BEGIN
+  EXECUTE format(
+    $s$
+    WITH
+      window_refs AS (
+        SELECT
+          jrnid,
+          obs_num,
+          lag(odo) OVER w   AS prev_odo,
+          odo,
+          lead(odo) OVER w  AS next_odo,
+          lag(drst) OVER w  AS prev_drst,
+          drst,
+          lead(drst) OVER w AS next_drst
+        FROM %1$s
+        WINDOW w AS (PARTITION BY jrnid ORDER BY obs_num)
+      ),
+      comparisons AS (
+        SELECT
+          jrnid,
+          obs_num,
+          NOT (
+            prev_odo IS DISTINCT FROM odo
+            OR next_odo IS DISTINCT FROM odo
+            OR prev_drst IS DISTINCT FROM drst
+            OR next_drst IS DISTINCT FROM drst
+          ) AS is_redundant
+        FROM window_refs
+      ),
+      group_beginnings AS (
+        SELECT
+          jrnid,
+          obs_num,
+          is_redundant,
+          CASE WHEN is_redundant IS true
+            AND lag(is_redundant) OVER (PARTITION BY jrnid ORDER BY obs_num) IS false
+            THEN 1
+          ELSE 0
+          END AS new_group
+        FROM comparisons
+      ),
+      groups AS (
+        SELECT
+          jrnid,
+          obs_num,
+          is_redundant,
+          sum(new_group) OVER (PARTITION BY jrnid ORDER BY obs_num) AS grp
+        FROM group_beginnings
+      ),
+      group_aggregates AS (
+        SELECT
+          jrnid,
+          grp,
+          count(*) filter(WHERE is_redundant IS true)         AS n_redundant,
+          min(obs_num) filter(WHERE is_redundant IS true) - 1 AS last_sig_obs_num
+        FROM groups
+        GROUP BY jrnid, grp
+      ),
+      result AS (
+        SELECT
+          g.*,
+          coalesce(ga.n_redundant, 0) AS n_rdnt_after
+        FROM groups                 AS g
+        LEFT JOIN group_aggregates  AS ga
+          ON g.jrnid = ga.jrnid
+          AND g.obs_num = ga.last_sig_obs_num
+        ORDER BY g.jrnid, g.obs_num
+      ),
+      updated AS (
+        UPDATE %1$s AS upd
+        SET
+          is_redundant = r.is_redundant,
+          n_rdnt_after = r.n_rdnt_after
+        FROM (SELECT * FROM result) AS r
+        WHERE upd.jrnid = r.jrnid
+          AND upd.obs_num = r.obs_num
+        RETURNING *
+      )
+      SELECT count(*) FROM updated
+    $s$,
+    jrn_point_table
+  ) INTO n_updated;
+
+  RETURN n_updated;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.mark_redundant_jrn_points IS
+'From `jrn_point_table`, mark `is_redundant` to true where
+- `odo` value is same as on preceding and following row by `obs_num`
+- `drst` does not change with respect to prec. and foll. row
+I.e. movement or door status does not change on these rows.
+Also populate `n_rdnt_after` for rows just before groups of
+redundant values.';
+
+DROP FUNCTION IF EXISTS stage_hfp.discard_redundant_jrn_points;
+CREATE FUNCTION stage_hfp.discard_redundant_jrn_points(
+  jrn_point_table regclass
+)
+RETURNS bigint
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  cnt_del   bigint;
+BEGIN
+  EXECUTE format(
+    $s$
+    WITH deleted AS (
+      DELETE FROM %1$s
+      WHERE is_redundant IS true
+      RETURNING *
+    )
+    SELECT count(*) FROM deleted
+    $s$,
+    jrn_point_table
+  ) INTO cnt_del;
+
+  RETURN cnt_del;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.discard_redundant_jrn_points IS
+'From `jrn_point_table`, delete rows marked with `is_redundant = true`.
+Run this after `mark_redundant_jrn_points()` and possibly checking
+that the results are ok.';
+
 -- TODO:  WIP, clean up!!
 --        I think headings have to be included as well,
 --        otherwise this does not work well in "stitches"
