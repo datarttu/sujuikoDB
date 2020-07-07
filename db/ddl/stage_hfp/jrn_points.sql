@@ -26,7 +26,7 @@ CREATE TABLE stage_hfp.jrn_points (
   halt_offset       double precision, -- how much point was possibly moved by halted point clustering
 
   is_redundant      boolean,
-  n_rdnt_after      integer,
+  n_rdnt_after      smallint,         -- n of redundant points dropped after this obs
 
   PRIMARY KEY (jrnid, obs_num)
 );
@@ -189,7 +189,8 @@ The distance threshold is defined earlier in `.set_segment_candidates()`.';
 
 DROP FUNCTION IF EXISTS stage_hfp.cluster_halted_points;
 CREATE FUNCTION stage_hfp.cluster_halted_points(
-  jrn_point_table regclass
+  jrn_point_table regclass,
+  min_clust_size  integer DEFAULT 2
 )
 RETURNS bigint
 LANGUAGE PLPGSQL
@@ -215,7 +216,7 @@ BEGIN
           odogroup,
           ST_GeometricMedian( ST_Collect(old_geom) )  AS median_geom
         FROM odogroups
-        WHERE n_in_odogroup > 1
+        WHERE n_in_odogroup >= %2$s
         GROUP BY jrnid, odogroup
       ),
       result AS (
@@ -240,7 +241,8 @@ BEGIN
       )
       SELECT count(*) FROM updated
     $s$,
-    jrn_point_table
+    jrn_point_table,
+    min_clust_size
   ) INTO cnt_upd;
 
   RETURN cnt_upd;
@@ -248,7 +250,9 @@ END;
 $$;
 COMMENT ON FUNCTION stage_hfp.cluster_halted_points IS
 'In `jrn_point_table`, move multiple points having the same `odo` value
-to the same location. These points are considered "halted", i.e. the vehicle
+to the same location, if there are at least `min_clust_size` points
+with the same `odo` value.
+These points are considered "halted", i.e. the vehicle
 is not moving, so we want to force them to the same location to get rid of
 movement values caused by GPS jitter.';
 
