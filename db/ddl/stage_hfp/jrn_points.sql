@@ -23,7 +23,7 @@ CREATE TABLE stage_hfp.jrn_points (
   pt_rel_loc        double precision, -- linear loc along pattern geom 0 ... 1
   pt_abs_loc        double precision, -- -""- but absolute 0 ... <seg_length>
   raw_offset        double precision, -- distance raw <-> ref point on seg
-  halted_push       double precision, -- how much pushed / pulled (-) along seg when clustering halted points by odo value
+  halt_offset       double precision, -- how much point was possibly moved by halted point clustering
 
   is_redundant      boolean,
   n_rdnt_after      integer,
@@ -186,6 +186,71 @@ COMMENT ON FUNCTION stage_hfp.discard_outlier_points IS
 'From `jrn_point_table`, delete rows that do not have any `seg_candidates`,
 i.e. they lie too far away from any pattern segment.
 The distance threshold is defined earlier in `.set_segment_candidates()`.';
+
+DROP FUNCTION IF EXISTS stage_hfp.cluster_halted_points;
+CREATE FUNCTION stage_hfp.cluster_halted_points(
+  jrn_point_table regclass
+)
+RETURNS bigint
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  cnt_upd   bigint;
+BEGIN
+  EXECUTE format(
+    $s$
+    WITH
+      odogroups AS (
+        SELECT
+          jrnid,
+          obs_num,
+          geom                                          AS old_geom,
+          rank() OVER (PARTITION BY jrnid ORDER BY odo) AS odogroup,
+          count(*) OVER (PARTITION BY jrnid, odo)       AS n_in_odogroup
+        FROM %1$s
+      ),
+      medianpoints AS (
+        SELECT
+          jrnid,
+          odogroup,
+          ST_GeometricMedian( ST_Collect(old_geom) )  AS median_geom
+        FROM odogroups
+        WHERE n_in_odogroup > 1
+        GROUP BY jrnid, odogroup
+      ),
+      result AS (
+        SELECT
+          o.jrnid,
+          o.obs_num,
+          ST_Distance(o.old_geom, m.median_geom)  AS halt_offset,
+          m.median_geom
+        FROM odogroups          AS o
+        INNER JOIN medianpoints AS m
+          ON o.jrnid = m.jrnid AND o.odogroup = m.odogroup
+      ),
+      updated AS (
+        UPDATE %1$s AS upd
+        SET
+          geom = r.median_geom,
+          halt_offset = r.halt_offset
+        FROM (SELECT * FROM result) AS r
+        WHERE upd.jrnid = r.jrnid
+          AND upd.obs_num = r.obs_num
+        RETURNING *
+      )
+      SELECT count(*) FROM updated
+    $s$,
+    jrn_point_table
+  ) INTO cnt_upd;
+
+  RETURN cnt_upd;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.cluster_halted_points IS
+'In `jrn_point_table`, move multiple points having the same `odo` value
+to the same location. These points are considered "halted", i.e. the vehicle
+is not moving, so we want to force them to the same location to get rid of
+movement values caused by GPS jitter.';
 
 -- TODO:  WIP, clean up!!
 --        I think headings have to be included as well,
