@@ -21,7 +21,6 @@ CREATE TABLE stage_hfp.jrn_points (
   seg_reversed      boolean,          -- -""-
   seg_rel_loc       double precision, -- linear loc along seg 0 ... 1
   seg_abs_loc       double precision, -- -""- but absolute 0 ... <seg_length>
-  pt_rel_loc        double precision, -- linear loc along pattern geom 0 ... 1
   pt_abs_loc        double precision, -- -""- but absolute 0 ... <seg_length>
   pt_dx             double precision,
   pt_spd            double precision,
@@ -503,3 +502,80 @@ NOTE: This algorithm does NOT work well if
         point and segment heading pretty pointless;
       - the vehicle has really driven backwards (rare) or there are backwards
         jumping GPS points left still after movement value based filtering';
+
+DROP FUNCTION IF EXISTS stage_hfp.set_linear_locations;
+CREATE FUNCTION stage_hfp.set_linear_locations(
+  jrn_point_table regclass
+)
+RETURNS bigint
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  cnt_upd   bigint;
+BEGIN
+  EXECUTE format(
+    $s$
+    WITH
+      seg_attrs AS (
+        SELECT
+          jp.jrnid,
+          jp.obs_num,
+          sg.ptid,
+          sg.linkid,
+          sg.reversed,
+          sg.ij_dist_span,
+          ST_Distance(l.geom, jp.geom)        AS raw_offset,
+          CASE WHEN sg.reversed THEN
+            1 - ST_LineLocatePoint(l.geom, jp.geom)
+          ELSE ST_LineLocatePoint(l.geom, jp.geom)
+          END                                 AS seg_rel_loc,
+          l.cost                              AS link_len
+        FROM %1$s AS jp
+        INNER JOIN sched.segments AS sg
+          ON  jp.ptid = sg.ptid
+          AND jp.seg_segno = sg.segno
+        INNER JOIN nw.links       AS l
+          ON sg.linkid = l.linkid
+      ),
+      linear_values AS (
+        SELECT
+          jrnid,
+          obs_num,
+          linkid                      AS seg_linkid,
+          reversed                    AS seg_reversed,
+          raw_offset,
+          seg_rel_loc,
+          seg_rel_loc * link_len      AS seg_abs_loc,
+          lower(ij_dist_span) +
+            (seg_rel_loc * link_len)  AS pt_abs_loc
+        FROM seg_attrs
+      ),
+      updated AS (
+        UPDATE %1$s AS upd
+        SET
+          seg_linkid    = r.seg_linkid,
+          seg_reversed  = r.seg_reversed,
+          seg_rel_loc   = r.seg_rel_loc,
+          seg_abs_loc   = r.seg_abs_loc,
+          pt_abs_loc    = r.pt_abs_loc,
+          raw_offset    = r.raw_offset
+        FROM (SELECT * FROM linear_values) AS r
+        WHERE upd.jrnid = r.jrnid
+          AND upd.obs_num = r.obs_num
+        RETURNING *
+      )
+    SELECT count(*) FROM updated
+    $s$,
+    jrn_point_table
+  ) INTO cnt_upd;
+
+  RETURN cnt_upd;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.set_linear_locations IS
+'In `jrn_point_table`, project raw point geometries onto segments the points
+belong to, and calculate both relative and absolute linear locations
+along the segment and, derived from them, along the pattern geometry.
+Also save the link id and reverse attribute used in the process for possible auditing.
+Updates `seg_linkid`, `seg_reversed`, `seg_rel_loc`, `seg_abs_loc`,
+`pt_rel_loc`, `raw_offset`.';
