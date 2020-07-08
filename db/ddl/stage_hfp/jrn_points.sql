@@ -23,6 +23,9 @@ CREATE TABLE stage_hfp.jrn_points (
   seg_abs_loc       double precision, -- -""- but absolute 0 ... <seg_length>
   pt_rel_loc        double precision, -- linear loc along pattern geom 0 ... 1
   pt_abs_loc        double precision, -- -""- but absolute 0 ... <seg_length>
+  pt_dx             double precision,
+  pt_spd            double precision,
+  pt_acc            double precision,
   raw_offset        double precision, -- distance raw <-> ref point on seg
   halt_offset       double precision, -- how much point was possibly moved by halted point clustering
 
