@@ -139,8 +139,8 @@ ordered by `tst` for each `jrnid` partition.
 Since this is a trigger function, target schema and table are automatically
 resolved by `TG_TABLE_SCHEMA` and `TG_TABLE_NAME`.';
 
-DROP FUNCTION IF EXISTS stage_hfp.set_movement_values;
-CREATE FUNCTION stage_hfp.set_movement_values(
+DROP FUNCTION IF EXISTS stage_hfp.set_raw_movement_values;
+CREATE FUNCTION stage_hfp.set_raw_movement_values(
   target_table  regclass
 )
 RETURNS BIGINT
@@ -228,7 +228,7 @@ BEGIN
   RETURN cnt_upd;
 END;
 $$;
-COMMENT ON FUNCTION stage_hfp.set_movement_values(regclass) IS
+COMMENT ON FUNCTION stage_hfp.set_raw_movement_values(regclass) IS
 'Updates `dodo`, `dx`, `spd`, `acc` and `hdg` of the `target_table`
 by window functions partitioned by `jrnid` and ordered by `tst`.
 Values are calculated from lag to current row,
