@@ -15,6 +15,7 @@ CREATE TABLE stage_hfp.jrn_points (
   ptid              text,
   seg_candidates    smallint[],
   candidate_dists   double precision[],
+  candidate_hdgs    double precision[],
   seg_segno         smallint,         -- ref sched.segments
   seg_linkid        integer,          -- -""-
   seg_reversed      boolean,          -- -""-
@@ -108,12 +109,26 @@ BEGIN
         pt.jrnid,
         pt.obs_num,
         array_agg(sg.segno ORDER BY sg.dist)  AS seg_candidates,
-        array_agg(sg.dist ORDER BY sg.dist)   AS candidate_dists
+        array_agg(sg.dist ORDER BY sg.dist)   AS candidate_dists,
+        array_agg(sg.hdg ORDER BY sg.dist)    AS candidate_hdgs
       FROM %1$s AS pt
       INNER JOIN LATERAL (
         SELECT
           seg.ptid,
           seg.segno,
+          degrees(
+            CASE WHEN seg.reversed IS true THEN
+              ST_Azimuth(
+                ST_EndPoint(l.geom),
+                ST_StartPoint(l.geom)
+              )
+            ELSE
+              ST_Azimuth(
+                ST_StartPoint(l.geom),
+                ST_EndPoint(l.geom)
+              )
+            END
+          )                             AS hdg,
           ST_Distance(pt.geom, l.geom)  AS dist
         FROM sched.segments AS seg
         INNER JOIN nw.links AS l
@@ -133,7 +148,8 @@ BEGIN
       UPDATE %1$s AS upd
       SET
         seg_candidates  = cd.seg_candidates,
-        candidate_dists = cd.candidate_dists
+        candidate_dists = cd.candidate_dists,
+        candidate_hdgs  = cd.candidate_hdgs
       FROM (
         SELECT * FROM candidates
       ) AS cd
@@ -389,10 +405,6 @@ COMMENT ON FUNCTION stage_hfp.discard_redundant_jrn_points IS
 Run this after `mark_redundant_jrn_points()` and possibly checking
 that the results are ok.';
 
--- TODO:  WIP, clean up!!
---        I think headings have to be included as well,
---        otherwise this does not work well in "stitches"
---        where the old segment remains included in the candidate set.
 DROP FUNCTION IF EXISTS stage_hfp.set_best_match_segments;
 CREATE FUNCTION stage_hfp.set_best_match_segments(
   jrn_point_table regclass
@@ -406,41 +418,46 @@ DECLARE
   current_segno   smallint;
   last_segno      smallint;
   cnt_upd         bigint;
-  cnt_nulls       bigint;
 BEGIN
   cnt_upd := 0;
-  cnt_nulls := 0;
-  last_segno := 0;
 
   FOR rec IN EXECUTE format(
-    $s$SELECT * FROM %1$s
-    -- TODO: Remove this criteria, it is here just for testing WIP
-    WHERE jrnid = 'b2b7a03d-df44-c726-d3d8-c54fed0b5186'
-    ORDER BY jrnid, obs_num$s$,
+    $s$
+    SELECT * FROM %1$s
+    ORDER BY jrnid, obs_num
+    $s$,
     jrn_point_table
   ) LOOP
     CONTINUE WHEN rec.seg_candidates IS NULL;
 
     IF current_jrnid IS DISTINCT FROM rec.jrnid THEN
       current_jrnid := rec.jrnid;
-      SELECT INTO current_segno min(candidate)
-      FROM unnest(rec.seg_candidates) AS s(candidate);
+      SELECT INTO current_segno min(cand)
+      FROM unnest(rec.seg_candidates) AS s(cand);
+      last_segno := current_segno;
 
     ELSE
-      SELECT INTO current_segno candidate
-      FROM
-      unnest(
-        rec.seg_candidates,
-        rec.candidate_dists
-      ) AS s(candidate, dist)
-      WHERE candidate >= last_segno
-      ORDER BY candidate, dist
+      WITH criteria AS (
+        SELECT
+          cand,
+          (cand - last_segno BETWEEN 0 AND 1)     AS has_small_diff,
+          (minimum_angle(hdg, rec.hdg) < 90.0)    AS has_small_angle,
+          dist
+        FROM unnest(
+          rec.seg_candidates,
+          rec.candidate_hdgs,
+          rec.candidate_dists
+        ) AS s(cand, hdg, dist)
+      )
+      SELECT INTO current_segno cand
+      FROM criteria
+      ORDER BY
+        has_small_diff  DESC,
+        has_small_angle DESC,
+        dist            ASC
       LIMIT 1;
 
     END IF;
-
-    -- TODO: Remove
-    RAISE NOTICE '% % %', current_jrnid, rec.obs_num, current_segno;
 
     EXECUTE format(
       $s$
@@ -458,25 +475,28 @@ BEGIN
     IF current_segno IS NOT NULL THEN
       last_segno := current_segno;
       cnt_upd := cnt_upd + 1;
-    ELSE
-      cnt_nulls := cnt_nulls + 1;
     END IF;
 
   END LOOP;
-
-  -- TODO: Remove, also cnt_nulls in general
-  RAISE NOTICE 'upd % nulls %', cnt_upd, cnt_nulls;
 
   RETURN cnt_upd;
 END;
 $$;
 COMMENT ON FUNCTION stage_hfp.set_best_match_segments IS
-'Set pattern segment references in `jrn_point_table`.
-As we advance along the journey points ordered by `obs_num`, i.e. time,
-we want to do the point -> segment matching such that we do not
-"jump back" to a segment with a smaller segment number `segno`
-after a segment with greater `segno` value has already been visited.
-This algorithm aims to find the best segment matches
-following this principle. One caveat is a case where a vehicle
-has really backed up along the itinerary, but such cases are
-relatively rare.';
+'Set pattern segment references in `jrn_point_table` by using candidates
+from `seg_candidates`, `candidate_dists` and `candidate_hdgs`.
+If there are multiple candidates, they are prioritized as follows:
+1)  candidates whose segment number is equal to or 1 greater than the latest
+    segment number used: we do not want to go backwards along the segments;
+2)  if multiple choices after prio. 1, choose the segment whose heading difference
+    to the point heading is less than 90 degrees - this should take care of most
+    "stich" segments where the next segment is immediately on the same link but
+    in opposite direction;
+3)  if still conflicts after prio. 2, prefer shortest distance between segment
+    and point.
+NOTE: This algorithm does NOT work well if
+      - the segment geometry is very curvy and the angle from `ST_Azimuth()`
+        does not thus represent the segment well enough, making comparison between
+        point and segment heading pretty pointless;
+      - the vehicle has really driven backwards (rare) or there are backwards
+        jumping GPS points left still after movement value based filtering';
