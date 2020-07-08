@@ -26,6 +26,37 @@ AS $$
   SELECT upper($1) - lower($1);
 $$;
 
+DROP FUNCTION IF EXISTS minimum_angle;
+CREATE FUNCTION minimum_angle(
+  x double precision, y double precision
+)
+RETURNS double precision
+LANGUAGE PLPGSQL
+IMMUTABLE
+PARALLEL SAFE
+AS $$
+DECLARE
+  ang   double precision;
+BEGIN
+  IF x IS NULL OR y IS NULL THEN
+    RETURN NULL::double precision;
+  END IF;
+  IF x < y THEN
+    ang := abs(y - x);
+  ELSE
+    ang := abs(x - y);
+  END IF;
+  IF ang > 180.0 THEN
+    RETURN ang - 180.0;
+  ELSE
+    RETURN ang;
+  END IF;
+END;
+$$;
+COMMENT ON FUNCTION minimum_angle IS
+'Minimum positive angle [0, 180] between angles `x` and `y`.
+`x` and `y` must be between 0 and 360.';
+
 DROP FUNCTION IF EXISTS invalidate;
 CREATE OR REPLACE FUNCTION invalidate(
   tb_name     regclass,
