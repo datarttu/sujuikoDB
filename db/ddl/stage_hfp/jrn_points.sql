@@ -137,10 +137,10 @@ BEGIN
           ON seg.linkid = l.linkid
         WHERE seg.ptid = pt.ptid
           AND ST_DWithin(pt.geom, l.geom, %2$s)
-          AND ST_Intersects(
-            pt.geom,
-            ST_Buffer(l.geom, %2$s, 'endcap=flat')
-          )
+          -- AND ST_Intersects(
+          --   pt.geom,
+          --   ST_Buffer(l.geom, %2$s, 'endcap=flat')
+          -- )
         ORDER BY dist
       ) AS sg
       ON true
