@@ -16,6 +16,7 @@ CREATE TABLE stage_hfp.jrn_points (
   seg_candidates    smallint[],
   candidate_dists   double precision[],
   candidate_hdgs    double precision[],
+  candidate_locs    double precision[],
   seg_segno         smallint,         -- ref sched.segments
   seg_linkid        integer,          -- -""-
   seg_reversed      boolean,          -- -""-
@@ -112,7 +113,8 @@ BEGIN
         pt.obs_num,
         array_agg(sg.segno ORDER BY sg.dist)  AS seg_candidates,
         array_agg(sg.dist ORDER BY sg.dist)   AS candidate_dists,
-        array_agg(sg.hdg ORDER BY sg.dist)    AS candidate_hdgs
+        array_agg(sg.hdg ORDER BY sg.dist)    AS candidate_hdgs,
+        array_agg(sg.loc ORDER BY sg.dist)    AS candidate_locs
       FROM %1$s AS pt
       INNER JOIN LATERAL (
         SELECT
@@ -131,6 +133,10 @@ BEGIN
               )
             END
           )                             AS hdg,
+          CASE WHEN seg.reversed IS true THEN
+            1 - ST_LineLocatePoint(l.geom, pt.geom)
+          ELSE ST_LineLocatePoint(l.geom, pt.geom)
+          END                           AS loc,
           ST_Distance(pt.geom, l.geom)  AS dist
         FROM sched.segments AS seg
         INNER JOIN nw.links AS l
@@ -151,7 +157,8 @@ BEGIN
       SET
         seg_candidates  = cd.seg_candidates,
         candidate_dists = cd.candidate_dists,
-        candidate_hdgs  = cd.candidate_hdgs
+        candidate_hdgs  = cd.candidate_hdgs,
+        candidate_locs  = cd.candidate_locs
       FROM (
         SELECT * FROM candidates
       ) AS cd
@@ -444,17 +451,20 @@ BEGIN
           cand,
           (cand - last_segno BETWEEN 0 AND 1)     AS has_small_diff,
           (minimum_angle(hdg, rec.hdg) < 90.0)    AS has_small_angle,
+          (loc > 0 AND loc < 1)                   AS not_at_seg_end,
           dist
         FROM unnest(
           rec.seg_candidates,
           rec.candidate_hdgs,
+          rec.candidate_locs,
           rec.candidate_dists
-        ) AS s(cand, hdg, dist)
+        ) AS s(cand, hdg, loc, dist)
       )
       SELECT INTO current_segno cand
       FROM criteria
       ORDER BY
         has_small_diff  DESC,
+        not_at_seg_end  DESC,
         has_small_angle DESC,
         dist            ASC
       LIMIT 1;
@@ -490,11 +500,15 @@ from `seg_candidates`, `candidate_dists` and `candidate_hdgs`.
 If there are multiple candidates, they are prioritized as follows:
 1)  candidates whose segment number is equal to or 1 greater than the latest
     segment number used: we do not want to go backwards along the segments;
-2)  if multiple choices after prio. 1, choose the segment whose heading difference
+2)  if multiple choices after prio. 1, choose the segment that would have the
+    raw point projected somewhere in the middle rather than extreme ends
+    (linear loc 0 or 1) of the segment geometry - this way we prefer projecting
+    points from the sides of the segments;
+3)  if multiple choices after prio. 2, choose the segment whose heading difference
     to the point heading is less than 90 degrees - this should take care of most
     "stich" segments where the next segment is immediately on the same link but
     in opposite direction;
-3)  if still conflicts after prio. 2, prefer shortest distance between segment
+4)  if still conflicts after prio. 3, prefer shortest distance between segment
     and point.
 NOTE: This algorithm does NOT work well if
       - the segment geometry is very curvy and the angle from `ST_Azimuth()`
