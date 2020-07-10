@@ -17,6 +17,15 @@ AS $$
   SELECT upper($1) - lower($1);
 $$;
 
+CREATE OR REPLACE FUNCTION rn_length(int8range)
+RETURNS bigint
+LANGUAGE SQL
+IMMUTABLE
+PARALLEL SAFE
+AS $$
+  SELECT upper($1) - lower($1);
+$$;
+
 CREATE OR REPLACE FUNCTION rn_length(numrange)
 RETURNS numeric
 LANGUAGE SQL
