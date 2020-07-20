@@ -101,3 +101,18 @@ GPS coordinates are missing from some observations.
 However, these points need not be discarded in case there are reasonable odometer values available for linear interpolation.
 
 ![Example of missing coordinates from 2550-2.](img/gaps_from_missing_coordinates.png)
+
+## HFP staging issues
+
+### Points projected on clearly incorrect segments
+
+Despite the algorithm that tries to find the most likely segment for each point using some heuristics, there are points that fall clearly to an incorrect segment when one looks at them on a map.
+This can happen especially in the beginning of the pattern.
+An example from Käpylä, ptid `1001_2_1`, start_ts `2019-11-06 14:12:00+00`, where the first points should fall to the first (blue) segment or be discarded, not on segment 2 (red):
+
+![Example of incorrect segment projection in the beginning.](img/points_on_wrong_segment.png)
+
+This is against the assumption that when journey points are sorted increasingly by timestamp, also the distance travelled along the pattern path always increases.
+If the erroneous points are not fixed or discarded, segment-based aggregates (that are calculated from the points with the first and last timestamps on each segment) can produce spurious results, since they assume that each segment is only visited once without going back or forth to other segments in between.
+
+See [`explore/jrn_points_on_incorrect_segs.sql`](../db/explore/jrn_points_on_incorrect_segs.sql) for WIP addressing this issue.
