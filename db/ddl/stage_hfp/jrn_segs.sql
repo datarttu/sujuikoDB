@@ -9,6 +9,7 @@ CREATE TABLE stage_hfp.jrn_segs (
   is_last_seg       boolean,
 
   -- Arrays
+  pt_timestamps     timestamptz[],
   pt_timediffs_s    real[],
   pt_seg_locs_m     real[],
   pt_speeds_m_s     real[],
