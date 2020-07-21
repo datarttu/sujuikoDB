@@ -764,3 +764,50 @@ along the segment and, derived from them, along the pattern geometry.
 Also save the link id and reverse attribute used in the process for possible auditing.
 Updates `seg_linkid`, `seg_reversed`, `seg_rel_loc`, `seg_abs_loc`,
 `pt_rel_loc`, `raw_offset`.';
+
+DROP FUNCTION IF EXISTS stage_hfp.set_linear_movement_values;
+CREATE FUNCTION stage_hfp.set_linear_movement_values(
+  jrn_point_table regclass
+)
+RETURNS bigint
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  cnt_upd   bigint;
+BEGIN
+  EXECUTE format(
+    $s$
+    WITH
+      deltas AS (
+        SELECT
+          jrnid,
+          obs_num,
+          coalesce(pt_abs_loc - lag(pt_abs_loc) OVER w, 0.0)  AS dx_m,
+          coalesce(
+            (pt_abs_loc - lag(pt_abs_loc) OVER w) /
+            extract(epoch FROM (tst - lag(tst) OVER w))::double precision,
+            0.0
+          )                                                   AS spd_m_s
+        FROM %1$s
+        WINDOW w AS (PARTITION BY jrnid ORDER BY obs_num)
+      ),
+      updated AS (
+        UPDATE %1$s AS upd
+        SET
+          pt_dx   = d.dx_m,
+          pt_spd  = d.spd_m_s
+        FROM (SELECT * FROM deltas) AS d
+        WHERE upd.jrnid = d.jrnid
+          AND upd.obs_num = d.obs_num
+        RETURNING *
+      )
+    SELECT count(*) FROM updated
+    $s$,
+    jrn_point_table
+  ) INTO cnt_upd;
+  RETURN cnt_upd;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.set_linear_movement_values IS
+'Set `pt_dx` and `pt_spd` values in `jrn_point_table`
+based on `pt_abs_loc` and `tst` values of successive records.';
