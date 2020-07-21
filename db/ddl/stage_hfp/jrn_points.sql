@@ -24,6 +24,7 @@ CREATE TABLE stage_hfp.jrn_points (
   seg_abs_loc       double precision, -- -""- but absolute 0 ... <seg_length>
   pt_abs_loc        double precision, -- -""- but absolute 0 ... <seg_length>
   pt_dx             double precision,
+  duration_s        double precision,
   pt_spd            double precision,
   raw_offset        double precision, -- distance raw <-> ref point on seg
   halt_offset       double precision, -- how much point was possibly moved by halted point clustering
@@ -783,6 +784,9 @@ BEGIN
           jrnid,
           obs_num,
           coalesce(pt_abs_loc - lag(pt_abs_loc) OVER w, 0.0)  AS dx_m,
+          extract(
+            epoch FROM (lead(tst) OVER w - tst)
+          )::double precision                                 AS duration_s,
           coalesce(
             (pt_abs_loc - lag(pt_abs_loc) OVER w) /
             extract(epoch FROM (tst - lag(tst) OVER w))::double precision,
@@ -794,8 +798,9 @@ BEGIN
       updated AS (
         UPDATE %1$s AS upd
         SET
-          pt_dx   = d.dx_m,
-          pt_spd  = d.spd_m_s
+          pt_dx       = d.dx_m,
+          duration_s  = d.duration_s,
+          pt_spd      = d.spd_m_s
         FROM (SELECT * FROM deltas) AS d
         WHERE upd.jrnid = d.jrnid
           AND upd.obs_num = d.obs_num
@@ -809,5 +814,7 @@ BEGIN
 END;
 $$;
 COMMENT ON FUNCTION stage_hfp.set_linear_movement_values IS
-'Set `pt_dx` and `pt_spd` values in `jrn_point_table`
-based on `pt_abs_loc` and `tst` values of successive records.';
+'Set `pt_dx`, `duration_s` and `pt_spd` values in `jrn_point_table`
+based on `pt_abs_loc` and `tst` values of successive records.
+Note that loc and speed values are respective to the previous point (lag)
+but duration is defined respective to the next point.';
