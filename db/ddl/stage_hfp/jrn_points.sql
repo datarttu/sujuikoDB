@@ -517,6 +517,178 @@ NOTE: This algorithm does NOT work well if
       - the vehicle has really driven backwards (rare) or there are backwards
         jumping GPS points left still after movement value based filtering';
 
+DROP FUNCTION IF EXISTS stage_hfp.discard_failed_seg_matches;
+CREATE FUNCTION stage_hfp.discard_failed_seg_matches(
+  jrn_point_table regclass
+)
+RETURNS bigint
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  this_rec          record;
+  last_ok_rec       record;
+  this_jrnid        uuid;
+  this_min_segno    smallint;
+  cnt_del           bigint;
+  cnt_total         bigint;
+BEGIN
+  EXECUTE format(
+    $s$
+    SELECT count(DISTINCT jrnid) FROM %1$s
+    $s$,
+    jrn_point_table
+  ) INTO cnt_total;
+
+  CREATE TEMP TABLE _to_delete (
+    jrnid     uuid,
+    obs_range int8range
+  )
+  ON COMMIT DROP;
+
+  EXECUTE format(
+    $s$
+    CREATE TEMP TABLE _obs_ranges ON COMMIT DROP AS (
+      WITH
+        segment_changes_marked AS (
+          SELECT
+            jrnid, obs_num, seg_segno,
+            CASE WHEN seg_segno IS DISTINCT FROM lag(seg_segno) OVER w
+              THEN 1 ELSE 0
+            END AS segno_changed
+          FROM %1$s
+          WINDOW w AS (PARTITION BY jrnid ORDER BY obs_num)
+        ),
+        segment_visit_groups AS (
+          SELECT
+            jrnid, obs_num, seg_segno,
+            sum(segno_changed) OVER w   AS segno_grp
+          FROM segment_changes_marked
+          WINDOW w AS (PARTITION BY jrnid ORDER BY obs_num)
+        ),
+        obs_ranges AS (
+          SELECT
+            jrnid, segno_grp, seg_segno,
+            int8range(min(obs_num), max(obs_num), '[]') AS obs_range,
+            count(*)                                    AS obs_count
+          FROM segment_visit_groups
+          GROUP BY jrnid, segno_grp, seg_segno
+        )
+      SELECT
+        *,
+        dense_rank() OVER (
+          PARTITION BY jrnid, seg_segno ORDER BY obs_count DESC
+        ) AS grp_prio
+      FROM obs_ranges
+      ORDER BY jrnid, segno_grp
+    )
+    $s$,
+    jrn_point_table
+  );
+
+  -- Immediately drop cases that are clearly OK
+  WITH deleted AS (
+    DELETE FROM _obs_ranges AS obr
+    USING (
+      SELECT jrnid, max(grp_prio)
+      FROM _obs_ranges
+      GROUP BY jrnid
+      HAVING max(grp_prio) = 1
+    ) AS ok
+    WHERE obr.jrnid = ok.jrnid
+    RETURNING obr.jrnid
+  )
+  SELECT INTO cnt_del count(DISTINCT jrnid)
+  FROM deleted;
+  RAISE NOTICE '% / % journeys OK (no repeated segments)',
+    cnt_del, cnt_total;
+  IF cnt_del = cnt_total THEN
+    RETURN 0;
+  END IF;
+
+  CREATE TEMP TABLE _min_segs_by_jrnid ON COMMIT DROP AS (
+    SELECT jrnid, min(seg_segno) AS min_segno
+    FROM _obs_ranges
+    GROUP BY jrnid
+  );
+
+  FOR this_rec IN
+    SELECT *
+    FROM _obs_ranges
+    ORDER BY jrnid, segno_grp
+  LOOP
+
+    IF this_rec.jrnid IS DISTINCT FROM this_jrnid THEN
+      this_jrnid := this_rec.jrnid;
+      last_ok_rec := NULL;
+      -- On entering new jrnid, we should be at its minimum seg number.
+      SELECT INTO this_min_segno min_segno
+      FROM _min_segs_by_jrnid
+      WHERE jrnid = this_jrnid;
+    END IF;
+
+    -- This holds true as long as not yet entered first valid rec of jrn.
+    IF last_ok_rec IS NULL THEN
+
+      IF this_rec.seg_segno > this_min_segno THEN
+        INSERT INTO _to_delete
+        VALUES (this_rec.jrnid, this_rec.obs_range);
+      ELSE
+        last_ok_rec := this_rec;
+      END IF;
+
+    ELSE
+    -- Here we have already visited first valid rec of jrn
+    -- so we start checking if segno increases & priorities.
+      IF (this_rec.seg_segno > last_ok_rec.seg_segno AND this_rec.grp_prio = 1)
+      OR this_rec.seg_segno = last_ok_rec.seg_segno
+      THEN
+        last_ok_rec := this_rec;
+      ELSE
+        -- 1) Backwards-going segments are discarded in any case
+        -- 2) Segno can increase but still it can be a "jump" too far away
+        --    forwards; *probably* this "jump" has priority nr > 2, meaning that
+        --    there is a better matching group with that seg coming later.
+        INSERT INTO _to_delete
+        VALUES (this_rec.jrnid, this_rec.obs_range);
+      END IF;
+
+    END IF;
+
+  END LOOP;
+
+  DROP TABLE _min_segs_by_jrnid;
+
+  EXECUTE format(
+    $s$
+    WITH deleted AS (
+      DELETE FROM %1$s  AS jp
+      USING _to_delete  AS td
+      WHERE jp.jrnid = td.jrnid
+        AND jp.obs_num <@ td.obs_range
+      RETURNING *)
+    SELECT count(*) FROM deleted
+    $s$,
+    jrn_point_table
+  ) INTO cnt_del;
+
+  DROP TABLE _to_delete;
+
+  RETURN cnt_del;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.discard_failed_seg_matches IS
+'Delete from `jrn_points_table` records where the segment matching has failed,
+i.e. segment number does not increase correctly along timestamps:
+- first points of the journey that are matched somewhere else than the least
+  segment number occurring in the journey
+  (e.g. 2, 2, 2 and only then 1, 1, 2, 3 ..., so the first 2, 2, 2 are dropped);
+- points causing that a segment visited more than once, leaving points on other
+  segments in between; in this case the largest group of successive points on
+  the same segment is prioritized and other points are discarded.
+  Points to delete are examined "on the fly", i.e., from segments occurring like
+  1, 1, 2, 3, 2, 3, 3, 4, ... we only want to delete the last `2`, resulting in
+  1, 1, 2, 3, 3, 3, 4, ...';
+
 DROP FUNCTION IF EXISTS stage_hfp.set_linear_locations;
 CREATE FUNCTION stage_hfp.set_linear_locations(
   jrn_point_table regclass
