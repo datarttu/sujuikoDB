@@ -5,8 +5,8 @@ CREATE TABLE stage_hfp.jrn_segs (
   linkid            integer,
   reversed          boolean,
   ij_dist_span      numrange,
-  is_first_seg      boolean,
-  is_last_seg       boolean,
+  first_used_seg    boolean,
+  last_used_seg     boolean,
 
   -- Arrays
   pt_timestamps     timestamptz[],
