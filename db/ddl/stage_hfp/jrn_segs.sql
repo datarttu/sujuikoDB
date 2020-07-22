@@ -140,3 +140,57 @@ that have not necessarily got any observations but can later get interpolated va
 and insert results into `jrn_segs_table`.
 This is the first step in modelling realized journey at segment level
 after point-level operations.';
+
+DROP FUNCTION IF EXISTS stage_hfp.set_seg_firstlast_values;
+CREATE FUNCTION stage_hfp.set_seg_firstlast_values(
+  jrn_segs_table    regclass,
+  jrn_point_table   regclass
+)
+RETURNS BIGINT
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  cnt_upd   bigint;
+BEGIN
+  EXECUTE format(
+    $s$
+    WITH updated AS (
+      UPDATE %1$s AS upd
+      SET
+        fl_timestamps   = rng.fl_timestamps,
+        fl_pt_abs_locs  = rng.fl_pt_abs_locs
+      FROM (
+        SELECT DISTINCT ON (jrnid, seg_segno)
+        jrnid,
+        seg_segno                   AS segno,
+        ARRAY[
+          first_value(tst) OVER w,
+          last_value(tst) OVER w
+        ]                           AS fl_timestamps,
+        ARRAY[
+          first_value(pt_abs_loc) OVER w,
+          last_value(pt_abs_loc) OVER w
+        ]                           AS fl_pt_abs_locs
+        FROM %2$s
+        WINDOW w AS (
+          PARTITION BY jrnid, seg_segno
+          ORDER BY obs_num RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+        )
+      ) AS rng
+      WHERE upd.jrnid = rng.jrnid
+        AND upd.segno = rng.segno
+      RETURNING *
+    )
+    SELECT count(*) FROM updated;
+    $s$,
+    jrn_segs_table,
+    jrn_point_table
+  ) INTO cnt_upd;
+  RETURN cnt_upd;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.set_seg_firstlast_values IS
+'Update `fl_timestamps` and `fl_pt_abs_locs` fields in `jrn_segs_table`
+with first and last `tst` and `pt_abs_loc` (by `obs_num` order) of each segment
+in `jrn_point_table`. These values are used later to interpolate timestamp
+values at start and end of each segment.';
