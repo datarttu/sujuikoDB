@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS stage_hfp.jrn_segs;
 CREATE TABLE stage_hfp.jrn_segs (
-  jrnid             uuid                  NOT NULL,
-  segno             smallint              NOT NULL,
+  jrnid             uuid              NOT NULL,
+  segno             smallint          NOT NULL,
   linkid            integer,
   reversed          boolean,
   ij_dist_span      numrange,
@@ -9,14 +9,14 @@ CREATE TABLE stage_hfp.jrn_segs (
   last_used_seg     boolean,
 
   -- Arrays
-  pt_timestamps     timestamptz[],
-  pt_timediffs_s    real[],
-  pt_seg_locs_m     real[],
-  pt_speeds_m_s     real[],
-  pt_doors          boolean[],
-  pt_obs_nums       integer[],
-  pt_raw_offsets_m  real[],
-  pt_halt_offsets_m real[],
+  pt_timestamps     timestamptz[]     DEFAULT '{}',
+  pt_timediffs_s    real[]            DEFAULT '{}',
+  pt_seg_locs_m     real[]            DEFAULT '{}',
+  pt_speeds_m_s     real[]            DEFAULT '{}',
+  pt_doors          boolean[]         DEFAULT '{}',
+  pt_obs_nums       integer[]         DEFAULT '{}',
+  pt_raw_offsets_m  real[]            DEFAULT '{}',
+  pt_halt_offsets_m real[]            DEFAULT '{}',
 
   -- First and last values (by timestamp) for interpolation
   fl_timestamps     tstzrange,
