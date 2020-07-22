@@ -19,8 +19,8 @@ CREATE TABLE stage_hfp.jrn_segs (
   pt_halt_offsets_m real[]            DEFAULT '{}',
 
   -- First and last values (by timestamp) for interpolation
-  fl_timestamps     tstzrange,
-  fl_pt_abs_locs    numrange,
+  fl_timestamps     timestamptz[2],
+  fl_pt_abs_locs    double precision[2],
 
   -- Interpolated timestamps
   enter_ts          timestamptz,
