@@ -66,6 +66,28 @@ COMMENT ON FUNCTION minimum_angle IS
 'Minimum positive angle [0, 180] between angles `x` and `y`.
 `x` and `y` must be between 0 and 360.';
 
+DROP FUNCTION IF EXISTS linear_interpolate;
+CREATE FUNCTION linear_interpolate(
+  x_i double precision,
+  x_0 double precision,
+  y_0 timestamptz,
+  x_1 double precision,
+  y_1 timestamptz
+)
+RETURNS timestamptz AS
+$$
+-- See: https://bytefish.de/blog/postgresql_interpolation/
+SELECT
+  $3 +
+  make_interval(secs =>
+    (extract(epoch FROM ($5 - $3)) / nullif($4 - $2, 0.0)) *
+    ($1 - $2)
+  );
+$$ LANGUAGE SQL;
+COMMENT ON FUNCTION linear_interpolate IS
+'Interpolate timestamptz value at location `x_i` that lies between
+locations `x_0` and `x_1`, whose timestamps are `y_0` and `y_1` respectively.';
+
 DROP FUNCTION IF EXISTS invalidate;
 CREATE OR REPLACE FUNCTION invalidate(
   tb_name     regclass,
