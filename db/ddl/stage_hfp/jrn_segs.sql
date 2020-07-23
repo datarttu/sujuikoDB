@@ -355,3 +355,67 @@ $$;
 COMMENT ON FUNCTION stage_hfp.set_pt_timediffs_array IS
 'Populate `pt_timediffs_s` array field in `jrn_segs_table`
 using `enter_ts` and `pt_timestamps`.';
+
+DROP FUNCTION IF EXISTS stage_hfp.set_n_halts;
+CREATE FUNCTION stage_hfp.set_n_halts(
+  jrn_segs_table    regclass
+)
+RETURNS BIGINT
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  cnt_upd   bigint;
+BEGIN
+  EXECUTE format(
+    $s$
+    WITH
+      unnested AS (
+        SELECT
+          jrnid,
+          segno,
+          unnest(pt_obs_nums)   AS obs_num,
+          unnest(pt_speeds_m_s) AS speed
+        FROM %1$s
+      ),
+      halts_marked AS (
+        SELECT
+          *,
+          CASE
+            WHEN speed = 0 AND lag(speed) OVER w IS DISTINCT FROM 0 THEN 1
+            ELSE 0
+          END  AS halt
+        FROM unnested
+        WINDOW w AS (PARTITION BY jrnid, segno ORDER BY obs_num)
+      ),
+      halt_counts AS (
+        SELECT
+          jrnid,
+          segno,
+          sum(halt) AS n_halts
+        FROM halts_marked
+        GROUP BY jrnid, segno
+      ),
+      updated AS (
+        UPDATE %1$s AS upd
+        SET n_halts = hc.n_halts
+        FROM (
+          SELECT jrnid, segno,
+            -- Just to prevent the very unlikely event of exceeding
+            -- the smallint field limit...
+            CASE WHEN n_halts > 32767 THEN NULL ELSE n_halts END AS n_halts
+          FROM halt_counts
+        ) AS hc
+        WHERE upd.jrnid = hc.jrnid
+          AND upd.segno = hc.segno
+        RETURNING 1
+      )
+    SELECT count(*) FROM updated;
+    $s$,
+    jrn_segs_table
+  ) INTO cnt_upd;
+  RETURN cnt_upd;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.set_n_halts IS
+'Set `n_halts` in `jrn_segs_table` by counting groups of successive
+points with zero speed in `pt_speeds_m_s` array field.';
