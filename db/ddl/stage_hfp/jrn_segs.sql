@@ -305,3 +305,53 @@ COMMENT ON FUNCTION stage_hfp.interpolate_enter_exit_ts IS
   following segments as references, and therefore derived measures on these segments
   are NOT reliable! (enter-exit ts are however required for the db model.)
 Also the derived `thru_s` value in seconds is set.';
+
+DROP FUNCTION IF EXISTS stage_hfp.set_pt_timediffs_array;
+CREATE FUNCTION stage_hfp.set_pt_timediffs_array(
+  jrn_segs_table    regclass
+)
+RETURNS BIGINT
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  cnt_upd       bigint;
+BEGIN
+  EXECUTE format(
+    $s$
+    WITH
+      unnested AS (
+        SELECT
+          jrnid,
+          segno,
+          unnest(pt_obs_nums) AS obs_num,
+          extract(
+            epoch FROM unnest(pt_timestamps) - enter_ts
+          )::real             AS pt_timediff_s
+        FROM %1$s
+        WHERE enter_ts IS NOT NULL
+      ),
+      updated AS (
+        UPDATE %1$s AS upd
+        SET pt_timediffs_s  = td.pt_timediffs_s
+        FROM (
+          SELECT
+            jrnid,
+            segno,
+            array_agg(pt_timediff_s ORDER BY obs_num) AS pt_timediffs_s
+          FROM unnested
+          GROUP BY jrnid, segno
+        ) AS td
+        WHERE upd.jrnid = td.jrnid
+          AND upd.segno = td.segno
+        RETURNING 1
+      )
+      SELECT count(*) FROM updated
+    $s$,
+    jrn_segs_table
+  ) INTO cnt_upd;
+  RETURN cnt_upd;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.set_pt_timediffs_array IS
+'Populate `pt_timediffs_s` array field in `jrn_segs_table`
+using `enter_ts` and `pt_timestamps`.';
