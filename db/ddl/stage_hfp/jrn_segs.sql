@@ -194,3 +194,114 @@ COMMENT ON FUNCTION stage_hfp.set_seg_firstlast_values IS
 with first and last `tst` and `pt_abs_loc` (by `obs_num` order) of each segment
 in `jrn_point_table`. These values are used later to interpolate timestamp
 values at start and end of each segment.';
+
+DROP FUNCTION IF EXISTS stage_hfp.interpolate_enter_exit_ts;
+CREATE FUNCTION stage_hfp.interpolate_enter_exit_ts(
+  jrn_segs_table    regclass
+)
+RETURNS BIGINT
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  cnt_upd       bigint;
+BEGIN
+  EXECUTE format(
+    $s$
+    WITH
+      interpolation_groups AS (
+        SELECT
+          jrnid,
+          segno,
+          lower(ij_dist_span)   AS enter_x,
+          fl_timestamps[1]      AS first_ts,
+          fl_timestamps[2]      AS last_ts,
+          fl_pt_abs_locs[1]     AS first_x,
+          fl_pt_abs_locs[2]     AS last_x,
+          sum(
+            CASE WHEN fl_timestamps IS NULL THEN 0 ELSE 1 END
+          ) OVER w              AS ip_grp
+        FROM %1$s
+        WINDOW w AS (PARTITION BY jrnid ORDER BY segno)
+        ORDER BY jrnid, segno
+      ),
+      grouped_vals AS (
+        SELECT
+          jrnid, ip_grp,
+          min(first_ts)         AS grp_first_ts,
+          min(last_ts)          AS grp_last_ts,
+          min(first_x)          AS grp_first_x,
+          min(last_x)           AS grp_last_x
+        FROM interpolation_groups
+        GROUP BY jrnid, ip_grp
+      ),
+      grouped_window_vals AS (
+        SELECT
+          jrnid, ip_grp,
+          lag(grp_last_x)       OVER w  AS grp_x_0,
+          lead(grp_first_x)     OVER w  AS grp_x_1,
+          lag(grp_last_ts)      OVER w  AS grp_t_0,
+          lead(grp_first_ts)    OVER w  AS grp_t_1
+        FROM grouped_vals
+        WINDOW w AS (PARTITION BY jrnid ORDER BY ip_grp)
+      ),
+      refs_prepared AS (
+        SELECT
+          ip.jrnid, ip.segno, ip.enter_x, ip.ip_grp,
+          ip.first_ts, ip.last_ts,
+          gr.grp_x_0                        AS x_0,
+          coalesce(ip.first_x, gr.grp_x_1)  AS x_1,
+          gr.grp_t_0                        AS t_0,
+          coalesce(ip.first_ts, gr.grp_t_1) AS t_1
+        FROM interpolation_groups   AS ip
+        INNER JOIN grouped_window_vals  AS gr
+          ON  ip.jrnid = gr.jrnid
+          AND ip.ip_grp = gr.ip_grp
+      ),
+      interpolated AS (
+        SELECT
+          *,
+          linear_interpolate(
+            enter_x, x_0, t_0, x_1, t_1
+          ) AS enter_ts
+        FROM refs_prepared
+      ),
+      add_exits_replace_nulls AS (
+        SELECT
+          jrnid, segno,
+          coalesce(enter_ts, first_ts)   AS enter_ts,
+          coalesce(
+            lead(enter_ts) OVER (PARTITION BY jrnid ORDER BY segno),
+            last_ts
+          ) AS exit_ts
+        FROM interpolated
+      ),
+      updated AS (
+        UPDATE %1$s AS upd
+        SET
+          enter_ts  = ip.enter_ts,
+          exit_ts   = ip.exit_ts,
+          thru_s    = extract(epoch FROM (ip.exit_ts - ip.enter_ts))
+        FROM (SELECT * FROM add_exits_replace_nulls) AS ip
+        WHERE upd.jrnid = ip.jrnid
+          AND upd.segno = ip.segno
+        RETURNING 1
+      )
+      SELECT count(*) FROM updated
+    $s$,
+    jrn_segs_table
+  ) INTO cnt_upd;
+  RETURN cnt_upd;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.interpolate_enter_exit_ts IS
+'Set `enter_ts` and `exit_ts` values in `jrn_segs_table` by interpolating:
+- Segments with observations and with a preceding segment with obs
+  get their `enter_ts` interpolated by the last ts & loc of prev segment
+  and their own first ts & loc (normal case)
+- Segments with NULL obs similarly but using the previous available last ts & loc
+  and next available first ts & loc
+- First segment (with observations) of a journey gets its `first_ts` as `enter_ts`,
+  last segment gets its `last_ts` as `exit_ts` since these have no preceding /
+  following segments as references, and therefore derived measures on these segments
+  are NOT reliable! (enter-exit ts are however required for the db model.)
+Also the derived `thru_s` value in seconds is set.';
