@@ -419,3 +419,52 @@ $$;
 COMMENT ON FUNCTION stage_hfp.set_n_halts IS
 'Set `n_halts` in `jrn_segs_table` by counting groups of successive
 points with zero speed in `pt_speeds_m_s` array field.';
+
+DROP FUNCTION IF EXISTS stage_hfp.set_journeys_seg_aggregates;
+CREATE FUNCTION stage_hfp.set_journeys_seg_aggregates(
+  jrn_segs_table    regclass,
+  journey_table     regclass
+)
+RETURNS BIGINT
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  cnt_upd   bigint;
+BEGIN
+  EXECUTE format(
+    $s$
+    WITH
+      aggregates AS (
+        SELECT
+          jrnid,
+          sum(cardinality(pt_obs_nums)) AS n_seg_points,
+          count(*)                      AS n_segs,
+          count(*) filter(
+            WHERE coalesce(cardinality(pt_obs_nums), 0) = 0
+          )                             AS n_empty_segs
+        FROM %1$s
+        GROUP BY jrnid
+      ),
+      updated AS (
+        UPDATE %2$s AS upd
+        SET
+          n_seg_points  = ag.n_seg_points,
+          n_segs        = ag.n_segs,
+          n_empty_segs  = ag.n_empty_segs
+        FROM (
+          SELECT * FROM aggregates
+        ) AS ag
+        WHERE upd.jrnid = ag.jrnid
+        RETURNING 1
+      )
+    SELECT count(*) FROM updated;
+    $s$,
+    jrn_segs_table,
+    journey_table
+  ) INTO cnt_upd;
+  RETURN cnt_upd;
+END;
+$$;
+COMMENT ON FUNCTION stage_hfp.set_journeys_seg_aggregates IS
+'Update `n_seg_points`, `n_segs` and `n_empty_segs` values in `journey_table`
+by calculating from `jrn_segs_table`.';
