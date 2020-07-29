@@ -17,11 +17,17 @@ CREATE TABLE stage_hfp.journeys (
   raw_distance      double precision,
   n_neg_dodo        integer,
 
+  n_seg_points      integer,
+  n_segs            integer,
+  n_empty_segs      integer,
+
   invalid_reasons   text[]          DEFAULT '{}'
 );
 COMMENT ON TABLE stage_hfp.journeys IS
 'Common values and aggregates of each `jrnid` journey entry
-extracted from `stage_hfp.raw` or corresponding temp table.';
+extracted from `stage_hfp.raw` or corresponding temp table,
+along with aggregate values from `stage_hfp.jrn_points`
+and `stage_hfp.jrn_segs` (or corresp.) for auditing and invalidation.';
 
 DROP FUNCTION IF EXISTS stage_hfp.extract_journeys_from_raw;
 CREATE OR REPLACE FUNCTION stage_hfp.extract_journeys_from_raw(
