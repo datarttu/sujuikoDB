@@ -7,6 +7,7 @@
 BEGIN;
 
 \ir raw.sql
+\ir triggers.sql
 \ir journeys.sql
 \ir logging.sql
 \ir jrn_points.sql
