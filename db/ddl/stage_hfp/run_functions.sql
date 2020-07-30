@@ -11,19 +11,19 @@
 
 BEGIN;
 
-CREATE TEMPORARY TABLE timings (
-  step      text,
-  ts        timestamptz DEFAULT clock_timestamp()
-) ON COMMIT DROP;
-CREATE TEMPORARY VIEW print_timings AS (
-  SELECT
-    step,
-    coalesce(ts - lag(ts) OVER (ORDER BY ts), '0 seconds'::interval)  AS duration_step,
-    coalesce(ts - min(ts) OVER (), '0 seconds'::interval)             AS duration_cumul
-  FROM timings
-);
+\set route '1039'
+\set oday '2019-11-12'
+\set raw_file '/data0/hfpdumps/november/hfp_':oday'_routes/route_':route'.csv.gz'
+\set sid :oday'_':route'_test'
+\set prg_call 'gzip -cd ':raw_file
 
-INSERT INTO timings(step) VALUES ('Import started');
+SELECT stage_hfp.log_step(
+  session_id  := :'sid',
+  step        := 'Import started',
+  route       := :'route',
+  oday        := :'oday',
+  raw_file    := :'raw_file'
+);
 
 -- Copy the raw data. Triggers do some row-level processing already now.
 COPY stage_hfp.raw (
@@ -43,10 +43,10 @@ COPY stage_hfp.raw (
   stop,
   route
 )
-FROM PROGRAM 'gzip -cd /data0/hfpdumps/november/hfp_2019-11-12_routes/route_1039.csv.gz'
+FROM PROGRAM :'prg_call'
 WITH CSV;
 
-INSERT INTO timings(step) VALUES ('CSV copied');
+SELECT stage_hfp.log_step(session_id := :'sid', step := 'Raw copied');
 SAVEPOINT copied;
 
 SELECT stage_hfp.set_obs_nums('stage_hfp.raw');
@@ -60,7 +60,7 @@ SELECT * FROM stage_hfp.drop_with_invalid_movement_values(
   max_acc       := 5.0
 );
 
-INSERT INTO timings(step) VALUES ('Raw fixed');
+SELECT stage_hfp.log_step(session_id := :'sid', step := 'Raw fixed');
 SAVEPOINT raw_done;
 
 -- Transfer data to journeys and jrn_points and start working on them.
@@ -103,7 +103,7 @@ SELECT stage_hfp.discard_invalid_journeys(
   log_to_discarded  := true
 );
 
-INSERT INTO timings(step) VALUES ('Journeys made');
+SELECT stage_hfp.log_step(session_id := :'sid', step := 'Journeys made');
 SAVEPOINT journeys_ready;
 
 SELECT stage_hfp.extract_jrn_points_from_raw(
@@ -127,7 +127,7 @@ SELECT stage_hfp.discard_failed_seg_matches('stage_hfp.jrn_points');
 SELECT stage_hfp.set_linear_locations('stage_hfp.jrn_points');
 SELECT stage_hfp.set_linear_movement_values('stage_hfp.jrn_points');
 
-INSERT INTO timings(step) VALUES ('Points made');
+SELECT stage_hfp.log_step(session_id := :'sid', step := 'Points made');
 SAVEPOINT points_ready;
 
 SELECT stage_hfp.extract_jrn_segs_from_jrn_points(
@@ -156,7 +156,10 @@ SELECT stage_hfp.discard_invalid_journeys(
   log_to_discarded  := true
 );
 
-INSERT INTO timings(step) VALUES ('Segments made');
+SELECT stage_hfp.log_step(session_id := :'sid', step := 'Segments made');
 SAVEPOINT points_ready;
 
-SELECT * FROM print_timings ORDER BY duration_cumul;
+SELECT step, step_duration, total_duration
+FROM stage_hfp.view_log_steps
+WHERE session_id = :'sid'
+ORDER BY total_duration;
