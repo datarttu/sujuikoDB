@@ -310,6 +310,7 @@ AS $$
 DECLARE
   this_rec      record;
   prev_rec      record;
+  this_jrnid    uuid;
   delta_time    double precision;
   n_deleted     bigint;
   n_updated     bigint;
@@ -338,7 +339,8 @@ BEGIN
   LOOP
     -- First row of the jrnid partition is always trated as valid
     -- so we do not need to do forward calculations.
-    IF this_rec.obs_num = 1 THEN
+    IF this_rec.jrnid IS DISTINCT FROM this_jrnid THEN
+      this_jrnid := this_rec.jrnid;
       prev_rec := this_rec;
       --rec_offset := 1;
       CONTINUE mainloop;
