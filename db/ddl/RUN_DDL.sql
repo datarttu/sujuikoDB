@@ -51,5 +51,5 @@
 \ir stage_hfp/schema.sql
 \ir stage_hfp/raw.sql
 \ir stage_hfp/journeys.sql
-\ir stage_hfp/journey_points.sql
-\ir stage_hfp/seg_aggregates.sql
+\ir stage_hfp/jrn_points.sql
+\ir stage_hfp/jrn_segs.sql
