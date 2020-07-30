@@ -101,12 +101,13 @@ COMMENT ON FUNCTION stage_hfp.set_raw_additional_fields() IS
 - `jrnid`';
 
 DROP FUNCTION IF EXISTS stage_hfp.set_obs_nums;
-CREATE FUNCTION stage_hfp.set_obs_nums()
-RETURNS TRIGGER
+CREATE FUNCTION stage_hfp.set_obs_nums(raw_table regclass)
+RETURNS BIGINT
 LANGUAGE PLPGSQL
 AS $$
+DECLARE
+  cnt_upd   bigint;
 BEGIN
-  RAISE NOTICE '% % Updating obs_num values ...', TG_WHEN, TG_OP;
   /*
    * Window functions cannot be used directly in an UPDATE statement
    * but require a self join.
@@ -121,23 +122,25 @@ BEGIN
       SELECT
         row_number() OVER (PARTITION BY jrnid ORDER BY tst)  AS obs_num,
         ctid
-      FROM %1$I.%2$I
+      FROM %1$s
+    ),
+    updated AS (
+      UPDATE %1$s AS upd
+      SET obs_num = rn.obs_num
+      FROM (SELECT * FROM rownums) AS rn
+      WHERE upd.ctid = rn.ctid
+      RETURNING 1
     )
-    UPDATE %1$I.%2$I AS upd
-    SET obs_num = rn.obs_num
-    FROM (SELECT * FROM rownums) AS rn
-    WHERE upd.ctid = rn.ctid
+    SELECT count(*) FROM updated
     $s$,
-    TG_TABLE_SCHEMA, TG_TABLE_NAME
-  );
-  RETURN NULL;
+    raw_table
+  ) INTO cnt_upd;
+  RETURN cnt_upd;
 END;
 $$;
-COMMENT ON FUNCTION stage_hfp.set_obs_nums() IS
-'Updates the `obs_num` field of the target table with a running number from 1
-ordered by `tst` for each `jrnid` partition.
-Since this is a trigger function, target schema and table are automatically
-resolved by `TG_TABLE_SCHEMA` and `TG_TABLE_NAME`.';
+COMMENT ON FUNCTION stage_hfp.set_obs_nums IS
+'Update `obs_num` field of `raw_table` with a running number from 1
+ordered by `tst` for each `jrnid` partition.';
 
 DROP FUNCTION IF EXISTS stage_hfp.set_raw_movement_values;
 CREATE FUNCTION stage_hfp.set_raw_movement_values(

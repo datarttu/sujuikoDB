@@ -43,12 +43,13 @@ COPY stage_hfp.raw (
   stop,
   route
 )
-FROM PROGRAM 'gzip -cd /data0/hfpdumps/november/hfp_2019-11-12_routes/route_1001.csv.gz'
+FROM PROGRAM 'gzip -cd /data0/hfpdumps/november/hfp_2019-11-12_routes/route_1039.csv.gz'
 WITH CSV;
 
 INSERT INTO timings(step) VALUES ('CSV copied');
 SAVEPOINT copied;
 
+SELECT stage_hfp.set_obs_nums('stage_hfp.raw');
 -- Drop unnecessary and invalid values from raw data.
 SELECT stage_hfp.set_raw_movement_values('stage_hfp.raw');
 SELECT stage_hfp.delete_duplicates_by_tst('stage_hfp.raw');
