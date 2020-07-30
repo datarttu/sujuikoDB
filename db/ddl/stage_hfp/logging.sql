@@ -3,7 +3,7 @@
  * & discarded journey entries.
  */
 
-DROP TABLE IF EXISTS stage_hfp.log_sessions;
+DROP TABLE IF EXISTS stage_hfp.log_sessions CASCADE;
 CREATE TABLE stage_hfp.log_sessions (
   session_id    text            PRIMARY KEY,
   session_start timestamptz     NOT NULL DEFAULT clock_timestamp(),
