@@ -4,17 +4,29 @@ COMMENT ON SCHEMA obs IS
 and their movements on network segments.';
 
 CREATE TABLE obs.journeys (
-  start_ts   timestamptz      NOT NULL,
-  ttid       text             NOT NULL REFERENCES sched.templates(ttid),
-  jrnid      uuid             NOT NULL, -- TODO: md5 trigger
-  vehid      integer          NOT NULL REFERENCES obs.vehicles(vehid),
-  PRIMARY KEY (start_ts, ttid)
-);
-CREATE UNIQUE INDEX journeys_jrnid_idx
-  ON obs.journeys (jrnid);
-CREATE INDEX journeys_vehid_idx
-  ON obs.journeys (vehid);
+  jrnid         uuid            PRIMARY KEY,
+  start_ts      timestamptz     NOT NULL,
+  ttid          text            NOT NULL REFERENCES sched.templates(ttid),
+  oper          smallint        NOT NULL,
+  veh           integer         NOT NULL,
 
+  n_obs         integer         NOT NULL,
+  n_dropen      integer         NOT NULL,
+  tst_span      tstzrange       NOT NULL,
+  odo_span      int4range       NOT NULL,
+  raw_distance  real            NOT NULL
+);
+COMMENT ON TABLE obs.journeys IS
+'Common values and aggregates of unique observed transit trips driven by a unique vehicle.
+A scheduled trip (`ttid+start_ts`) can sometimes have multiple realizations with different vehicles.
+Fields `n_obs ... raw_distance` are based on import process in `stage_hfp` schema, and they
+are included for possible auditing after import.';
+
+CREATE INDEX ON obs.journeys USING BTREE (start_ts);
+CREATE INDEX ON obs.journeys USING BTREE (extract(date FROM start_ts AT TIME ZONE 'Europe/Helsinki'));
+CREATE INDEX ON obs.journeys USING BTREE (ttid);
+CREATE INDEX ON obs.journeys USING BTREE (oper, veh);
+/*
 CREATE TABLE obs.segments (
   enter_ts   timestamptz      NOT NULL,
   linkid     integer          NOT NULL REFERENCES nw.links(linkid),
@@ -25,3 +37,4 @@ CREATE TABLE obs.segments (
   traj_pts   jsonb,
   PRIMARY KEY (enter_ts, linkid, jrnid)
 );
+*/
