@@ -24,7 +24,7 @@ Fields `n_obs ... raw_distance` are based on import process in `stage_hfp` schem
 are included for possible auditing after import.';
 
 CREATE INDEX ON obs.journeys USING BTREE (start_ts);
-CREATE INDEX ON obs.journeys USING BTREE (extract(date FROM start_ts AT TIME ZONE 'Europe/Helsinki'));
+CREATE INDEX ON obs.journeys USING BTREE (cast(start_ts AT TIME ZONE 'Europe/Helsinki' AS date));
 CREATE INDEX ON obs.journeys USING BTREE (ttid);
 CREATE INDEX ON obs.journeys USING BTREE (oper, veh);
 
