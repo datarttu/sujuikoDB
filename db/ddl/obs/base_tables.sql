@@ -27,15 +27,49 @@ CREATE INDEX ON obs.journeys USING BTREE (start_ts);
 CREATE INDEX ON obs.journeys USING BTREE (extract(date FROM start_ts AT TIME ZONE 'Europe/Helsinki'));
 CREATE INDEX ON obs.journeys USING BTREE (ttid);
 CREATE INDEX ON obs.journeys USING BTREE (oper, veh);
-/*
-CREATE TABLE obs.segments (
-  enter_ts   timestamptz      NOT NULL,
-  linkid     integer          NOT NULL REFERENCES nw.links(linkid),
-  inode      integer          NOT NULL REFERENCES nw.nodes(nodeid),
-  jnode      integer          NOT NULL REFERENCES nw.nodes(nodeid),
-  jrnid      uuid             NOT NULL REFERENCES obs.journeys(jrnid),
-  exit_ts    timestamptz,
-  traj_pts   jsonb,
-  PRIMARY KEY (enter_ts, linkid, jrnid)
+
+DROP TABLE IF EXISTS obs.segs CASCADE;
+CREATE TABLE obs.segs (
+  jrnid             uuid              NOT NULL REFERENCES obs.journeys(jrnid),
+  enter_ts          timestamptz       NOT NULL,
+  exit_ts           timestamptz       NOT NULL,
+  -- We could have a fkey constraint on segno -> sched.segments
+  -- and linkid, reversed -> nw.links, but we omit it since this table holds a vast
+  -- number of rows and checking the constraints would take a lot of time.
+  segno             smallint          NOT NULL,
+  linkid            integer           NOT NULL,
+  reversed          boolean           NOT NULL,
+  -- 0: normal, 1: is first seg, 2: is last seg, 3: is first and last seg of the journey.
+  end_segment       smallint CHECK (end_segment IN (0, 1, 2, 3)),
+  n                 smallint          NOT NULL,
+  n_halts           smallint,
+  thru_s            real,
+  halted_s          real,
+  door_s            real,
+
+  pt_timediffs_s    real[]            DEFAULT '{}',
+  pt_seg_locs_m     real[]            DEFAULT '{}',
+  pt_speeds_m_s     real[]            DEFAULT '{}',
+  pt_doors          boolean[]         DEFAULT '{}',
+  pt_obs_nums       integer[]         DEFAULT '{}',
+  pt_raw_offsets_m  real[]            DEFAULT '{}',
+  pt_halt_offsets_m real[]            DEFAULT '{}',
+
+  PRIMARY KEY (enter_ts, jrnid)
 );
-*/
+COMMENT ON TABLE obs.segs IS
+'Vehicle movements of journeys `jrnid` modeled on network segments.
+Individual observation points are accessible via the `pt_` array fields
+that are supposed to be of the same length on each row.
+This table is partitioned by `enter_ts` as a Timescale hypertable.';
+
+SELECT * FROM create_hypertable(
+  'obs.segs',
+  'enter_ts',
+  chunk_time_interval => interval '3 hours',
+  if_not_exists       => true
+);
+
+CREATE INDEX ON obs.segs USING BTREE (extract(hour FROM enter_ts AT TIME ZONE 'Europe/Helsinki'));
+CREATE INDEX ON obs.segs USING BTREE (linkid, reversed);
+CREATE INDEX ON obs.segs USING BTREE (n) WHERE n > 0;
