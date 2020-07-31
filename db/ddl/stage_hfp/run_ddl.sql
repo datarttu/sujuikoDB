@@ -12,3 +12,4 @@ BEGIN;
 \ir logging.sql
 \ir jrn_points.sql
 \ir jrn_segs.sql
+\ir transfer.sql

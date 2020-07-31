@@ -162,7 +162,12 @@ SAVEPOINT points_ready;
 SELECT stage_hfp.transfer_journeys('stage_hfp.journeys');
 
 SELECT stage_hfp.log_step(session_id := :'sid', step := 'Journeys transferred');
-SAVEPOINT journeys_transferred;
+
+SELECT stage_hfp.transfer_segs('stage_hfp.jrn_segs');
+
+SELECT stage_hfp.log_step(session_id := :'sid', step := 'Segments transferred');
+
+SAVEPOINT all_done;
 
 SELECT step, step_duration, total_duration
 FROM stage_hfp.view_log_steps
