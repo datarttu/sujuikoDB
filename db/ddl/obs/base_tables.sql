@@ -1,14 +1,5 @@
 CREATE SCHEMA IF NOT EXISTS obs;
 
-
-/*
- * Again, "jrnid" is directly dependent on "(tripid, start_ts)",
- * but we want to avoid using composite foreign keys in the
- * child table "obs.segments" that will store huge amounts of data.
- *
- * **TODO:** Test using composite keys anyway?
- *           Or joining segments on md5 of start_ts and tripid on the fly?
- */
 CREATE TABLE obs.journeys (
   start_ts   timestamptz      NOT NULL,
   ttid       text             NOT NULL REFERENCES sched.templates(ttid),
