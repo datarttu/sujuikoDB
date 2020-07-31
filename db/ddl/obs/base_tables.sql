@@ -1,4 +1,7 @@
 CREATE SCHEMA IF NOT EXISTS obs;
+COMMENT ON SCHEMA obs IS
+'Stores the production-ready data of observed transit journeys
+and their movements on network segments.';
 
 CREATE TABLE obs.journeys (
   start_ts   timestamptz      NOT NULL,
