@@ -11,7 +11,7 @@
 
 BEGIN;
 
-\set route '1039'
+\set route '1017'
 \set oday '2019-11-12'
 \set raw_file '/data0/hfpdumps/november/hfp_':oday'_routes/route_':route'.csv.gz'
 \set sid :oday'_':route'_test'
@@ -158,6 +158,11 @@ SELECT stage_hfp.discard_invalid_journeys(
 
 SELECT stage_hfp.log_step(session_id := :'sid', step := 'Segments made');
 SAVEPOINT points_ready;
+
+SELECT stage_hfp.transfer_journeys('stage_hfp.journeys');
+
+SELECT stage_hfp.log_step(session_id := :'sid', step := 'Journeys transferred');
+SAVEPOINT journeys_transferred;
 
 SELECT step, step_duration, total_duration
 FROM stage_hfp.view_log_steps
