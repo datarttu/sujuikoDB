@@ -1,23 +1,5 @@
 CREATE SCHEMA IF NOT EXISTS obs;
 
-/*
- * "vehid" is in fact redundant,
- * as it is directly derived from "oper" and "veh",
- * but we want to use a single primary key
- * to enable simpler joins on vehicles.
- *
- * For now, "vehicles" is under "obs" schema,
- * because we actually import the vehicle data from
- * what we see in HFP observations;
- * there is currently no separate data source for vehicles.
- */
-CREATE TABLE obs.vehicles (
-  vehid      serial           PRIMARY KEY,
-  oper       smallint         NOT NULL,
-  veh        integer          NOT NULL
-);
-CREATE UNIQUE INDEX vehicles_oper_veh_idx
-  ON obs.vehicles (oper, veh);
 
 /*
  * Again, "jrnid" is directly dependent on "(tripid, start_ts)",
