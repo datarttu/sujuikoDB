@@ -3,6 +3,7 @@ COMMENT ON SCHEMA obs IS
 'Stores the production-ready data of observed transit journeys
 and their movements on network segments.';
 
+DROP TABLE IF EXISTS obs.journeys CASCADE;
 CREATE TABLE obs.journeys (
   jrnid         uuid            PRIMARY KEY,
   start_ts      timestamptz     NOT NULL,
