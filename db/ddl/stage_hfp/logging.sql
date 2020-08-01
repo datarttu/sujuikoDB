@@ -35,8 +35,12 @@ CREATE VIEW stage_hfp.view_log_steps AS (
     se.*,
     st.ts,
     st.step,
-    coalesce(ts - lag(ts) OVER (ORDER BY ts), '0 seconds'::interval)  AS step_duration,
-    coalesce(ts - min(ts) OVER (), '0 seconds'::interval)             AS total_duration
+    coalesce(ts - lag(ts) OVER (
+      PARTITION BY se.session_id ORDER BY st.ts
+    ), '0 seconds'::interval)     AS step_duration,
+    coalesce(ts - min(ts) OVER (
+      PARTITION BY se.session_id
+    ), '0 seconds'::interval)     AS total_duration
   FROM stage_hfp.log_sessions     AS se
   INNER JOIN stage_hfp.log_steps  AS st
     ON se.session_id = st.session_id
