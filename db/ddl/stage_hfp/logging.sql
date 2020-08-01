@@ -46,9 +46,10 @@ DROP PROCEDURE IF EXISTS stage_hfp.log_step;
 CREATE PROCEDURE stage_hfp.log_step(
   session_id    text,
   step          text,
-  route         text  DEFAULT NULL,
-  oday          date  DEFAULT NULL,
-  raw_file      text  DEFAULT NULL
+  route         text      DEFAULT NULL,
+  oday          date      DEFAULT NULL,
+  raw_file      text      DEFAULT NULL,
+  notice        boolean   DEFAULT true
 )
 LANGUAGE PLPGSQL
 AS $$
@@ -60,6 +61,10 @@ BEGIN
 
   INSERT INTO stage_hfp.log_steps (session_id, step)
   VALUES (session_id, step);
+
+  IF notice THEN
+    RAISE NOTICE '%: %', session_id, step;
+  END IF;
 
 END;
 $$;
