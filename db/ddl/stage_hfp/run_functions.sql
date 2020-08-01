@@ -17,7 +17,7 @@ BEGIN;
 \set sid :oday'_':route'_test'
 \set prg_call 'gzip -cd ':raw_file
 
-SELECT stage_hfp.log_step(
+CALL stage_hfp.log_step(
   session_id  := :'sid',
   step        := 'Import started',
   route       := :'route',
@@ -46,7 +46,7 @@ COPY stage_hfp.raw (
 FROM PROGRAM :'prg_call'
 WITH CSV;
 
-SELECT stage_hfp.log_step(session_id := :'sid', step := 'Raw copied');
+CALL stage_hfp.log_step(session_id := :'sid', step := 'Raw copied');
 SAVEPOINT copied;
 
 SELECT stage_hfp.set_obs_nums('stage_hfp.raw');
@@ -60,7 +60,7 @@ SELECT * FROM stage_hfp.drop_with_invalid_movement_values(
   max_acc       := 5.0
 );
 
-SELECT stage_hfp.log_step(session_id := :'sid', step := 'Raw fixed');
+CALL stage_hfp.log_step(session_id := :'sid', step := 'Raw fixed');
 SAVEPOINT raw_done;
 
 -- Transfer data to journeys and jrn_points and start working on them.
@@ -103,7 +103,7 @@ SELECT stage_hfp.discard_invalid_journeys(
   log_to_discarded  := true
 );
 
-SELECT stage_hfp.log_step(session_id := :'sid', step := 'Journeys made');
+CALL stage_hfp.log_step(session_id := :'sid', step := 'Journeys made');
 SAVEPOINT journeys_ready;
 
 SELECT stage_hfp.extract_jrn_points_from_raw(
@@ -127,7 +127,7 @@ SELECT stage_hfp.discard_failed_seg_matches('stage_hfp.jrn_points');
 SELECT stage_hfp.set_linear_locations('stage_hfp.jrn_points');
 SELECT stage_hfp.set_linear_movement_values('stage_hfp.jrn_points');
 
-SELECT stage_hfp.log_step(session_id := :'sid', step := 'Points made');
+CALL stage_hfp.log_step(session_id := :'sid', step := 'Points made');
 SAVEPOINT points_ready;
 
 SELECT stage_hfp.extract_jrn_segs_from_jrn_points(
@@ -156,7 +156,7 @@ SELECT stage_hfp.discard_invalid_journeys(
   log_to_discarded  := true
 );
 
-SELECT stage_hfp.log_step(session_id := :'sid', step := 'Segments made');
+CALL stage_hfp.log_step(session_id := :'sid', step := 'Segments made');
 SAVEPOINT points_ready;
 
 SELECT stage_hfp.transfer_journeys('stage_hfp.journeys');

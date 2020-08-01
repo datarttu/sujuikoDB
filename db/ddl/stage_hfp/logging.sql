@@ -42,15 +42,14 @@ CREATE VIEW stage_hfp.view_log_steps AS (
     ON se.session_id = st.session_id
 );
 
-DROP FUNCTION IF EXISTS stage_hfp.log_step;
-CREATE FUNCTION stage_hfp.log_step(
+DROP PROCEDURE IF EXISTS stage_hfp.log_step;
+CREATE PROCEDURE stage_hfp.log_step(
   session_id    text,
   step          text,
   route         text  DEFAULT NULL,
   oday          date  DEFAULT NULL,
   raw_file      text  DEFAULT NULL
 )
-RETURNS VOID
 LANGUAGE PLPGSQL
 AS $$
 BEGIN
@@ -62,10 +61,9 @@ BEGIN
   INSERT INTO stage_hfp.log_steps (session_id, step)
   VALUES (session_id, step);
 
-  RETURN;
 END;
 $$;
-COMMENT ON FUNCTION stage_hfp.log_step IS
+COMMENT ON PROCEDURE stage_hfp.log_step IS
 'Record a session state to log. `step` is an arbitrary description,
 `session_id` should be a consistent unique text identifier for the session.
 Usage:
