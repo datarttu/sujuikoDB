@@ -152,7 +152,6 @@ AS $$
 DECLARE
   cnt_upd   bigint;
 BEGIN
-  RAISE NOTICE 'Setting movement values ...';
   EXECUTE format(
     $s$
     WITH
@@ -248,7 +247,6 @@ AS $$
 DECLARE
   cnt_del   bigint;
 BEGIN
-  RAISE NOTICE 'Deleting duplicates by jrnid, tst ...';
   EXECUTE format(
     $s$
     WITH
