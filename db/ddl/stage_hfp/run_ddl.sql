@@ -13,3 +13,4 @@ BEGIN;
 \ir jrn_points.sql
 \ir jrn_segs.sql
 \ir transfer.sql
+\ir import_dump.sql
