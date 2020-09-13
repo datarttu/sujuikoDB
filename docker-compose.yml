@@ -1,0 +1,14 @@
+version: "3.7"
+services:
+  sujuiko-db:
+    image: timescale/timescaledb-postgis:latest-pg12
+    restart: always
+    ports:
+      - 127.0.0.1:5431:5432
+    # You will need POSTGRES_PASSWORD=something
+    env_file: .env
+    volumes:
+      - db_volume:/var/lib/postgresql/data
+volumes:
+  db_volume:
+    driver: local
