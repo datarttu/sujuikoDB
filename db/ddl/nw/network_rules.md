@@ -27,9 +27,11 @@ If a node is deleted, its `nodeid` shall not be re-used.
 
 A node shall be located inside `hsl_bbox`.
 Otherwise it will not be created.
+*See trigger `validate_node_is_within_hsl_area`.*
 
 Duplicated nodes are not allowed.
 A node is duplicated if it is located closer than `snap_tolerance` to any existing node.
+*See trigger `validate_node_unique_location`.*
 
 A node shall contain the following information about links connected to it:
 number of outgoing one-way links (node is their `inode`),
