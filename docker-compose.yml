@@ -9,6 +9,9 @@ services:
     env_file: .env
     volumes:
       - db_volume:/var/lib/postgresql/data
+      - type: bind
+        source: ./data/rawdata
+        target: /data
+        read_only: true
 volumes:
   db_volume:
-    driver: local
