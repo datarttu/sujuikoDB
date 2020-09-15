@@ -49,8 +49,7 @@ DECLARE
 BEGIN
   snap_tolerance := 1.0;
   SELECT INTO existing_node nd.nodeid FROM nw.nodes AS nd
-  WHERE ST_Expand(NEW.geom, snap_tolerance) && nd.geom
-    AND ST_DWithin(NEW.geom, nd.geom, snap_tolerance)
+  WHERE ST_DWithin(NEW.geom, nd.geom, snap_tolerance)
   LIMIT 1;
   IF existing_node IS NOT NULL THEN
     RAISE WARNING 'node % is too close to existing node %, discarded', NEW.nodeid, existing_node;
