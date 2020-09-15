@@ -84,6 +84,33 @@ COMMENT ON TABLE nw.links IS
 CREATE INDEX ON nw.links (mode);
 CREATE INDEX ON nw.links USING GIST (geom);
 
+-- inode may not equal jnode.
+-- We could use a CHECK constraint, but it would result in an error.
+-- Instead, we just want to ignore the failing feature and warn about it.
+CREATE FUNCTION nw.validate_link_inode_jnode_not_eq()
+RETURNS trigger
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  warn_result text;
+BEGIN
+  IF TG_OP = 'UPDATE' THEN warn_result := 'not updated';
+  ELSE warn_result := 'discarded';
+  END IF;
+  IF NEW.inode = NEW.jnode THEN
+    RAISE WARNING 'inode % must not equal jnode %, link % %', NEW.inode, NEW.jnode, NEW.linkid, warn_result;
+    RETURN NULL;
+  ELSE RETURN NEW;
+  END IF;
+END;
+$$;
+COMMENT ON FUNCTION nw.validate_link_inode_jnode_not_eq() IS
+'Ensures that the `inode` and `jnode` of the link are not the same node.';
+
+CREATE TRIGGER validate_link_inode_jnode_not_eq
+BEFORE INSERT OR UPDATE ON nw.links
+FOR EACH ROW EXECUTE PROCEDURE nw.validate_link_inode_jnode_not_eq();
+
 -- inode and jnode location checks
 -- These apply only if you try to modify inode / jnode directly.
 -- When inserting a new link without existing nodes, they will be created.
