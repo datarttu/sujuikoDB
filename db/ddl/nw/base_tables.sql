@@ -38,7 +38,7 @@ $$;
 COMMENT ON FUNCTION nw.validate_node_is_within_hsl_area() IS
 'Ensures the `geom` of a new node is inside a bounding box containing the HSL area.';
 
-CREATE TRIGGER validate_node_is_within_hsl_area
+CREATE TRIGGER t01_validate_node_is_within_hsl_area
 BEFORE INSERT OR UPDATE ON nw.nodes
 FOR EACH ROW EXECUTE PROCEDURE nw.validate_node_is_within_hsl_area();
 
@@ -69,7 +69,7 @@ $$;
 COMMENT ON FUNCTION nw.validate_node_unique_location() IS
 'Ensures the `geom` of a new node is no closer than 1 meters to an existing node.';
 
-CREATE TRIGGER validate_node_unique_location
+CREATE TRIGGER t02_validate_node_unique_location
 BEFORE INSERT OR UPDATE ON nw.nodes
 FOR EACH ROW EXECUTE PROCEDURE nw.validate_node_unique_location();
 
@@ -91,33 +91,6 @@ COMMENT ON TABLE nw.links IS
 
 CREATE INDEX ON nw.links (mode);
 CREATE INDEX ON nw.links USING GIST (geom);
-
--- inode may not equal jnode.
--- We could use a CHECK constraint, but it would result in an error.
--- Instead, we just want to ignore the failing feature and warn about it.
-CREATE FUNCTION nw.validate_link_inode_jnode_not_eq()
-RETURNS trigger
-LANGUAGE PLPGSQL
-AS $$
-DECLARE
-  warn_result text;
-BEGIN
-  IF TG_OP = 'UPDATE' THEN warn_result := 'not updated';
-  ELSE warn_result := 'discarded';
-  END IF;
-  IF NEW.inode = NEW.jnode THEN
-    RAISE WARNING 'LINK % %: inode % must not equal jnode %', NEW.linkid, warn_result, NEW.inode, NEW.jnode;
-    RETURN NULL;
-  ELSE RETURN NEW;
-  END IF;
-END;
-$$;
-COMMENT ON FUNCTION nw.validate_link_inode_jnode_not_eq() IS
-'Ensures that the `inode` and `jnode` of the link are not the same node.';
-
-CREATE TRIGGER validate_link_inode_jnode_not_eq
-BEFORE INSERT OR UPDATE ON nw.links
-FOR EACH ROW EXECUTE PROCEDURE nw.validate_link_inode_jnode_not_eq();
 
 -- inode and jnode location checks
 -- These apply only if you try to modify inode / jnode directly.
@@ -150,9 +123,36 @@ COMMENT ON FUNCTION nw.validate_link_node_references() IS
 'Ensures that the `inode` and `jnode` of the link not only exist in the node table
 but their respective geometries also point to the link start and end.';
 
-CREATE TRIGGER validate_link_node_references
+CREATE TRIGGER t31_validate_link_node_references
 BEFORE UPDATE OF inode, jnode ON nw.links
 FOR EACH ROW EXECUTE PROCEDURE nw.validate_link_node_references();
+
+-- inode may not equal jnode.
+-- We could use a CHECK constraint, but it would result in an error.
+-- Instead, we just want to ignore the failing feature and warn about it.
+CREATE FUNCTION nw.validate_link_inode_jnode_not_eq()
+RETURNS trigger
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  warn_result text;
+BEGIN
+  IF TG_OP = 'UPDATE' THEN warn_result := 'not updated';
+  ELSE warn_result := 'discarded';
+  END IF;
+  IF NEW.inode = NEW.jnode THEN
+    RAISE WARNING 'LINK % %: inode % must not equal jnode %', NEW.linkid, warn_result, NEW.inode, NEW.jnode;
+    RETURN NULL;
+  ELSE RETURN NEW;
+  END IF;
+END;
+$$;
+COMMENT ON FUNCTION nw.validate_link_inode_jnode_not_eq() IS
+'Ensures that the `inode` and `jnode` of the link are not the same node.';
+
+CREATE TRIGGER t32_validate_link_inode_jnode_not_eq
+BEFORE INSERT OR UPDATE ON nw.links
+FOR EACH ROW EXECUTE PROCEDURE nw.validate_link_inode_jnode_not_eq();
 
 
 
