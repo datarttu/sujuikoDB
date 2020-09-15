@@ -108,6 +108,7 @@ BEGIN
     RAISE WARNING 'Link % geom does not end to jnode %, link not updated', NEW.linkid, NEW.jnode;
     RETURN NULL;
   END IF;
+  RETURN NEW;
 END;
 $$;
 COMMENT ON FUNCTION nw.validate_link_node_references() IS
