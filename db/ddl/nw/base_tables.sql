@@ -18,14 +18,18 @@ RETURNS trigger
 LANGUAGE PLPGSQL
 AS $$
 DECLARE
-  hsl_bbox  geometry(POLYGON, 3067);
+  hsl_bbox    geometry(POLYGON, 3067);
+  warn_result text;
 BEGIN
   hsl_bbox := ST_SetSRID(
     'POLYGON((244592 6628611,255619 6788176,499650 6779684,499634 6619861,244592 6628611))'::geometry,
     3067
   );
+  IF TG_OP = 'UPDATE' THEN warn_result := 'not updated';
+  ELSE warn_result := 'discarded';
+  END IF;
   IF NOT NEW.geom && hsl_bbox THEN
-    RAISE WARNING 'node % is outside HSL area, discarded', NEW.nodeid;
+    RAISE WARNING 'NODE % %: outside HSL area', NEW.nodeid, warn_result;
     RETURN NULL;
   ELSE RETURN NEW;
   END IF;
@@ -46,13 +50,17 @@ AS $$
 DECLARE
   snap_tolerance  double precision;
   existing_node   integer;
+  warn_result text;
 BEGIN
   snap_tolerance := 1.0;
+  IF TG_OP = 'UPDATE' THEN warn_result := 'not updated';
+  ELSE warn_result := 'discarded';
+  END IF;
   SELECT INTO existing_node nd.nodeid FROM nw.nodes AS nd
   WHERE ST_DWithin(NEW.geom, nd.geom, snap_tolerance)
   LIMIT 1;
   IF existing_node IS NOT NULL THEN
-    RAISE WARNING 'node % is too close to existing node %, discarded', NEW.nodeid, existing_node;
+    RAISE WARNING 'NODE % %: is too close to existing node %', NEW.nodeid, warn_result, existing_node;
     RETURN NULL;
   ELSE RETURN NEW;
   END IF;
@@ -98,7 +106,7 @@ BEGIN
   ELSE warn_result := 'discarded';
   END IF;
   IF NEW.inode = NEW.jnode THEN
-    RAISE WARNING 'inode % must not equal jnode %, link % %', NEW.inode, NEW.jnode, NEW.linkid, warn_result;
+    RAISE WARNING 'LINK % %: inode % must not equal jnode %', NEW.linkid, warn_result, NEW.inode, NEW.jnode;
     RETURN NULL;
   ELSE RETURN NEW;
   END IF;
@@ -123,16 +131,16 @@ DECLARE
 BEGIN
   SELECT INTO node_geom geom FROM nw.nodes WHERE nodeid = NEW.inode;
   IF node_geom IS NULL THEN
-    RAISE WARNING 'inode % of link % does not exist, link not updated', NEW.inode, NEW.linkid;
+    RAISE WARNING 'LINK % not updated: inode % does not exist', NEW.linkid, NEW.inode;
   ELSIF NOT ST_StartPoint(NEW.geom) && node_geom THEN
-    RAISE WARNING 'Link % geom does not start from inode %, link not updated', NEW.linkid, NEW.inode;
+    RAISE WARNING 'LINK % not updated: geom does not start from inode %', NEW.linkid, NEW.inode;
     RETURN NULL;
   END IF;
   SELECT INTO node_geom geom FROM nw.nodes WHERE nodeid = NEW.jnode;
   IF node_geom IS NULL THEN
-    RAISE WARNING 'jnode % of link % does not exist, link not updated', NEW.jnode, NEW.linkid;
+    RAISE WARNING 'LINK % not updated: jnode % does not exist', NEW.linkid, NEW.jnode;
   ELSIF NOT ST_EndPoint(NEW.geom) && node_geom THEN
-    RAISE WARNING 'Link % geom does not end to jnode %, link not updated', NEW.linkid, NEW.jnode;
+    RAISE WARNING 'LINK % not updated: geom does not end to jnode %', NEW.linkid, NEW.jnode;
     RETURN NULL;
   END IF;
   RETURN NEW;
