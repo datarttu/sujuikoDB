@@ -77,7 +77,7 @@ When link geometry is modified, the costs must be updated accordingly.
 
 1. The geometries of a new / modified and an existing link may _cross_ and their ends may _touch_ each other.
 Their geometries shall neither _intersect_ nor _touch_ in other ways.
-**TODO:** *(`t01_validate_geom_relations`)*
+*(`t01_validate_geom_relationships`)*
 1. If the start of a new or modified link geometry does not lie exactly at an existing node but within less than `snap_tolerance` from it, the link geometry is stretched and rotated such that the start touches the node.
 **TODO:** *(`t11_snap_geom_to_inode`)*
 1. If the end of a new or modified link geometry does not lie exactly at an existing node but within less than `snap_tolerance` from it, the link geometry is stretched and rotated such that the end touches the node.

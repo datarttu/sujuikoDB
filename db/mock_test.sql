@@ -28,3 +28,11 @@ UPDATE nw.nodes SET geom = ST_SetSRID(ST_MakePoint(385440, 6671480), 3067) WHERE
 
 \qecho Moving an existing node with links attached by jnode should update the link geoms:
 UPDATE nw.nodes SET geom = ST_SetSRID(ST_MakePoint(385410, 6671461), 3067) WHERE nodeid = 2;
+
+\qecho Should be another valid link:
+INSERT INTO nw.links(linkid, inode, jnode, mode, oneway, geom)
+  VALUES (2, 2, 3, 'bus', false, ST_SetSRID(ST_MakeLine(ST_MakePoint(385403, 6671479), ST_MakePoint(385103, 6671238)), 3067));
+
+\qecho Should be an INVALID link, overlapping an existing link:
+INSERT INTO nw.links(linkid, inode, jnode, mode, oneway, geom)
+  VALUES (3, 1, 3, 'bus', false, ST_GeomFromText('LINESTRING(385443 6671474, 385403 6671479, 385103 6671238)', 3067));

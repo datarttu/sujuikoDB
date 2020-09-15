@@ -131,6 +131,40 @@ COMMENT ON TABLE nw.links IS
 CREATE INDEX ON nw.links (mode);
 CREATE INDEX ON nw.links USING GIST (geom);
 
+-- Geometry relationship check with existing links
+CREATE FUNCTION nw.validate_geom_relationships()
+RETURNS trigger
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  warn_result       text;
+  conflicting_links text;
+BEGIN
+  IF TG_OP = 'UPDATE' THEN warn_result := 'not updated';
+  ELSE warn_result := 'discarded';
+  END IF;
+
+  SELECT INTO conflicting_links string_agg(linkid::text, ', ' ORDER BY linkid)
+  FROM nw.links
+  WHERE NEW.geom && geom
+    AND ST_Intersects(NEW.geom, geom)
+    AND NOT (ST_Relate(NEW.geom, geom, 'FF*F0****') OR ST_Relate(NEW.geom, geom, '0F*F0****'));
+
+  IF conflicting_links IS NOT NULL THEN
+    RAISE WARNING 'LINK % %: touches, overlaps or equals links %', NEW.linkid, warn_result, conflicting_links;
+    RETURN NULL;
+  ELSE RETURN NEW;
+  END IF;
+END;
+$$;
+COMMENT ON FUNCTION nw.validate_geom_relationships IS
+'Ensures that the new link geometry does not touch the edge of, overlap or equal
+any existing link geometries.';
+
+CREATE TRIGGER t01_validate_geom_relationships
+BEFORE INSERT OR UPDATE OF geom ON nw.links
+FOR EACH ROW EXECUTE PROCEDURE nw.validate_geom_relationships();
+
 -- inode and jnode location checks
 -- These apply only if you try to modify inode / jnode directly.
 -- When inserting a new link without existing nodes, they will be created.
