@@ -1,3 +1,69 @@
+DROP FUNCTION IF EXISTS stretch_link_from_start;
+CREATE FUNCTION stretch_link_from_start(
+  geometry(LINESTRING, 3067),
+  geometry(POINT, 3067)
+)
+RETURNS geometry(LINESTRING, 3067)
+LANGUAGE SQL
+IMMUTABLE
+PARALLEL SAFE
+AS $$
+  SELECT ST_Translate(
+    ST_TransScale(
+      -- Original linestring geom:
+      $1,
+      -- Shift start X coordinate to 0:
+      -ST_X(ST_StartPoint($1)),
+      -- Shift start Y coordinate to 0:
+      -ST_Y(ST_StartPoint($1)),
+      -- Scale X values by [new start -> end X width] / [old start -> end X width]:
+      (ST_X(ST_StartPoint($1)) - ST_X($2)) / (ST_X(ST_StartPoint($1)) - ST_X(ST_EndPoint($1))),
+      -- Scale Y values by [new start -> end Y height] / [old start -> end Y height]:
+      (ST_Y(ST_StartPoint($1)) - ST_Y($2)) / (ST_Y(ST_StartPoint($1)) - ST_Y(ST_EndPoint($1)))
+    ),
+    -- Shift start X coordinate back to original:
+    ST_X(ST_StartPoint($1)),
+    -- Shift start Y coordinate back to original:
+    ST_Y(ST_StartPoint($1))
+  );
+$$;
+COMMENT ON FUNCTION stretch_link_from_start IS
+'Stretch a linestring geometry (arg 1) from its start point
+into a new end point (arg 2) such that the line vertices follow proportionally.';
+
+DROP FUNCTION IF EXISTS stretch_link_from_end;
+CREATE FUNCTION stretch_link_from_end(
+  geometry(LINESTRING, 3067),
+  geometry(POINT, 3067)
+)
+RETURNS geometry(LINESTRING, 3067)
+LANGUAGE SQL
+IMMUTABLE
+PARALLEL SAFE
+AS $$
+  SELECT ST_Translate(
+    ST_TransScale(
+      -- Original linestring geom:
+      $1,
+      -- Shift end X coordinate to 0:
+      -ST_X(ST_EndPoint($1)),
+      -- Shift end Y coordinate to 0:
+      -ST_Y(ST_EndPoint($1)),
+      -- Scale X values by [new end -> start X width] / [old end -> start X width]:
+      (ST_X(ST_EndPoint($1)) - ST_X($2)) / (ST_X(ST_EndPoint($1)) - ST_X(ST_StartPoint($1))),
+      -- Scale Y values by [new end -> start Y height] / [old end -> start Y height]:
+      (ST_Y(ST_EndPoint($1)) - ST_Y($2)) / (ST_Y(ST_EndPoint($1)) - ST_Y(ST_StartPoint($1)))
+    ),
+    -- Shift start X coordinate back to original:
+    ST_X(ST_EndPoint($1)),
+    -- Shift start Y coordinate back to original:
+    ST_Y(ST_EndPoint($1))
+  );
+$$;
+COMMENT ON FUNCTION stretch_link_from_start IS
+'Stretch a linestring geometry (arg 1) from its end point
+into a new start point (arg 2) such that the line vertices follow proportionally.';
+
 CREATE OR REPLACE FUNCTION rn_length(tstzrange)
 RETURNS interval
 LANGUAGE SQL
