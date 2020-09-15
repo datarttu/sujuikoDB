@@ -37,7 +37,7 @@ A node is duplicated if it is located closer than `snap_tolerance` to any existi
 *(`t02_validate_node_unique_location`)*
 
 1. If a node with links attached to it is moved, the link geometries are stretched and rotated such that they still connect to the node.
-**TODO:** *(`t11_update_attached_link_geoms`)*
+*(`t11_update_attached_link_geoms`)*
 
 ### Other rules
 

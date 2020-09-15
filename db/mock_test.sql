@@ -22,3 +22,9 @@ UPDATE nw.links SET jnode = 3 WHERE linkid = 1;
 \qecho Should be an INVALID link, inode may not equal jnode:
 INSERT INTO nw.links(linkid, inode, jnode, mode, oneway, geom)
   VALUES (2, 2, 2, 'bus', false, ST_SetSRID(ST_MakeLine(ST_MakePoint(385403, 6671479), ST_MakePoint(385403, 6671479)), 3067));
+
+\qecho Moving an existing node with links attached by inode should update the link geoms:
+UPDATE nw.nodes SET geom = ST_SetSRID(ST_MakePoint(385440, 6671480), 3067) WHERE nodeid = 1;
+
+\qecho Moving an existing node with links attached by jnode should update the link geoms:
+UPDATE nw.nodes SET geom = ST_SetSRID(ST_MakePoint(385410, 6671461), 3067) WHERE nodeid = 2;

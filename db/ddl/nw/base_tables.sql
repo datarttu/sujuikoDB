@@ -73,6 +73,45 @@ CREATE TRIGGER t02_validate_node_unique_location
 BEFORE INSERT OR UPDATE ON nw.nodes
 FOR EACH ROW EXECUTE PROCEDURE nw.validate_node_unique_location();
 
+-- If node is moved and has attached links, automatically update the link geoms
+-- so they still follow the node.
+CREATE FUNCTION nw.update_attached_link_geoms()
+RETURNS trigger
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  n_affected  integer;
+BEGIN
+  -- Links having this as inode -> keep jnode untouched
+  UPDATE nw.links
+  SET geom = stretch_link_from_end(geom, NEW.geom)
+  WHERE inode = NEW.nodeid;
+  GET DIAGNOSTICS n_affected := ROW_COUNT;
+  IF n_affected > 0 THEN
+    RAISE NOTICE 'NODE %: % link geoms with this as inode updated', NEW.nodeid, n_affected;
+  END IF;
+  -- Links having this as jnode -> keep inode untouched
+  UPDATE nw.links
+  SET geom = stretch_link_from_start(geom, NEW.geom)
+  WHERE jnode = NEW.nodeid;
+  GET DIAGNOSTICS n_affected := ROW_COUNT;
+  IF n_affected > 0 THEN
+    RAISE NOTICE 'NODE %: % link geoms with this as jnode updated', NEW.nodeid, n_affected;
+  END IF;
+  RETURN NEW;
+EXCEPTION WHEN SQLSTATE '01000' THEN
+  RAISE WARNING 'NODE % not updated: attached link geometries could not be updated', NEW.nodeid;
+  RETURN NULL;
+END;
+$$;
+COMMENT ON FUNCTION nw.update_attached_link_geoms() IS
+'When moving a node with links attached to it, stretches and rotates the links
+so they still attach to the node (as long as the new link geometries
+do not break any rules).';
+
+CREATE TRIGGER t11_update_attached_link_geoms
+AFTER UPDATE OF geom ON nw.nodes
+FOR EACH ROW EXECUTE PROCEDURE nw.update_attached_link_geoms();
 
 
 CREATE TABLE nw.links (
