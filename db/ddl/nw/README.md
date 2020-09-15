@@ -104,3 +104,11 @@ In that case, the geometry of the original link is reversed and `inode` and `jno
 Splitting a link is equal to modifying the `inode` or `jnode`, geometry and costs of the original link into "part 1" and creating a new link as "part 2".
 
 Merging two links "link 1" and "link 2" is equal to setting link 1's `inode`/`jnode` to link 2's `inode`/`jnode`, link 1's geometry to the union of the geometries of the both links, link 1's cost to the sum of the two links' costs, and deleting link 2.
+
+## Stops
+
+**TODO**
+
+## Intersections
+
+**TODO**
