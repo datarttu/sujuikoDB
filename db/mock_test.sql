@@ -18,3 +18,7 @@ UPDATE nw.links SET inode = 3 WHERE linkid = 1;
 
 \qecho Update should result in an INVALID link, because of jnode mismatch:
 UPDATE nw.links SET jnode = 3 WHERE linkid = 1;
+
+\qecho Should be an INVALID link, inode may not equal jnode:
+INSERT INTO nw.links(linkid, inode, jnode, mode, oneway, geom)
+  VALUES (2, 2, 2, 'bus', false, ST_SetSRID(ST_MakeLine(ST_MakePoint(385403, 6671479), ST_MakePoint(385403, 6671479)), 3067));
