@@ -28,8 +28,9 @@ AS $$
   );
 $$;
 COMMENT ON FUNCTION stretch_link_from_start IS
-'Stretch a linestring geometry (arg 1) from its start point
-into a new end point (arg 2) such that the line vertices follow proportionally.';
+'Stretch a linestring geometry (arg 1) by moving its end point
+into a new end point (arg 2) such that the line vertices follow proportionally
+and the start point remains unchanged.';
 
 DROP FUNCTION IF EXISTS stretch_link_from_end;
 CREATE FUNCTION stretch_link_from_end(
@@ -61,8 +62,9 @@ AS $$
   );
 $$;
 COMMENT ON FUNCTION stretch_link_from_start IS
-'Stretch a linestring geometry (arg 1) from its end point
-into a new start point (arg 2) such that the line vertices follow proportionally.';
+'Stretch a linestring geometry (arg 1) by moving its start point
+into a new start point (arg 2) such that the line vertices follow proportionally
+and the end point remains unchanged.';
 
 CREATE OR REPLACE FUNCTION rn_length(tstzrange)
 RETURNS interval
