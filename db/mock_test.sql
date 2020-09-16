@@ -3,6 +3,7 @@ INSERT INTO nw.nodes(nodeid, geom) VALUES (1, ST_SetSRID(ST_MakePoint(385443, 66
 INSERT INTO nw.nodes(nodeid, geom) VALUES (2, ST_SetSRID(ST_MakePoint(385403, 6671479), 3067));
 INSERT INTO nw.nodes(nodeid, geom) VALUES (3, ST_SetSRID(ST_MakePoint(385103, 6671238), 3067));
 INSERT INTO nw.nodes(nodeid, geom) VALUES (4, ST_SetSRID(ST_MakePoint(385048, 6671201), 3067));
+INSERT INTO nw.nodes(nodeid, geom) VALUES (5, ST_SetSRID(ST_MakePoint(385063, 6671180), 3067));
 
 \qecho Should be an INVALID node, outside HSL area:
 INSERT INTO nw.nodes(geom) VALUES (ST_SetSRID(ST_MakePoint(226574, 6928728), 3067));
@@ -41,3 +42,7 @@ INSERT INTO nw.links(linkid, inode, jnode, mode, oneway, geom)
 \qecho Should be a new link close to existing nodes -> stretched to snap them:
 INSERT INTO nw.links(linkid, mode, oneway, geom)
   VALUES (4, 'bus', false, ST_GeomFromText('LINESTRING(385103.5 6671238.2, 385048.2 6671201.3)', 3067));
+
+\qecho Should be a new link with ends matching existing nodes -> inode and jnode set automatically:
+INSERT INTO nw.links(linkid, mode, oneway, geom)
+  VALUES (5, 'bus', false, ST_GeomFromText('LINESTRING(385048 6671201, 385063 6671180)', 3067));

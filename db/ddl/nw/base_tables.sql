@@ -165,7 +165,55 @@ CREATE TRIGGER t01_validate_geom_relationships
 BEFORE INSERT OR UPDATE OF geom ON nw.links
 FOR EACH ROW EXECUTE PROCEDURE nw.validate_geom_relationships();
 
+-- If there is an existing node at the link start, use it as inode,
+-- if at the link end, use it as jnode.
+CREATE FUNCTION nw.set_inode_ref_by_location()
+RETURNS trigger
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  existing_nodeid integer;
+BEGIN
+  SELECT INTO existing_nodeid nd.nodeid FROM nw.nodes AS nd
+  WHERE ST_StartPoint(NEW.geom) && nd.geom LIMIT 1;
+  IF FOUND THEN
+    NEW.inode := existing_nodeid;
+    RAISE NOTICE 'LINK %: node % at start set as inode', NEW.linkid, existing_nodeid;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+COMMENT ON FUNCTION nw.set_inode_ref_by_location IS
+'If the start of a new or updated link lies exactly at an existing node,
+set that node as the inode of the link.';
 
+CREATE TRIGGER t06_set_inode_ref_by_location
+BEFORE INSERT OR UPDATE OF geom ON nw.links
+FOR EACH ROW EXECUTE PROCEDURE nw.set_inode_ref_by_location();
+
+CREATE FUNCTION nw.set_jnode_ref_by_location()
+RETURNS trigger
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  existing_nodeid integer;
+BEGIN
+  SELECT INTO existing_nodeid nd.nodeid FROM nw.nodes AS nd
+  WHERE ST_EndPoint(NEW.geom) && nd.geom LIMIT 1;
+  IF FOUND THEN
+    NEW.jnode := existing_nodeid;
+    RAISE NOTICE 'LINK %: node % at end set as jnode', NEW.linkid, existing_nodeid;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+COMMENT ON FUNCTION nw.set_jnode_ref_by_location IS
+'If the end of a new or updated link lies exactly at an existing node,
+set that node as the jnode of the link.';
+
+CREATE TRIGGER t07_set_jnode_ref_by_location
+BEFORE INSERT OR UPDATE OF geom ON nw.links
+FOR EACH ROW EXECUTE PROCEDURE nw.set_jnode_ref_by_location();
 
 -- Links are stretched to reach existing nodes if they are closer than 1 m
 -- to the link end.
