@@ -165,6 +165,64 @@ CREATE TRIGGER t01_validate_geom_relationships
 BEFORE INSERT OR UPDATE OF geom ON nw.links
 FOR EACH ROW EXECUTE PROCEDURE nw.validate_geom_relationships();
 
+
+
+-- Links are stretched to reach existing nodes if they are closer than 1 m
+-- to the link end.
+CREATE FUNCTION nw.snap_geom_to_inode()
+RETURNS trigger
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  existing_node record;
+BEGIN
+  SELECT INTO existing_node nd.* FROM nw.nodes AS nd
+  WHERE ST_DWithin(ST_StartPoint(NEW.geom), nd.geom, 1.0)
+    AND NOT ST_StartPoint(NEW.geom) && nd.geom
+  LIMIT 1;
+  IF FOUND THEN
+    NEW.geom := stretch_link_from_end(NEW.geom, existing_node.geom);
+    NEW.inode := existing_node.nodeid;
+    RAISE NOTICE 'LINK %: stretched to existing inode %', NEW.linkid, existing_node.nodeid;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+COMMENT ON FUNCTION nw.validate_geom_relationships IS
+'If the start of a new or updated link lies closer than 1 m to an existing node,
+stretch the link to snap the start to that node.';
+
+CREATE TRIGGER t11_snap_geom_to_inode
+BEFORE INSERT OR UPDATE OF geom ON nw.links
+FOR EACH ROW EXECUTE PROCEDURE nw.snap_geom_to_inode();
+
+CREATE FUNCTION nw.snap_geom_to_jnode()
+RETURNS trigger
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  existing_node record;
+BEGIN
+  SELECT INTO existing_node nd.* FROM nw.nodes AS nd
+  WHERE ST_DWithin(ST_EndPoint(NEW.geom), nd.geom, 1.0)
+    AND NOT ST_EndPoint(NEW.geom) && nd.geom
+  LIMIT 1;
+  IF FOUND THEN
+    NEW.geom := stretch_link_from_end(NEW.geom, existing_node.geom);
+    NEW.jnode := existing_node.nodeid;
+    RAISE NOTICE 'LINK %: stretched to existing jnode %', NEW.linkid, existing_node.nodeid;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+COMMENT ON FUNCTION nw.validate_geom_relationships IS
+'If the end of a new or updated link lies closer than 1 m to an existing node,
+stretch the link to snap the end to that node.';
+
+CREATE TRIGGER t12_snap_geom_to_jnode
+BEFORE INSERT OR UPDATE OF geom ON nw.links
+FOR EACH ROW EXECUTE PROCEDURE nw.snap_geom_to_jnode();
+
 -- inode and jnode location checks
 -- These apply only if you try to modify inode / jnode directly.
 -- When inserting a new link without existing nodes, they will be created.
