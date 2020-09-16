@@ -3,7 +3,7 @@ CREATE SCHEMA nw;
 
 CREATE TABLE nw.nodes (
   nodeid        serial                  PRIMARY KEY,
-  geom          geometry(POINT, 3067)
+  geom          geometry(POINT, 3067)   NOT NULL
 );
 COMMENT ON TABLE nw.nodes IS
 'Represent separation points on street and track networks:
