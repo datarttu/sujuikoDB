@@ -21,8 +21,8 @@ DECLARE
   hsl_bbox    geometry(POLYGON, 3067);
   warn_result text;
 BEGIN
-  hsl_bbox := ST_SetSRID(
-    'POLYGON((244592 6628611,255619 6788176,499650 6779684,499634 6619861,244592 6628611))'::geometry,
+  hsl_bbox := ST_GeomFromText(
+    'POLYGON((244592 6628611,255619 6788176,499650 6779684,499634 6619861,244592 6628611))',
     3067
   );
   IF TG_OP = 'UPDATE' THEN warn_result := 'not updated';
