@@ -257,7 +257,7 @@ BEGIN
   RETURN NEW;
 END;
 $$;
-COMMENT ON FUNCTION nw.validate_geom_relationships IS
+COMMENT ON FUNCTION nw.snap_geom_to_inode IS
 'If the start of a new or updated link lies closer than 1 m to an existing node,
 stretch the link to snap the start to that node.';
 
