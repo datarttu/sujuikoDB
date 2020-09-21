@@ -292,6 +292,61 @@ CREATE TRIGGER t12_snap_geom_to_jnode
 BEFORE INSERT OR UPDATE OF geom ON nw.links
 FOR EACH ROW EXECUTE PROCEDURE nw.snap_geom_to_jnode();
 
+-- If there is no existing node at the link start or close to it,
+-- create one and set is as inode of the link.
+-- The same applies to the link end and jnode.
+CREATE FUNCTION nw.add_missing_inode()
+RETURNS trigger
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  nodeid_created  integer;
+BEGIN
+  IF NEW.inode IS NULL AND NOT EXISTS (
+    SELECT nodeid FROM nw.nodes
+    WHERE ST_StartPoint(NEW.geom) && geom
+  ) THEN
+    INSERT INTO nw.nodes(geom) VALUES (ST_StartPoint(NEW.geom))
+    RETURNING nodeid INTO nodeid_created;
+    NEW.inode := nodeid_created;
+    RAISE NOTICE 'LINK %: created new node % as inode', NEW.linkid, nodeid_created;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+COMMENT ON FUNCTION nw.add_missing_inode IS
+'If a new / modified link does not have an existing `inode` at its start, create one.';
+
+CREATE TRIGGER t21_add_missing_inode
+BEFORE INSERT OR UPDATE OF geom ON nw.links
+FOR EACH ROW EXECUTE PROCEDURE nw.add_missing_inode();
+
+CREATE FUNCTION nw.add_missing_jnode()
+RETURNS trigger
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  nodeid_created  integer;
+BEGIN
+  IF NEW.jnode IS NULL AND NOT EXISTS (
+    SELECT nodeid FROM nw.nodes
+    WHERE ST_EndPoint(NEW.geom) && geom
+  ) THEN
+    INSERT INTO nw.nodes(geom) VALUES (ST_EndPoint(NEW.geom))
+    RETURNING nodeid INTO nodeid_created;
+    NEW.jnode := nodeid_created;
+    RAISE NOTICE 'LINK %: created new node % as jnode', NEW.linkid, nodeid_created;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+COMMENT ON FUNCTION nw.add_missing_jnode IS
+'If a new / modified link does not have an existing `jnode` at its end, create one.';
+
+CREATE TRIGGER t22_add_missing_jnode
+BEFORE INSERT OR UPDATE OF geom ON nw.links
+FOR EACH ROW EXECUTE PROCEDURE nw.add_missing_jnode();
+
 -- inode and jnode location checks
 -- These apply only if you try to modify inode / jnode directly.
 -- When inserting a new link without existing nodes, they will be created.

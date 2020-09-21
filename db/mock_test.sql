@@ -46,3 +46,7 @@ INSERT INTO nw.links(linkid, mode, oneway, geom)
 \qecho Should be a new link with ends matching existing nodes -> inode and jnode set automatically:
 INSERT INTO nw.links(linkid, mode, oneway, geom)
   VALUES (5, 'bus', false, ST_GeomFromText('LINESTRING(385048 6671201, 385063 6671180)', 3067));
+
+\qecho Should be a new link without matching existing nodes -> inode and jnode are created:
+INSERT INTO nw.links(linkid, mode, oneway, geom)
+  VALUES (6, 'bus', false, ST_GeomFromText('LINESTRING(385002 6671100, 385021 6671143)', 3067));

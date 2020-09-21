@@ -87,9 +87,9 @@ Their geometries shall neither _intersect_ nor _touch_ in other ways.
 1. If the end of a new or modified link geometry does not lie exactly at an existing node but within less than `snap_tolerance` from it, the link geometry is stretched and rotated such that the end touches the node.
 *(`t12_snap_geom_to_jnode`)*
 1. If a new / modified link does not have an existing `inode` at its start, a new node is created.
-**TODO:** *(`t21_add_missing_inode`)*
+*(`t21_add_missing_inode`)*
 1. If a new / modified link does not have an existing `jnode` at its end, a new node is created.
-**TODO:** *(`t22_add_missing_jnode`)*
+*(`t22_add_missing_jnode`)*
 1. A link shall have a start node `inode`, an existing node that is located exactly on the first vertex of the link geometry.
 Similarly, it shall have an end node `jnode`, an existing node that is located exactly on the last vertex of the link geometry.
 *(`t31_validate_link_node_references`)*
