@@ -1,8 +1,10 @@
 DROP SCHEMA IF EXISTS nw CASCADE;
 CREATE SCHEMA nw;
 
+CREATE SEQUENCE nw.nodes_nodeid_seq AS integer;
+
 CREATE TABLE nw.nodes (
-  nodeid        serial                  PRIMARY KEY,
+  nodeid        integer                 PRIMARY KEY DEFAULT nextval('nw.nodes_nodeid_seq'),
   geom          geometry(POINT, 3067)   NOT NULL
 );
 COMMENT ON TABLE nw.nodes IS
@@ -11,6 +13,22 @@ intersections, link ends, and locations where two links
 with different attribute values must be separated.';
 
 CREATE INDEX ON nw.nodes USING GIST (geom);
+
+CREATE FUNCTION nw.keep_nodeid_seq_at_max()
+RETURNS trigger
+LANGUAGE PLPGSQL
+AS $$
+BEGIN
+  PERFORM coalesce(setval('nw.nodes_nodeid_seq', max(nodeid)), 0) FROM nw.nodes;
+  RETURN NEW;
+END;
+$$;
+COMMENT ON FUNCTION nw.keep_nodeid_seq_at_max() IS
+'Updates nodeid sequence even when nodeid values are inserted or updated directly.';
+
+CREATE TRIGGER t001_keep_nodeid_seq_at_max
+AFTER INSERT OR UPDATE ON nw.nodes
+FOR EACH STATEMENT EXECUTE PROCEDURE nw.keep_nodeid_seq_at_max();
 
 -- HSL area validation trigger
 CREATE FUNCTION nw.validate_node_is_within_hsl_area()
