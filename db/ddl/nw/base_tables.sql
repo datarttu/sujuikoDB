@@ -141,7 +141,8 @@ CREATE TABLE nw.links (
   cost          double precision    GENERATED ALWAYS AS (ST_Length(geom)) STORED,
   rcost         double precision    GENERATED ALWAYS AS (CASE WHEN oneway THEN -1 ELSE ST_Length(geom) END) STORED,
   attributes    jsonb,
-  geom          geometry(LINESTRING, 3067)  NOT NULL
+  geom          geometry(LINESTRING, 3067)  NOT NULL,
+  warnings      text
 );
 COMMENT ON TABLE nw.links IS
 'Represent connections between nodes.';
@@ -164,20 +165,22 @@ BEGIN
 
   SELECT INTO conflicting_links string_agg(linkid::text, ', ' ORDER BY linkid)
   FROM nw.links
-  WHERE NEW.geom && geom
+  WHERE NEW.mode = mode
+    AND NEW.geom && geom
     AND ST_Intersects(NEW.geom, geom)
-    AND NOT (ST_Relate(NEW.geom, geom, 'FF*F0****') OR ST_Relate(NEW.geom, geom, '0F*F0****'));
+    AND NOT (ST_Relate(NEW.geom, geom, 'FF*F*****') OR ST_Relate(NEW.geom, geom, '0F*F*****'));
 
   IF conflicting_links IS NOT NULL THEN
     RAISE WARNING 'LINK % %: touches, overlaps or equals links %', NEW.linkid, warn_result, conflicting_links;
-    RETURN NULL;
-  ELSE RETURN NEW;
+    NEW.warnings := format('touches, overlaps or equals links %s', conflicting_links);
+    --RETURN NULL;
   END IF;
+  RETURN NEW;
 END;
 $$;
 COMMENT ON FUNCTION nw.validate_geom_relationships IS
 'Ensures that the new link geometry does not touch the edge of, overlap or equal
-any existing link geometries.';
+any existing link geometries of the same mode.';
 
 CREATE TRIGGER t01_validate_geom_relationships
 BEFORE INSERT OR UPDATE OF geom ON nw.links
