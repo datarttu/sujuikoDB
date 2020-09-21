@@ -19,7 +19,7 @@ RETURNS trigger
 LANGUAGE PLPGSQL
 AS $$
 BEGIN
-  PERFORM coalesce(setval('nw.nodes_nodeid_seq', max(nodeid)), 0) FROM nw.nodes;
+  PERFORM setval('nw.nodes_nodeid_seq', (SELECT coalesce(max(nodeid), 1) FROM nw.nodes));
   RETURN NEW;
 END;
 $$;
