@@ -131,9 +131,10 @@ CREATE TRIGGER t11_update_attached_link_geoms
 AFTER UPDATE OF geom ON nw.nodes
 FOR EACH ROW EXECUTE PROCEDURE nw.update_attached_link_geoms();
 
+CREATE SEQUENCE nw.links_linkid_seq AS integer;
 
 CREATE TABLE nw.links (
-  linkid        serial              PRIMARY KEY,
+  linkid        integer             PRIMARY KEY DEFAULT nextval('nw.links_linkid_seq'),
   inode         integer             NOT NULL REFERENCES nw.nodes(nodeid),
   jnode         integer             NOT NULL REFERENCES nw.nodes(nodeid),
   mode          text                NOT NULL CHECK (mode IN ('bus', 'tram')) DEFAULT 'bus',
@@ -149,6 +150,22 @@ COMMENT ON TABLE nw.links IS
 
 CREATE INDEX ON nw.links (mode);
 CREATE INDEX ON nw.links USING GIST (geom);
+
+CREATE FUNCTION nw.keep_linkid_seq_at_max()
+RETURNS trigger
+LANGUAGE PLPGSQL
+AS $$
+BEGIN
+  PERFORM setval('nw.links_linkid_seq', (SELECT coalesce(max(linkid), 1) FROM nw.links));
+  RETURN NEW;
+END;
+$$;
+COMMENT ON FUNCTION nw.keep_linkid_seq_at_max() IS
+'Updates linkid sequence even when linkid values are inserted or updated directly.';
+
+CREATE TRIGGER t001_keep_linkid_seq_at_max
+AFTER INSERT OR UPDATE ON nw.links
+FOR EACH STATEMENT EXECUTE PROCEDURE nw.keep_linkid_seq_at_max();
 
 -- Geometry relationship check with existing links
 CREATE FUNCTION nw.validate_geom_relationships()
