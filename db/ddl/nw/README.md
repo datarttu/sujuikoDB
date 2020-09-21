@@ -67,17 +67,16 @@ Two-way links can be traversed from `inode` to `jnode` and from `jnode` to `inod
 
 A link has a transit `mode` that is allowed to use the link: `bus` and / or `tram`.
 
-A link has a `cost` equal to its geometry length in projection units, and similarly, reverse cost `rcost`.
-For two-way links, `rcost == cost`.
-For one-way links, `rcost == -1`.
-When link geometry is modified, the costs must be updated accordingly.
-*`cost` is a generated column based on link geometry length, and `rcost` is a generated column based on link geometry length and `oneway` value.*
-
 ### Trigger rules in order of execution
 
 1. The geometries of a new / modified and an existing link may _cross_ and their ends may _touch_ each other.
 Their geometries shall neither _intersect_ nor _touch_ in other ways.
 *(`t01_validate_geom_relationships`)*
+1. A link has a `cost` equal to its geometry length in projection units, and similarly, reverse cost `rcost`.
+For two-way links, `rcost == cost`.
+For one-way links, `rcost == -1`.
+When link geometry is modified, the costs must be updated accordingly.
+*(`t02_set_cost_values`)*
 1. If a link is created or its geometry is updated and there is an existing node at the link start, that node is defined as the `inode` of the link.
 *(`t06_set_inode_ref_by_location`)*
 1. If a link is created or its geometry is updated and there is an existing node at the link end, that node is defined as the `jnode` of the link.

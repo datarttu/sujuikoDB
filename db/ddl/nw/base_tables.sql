@@ -138,8 +138,8 @@ CREATE TABLE nw.links (
   jnode         integer             NOT NULL REFERENCES nw.nodes(nodeid),
   mode          text                NOT NULL CHECK (mode IN ('bus', 'tram')) DEFAULT 'bus',
   oneway        boolean             NOT NULL DEFAULT true,
-  cost          double precision    GENERATED ALWAYS AS (ST_Length(geom)) STORED,
-  rcost         double precision    GENERATED ALWAYS AS (CASE WHEN oneway THEN -1 ELSE ST_Length(geom) END) STORED,
+  cost          double precision,
+  rcost         double precision,
   attributes    jsonb,
   geom          geometry(LINESTRING, 3067)  NOT NULL,
   warnings      text
@@ -185,6 +185,28 @@ any existing link geometries of the same mode.';
 CREATE TRIGGER t01_validate_geom_relationships
 BEFORE INSERT OR UPDATE OF geom ON nw.links
 FOR EACH ROW EXECUTE PROCEDURE nw.validate_geom_relationships();
+
+-- Update cost and rcost by length and oneway.
+-- Geometry relationship check with existing links
+CREATE FUNCTION nw.set_cost_values()
+RETURNS trigger
+LANGUAGE PLPGSQL
+AS $$
+BEGIN
+  NEW.cost := ST_Length(NEW.geom);
+  IF NEW.oneway THEN NEW.rcost := -1;
+  ELSE NEW.rcost = NEW.cost;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+COMMENT ON FUNCTION nw.set_cost_values IS
+'Sets the `cost` of a link always to the link geometry length, and `rcost` to -1
+for a oneway link and to geometry length for a two-way link.';
+
+CREATE TRIGGER t02_set_cost_values
+BEFORE INSERT OR UPDATE ON nw.links
+FOR EACH ROW EXECUTE PROCEDURE nw.set_cost_values();
 
 -- If there is an existing node at the link start, use it as inode,
 -- if at the link end, use it as jnode.
