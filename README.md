@@ -50,6 +50,14 @@ Unfortunately, there is no automated deployment process.
 Having installed the aforementioned software, create a database named `sujuiko` as `postgres` superuser, and you should be able to run the DDL scripts in [`db/ddl`](/db/ddl).
 *NOTE:* Due to ongoing development, the scripts cannot be yet run neatly "as a whole" from scratch.
 
+## Deployment
+
+After cloning the git repo:
+
+- Create `.env` file in the project root. See [`.example_env`](./.example_env).
+- Create `data/` directory in the project root. Populate it with the raw data for the database.
+- *To be continued!*
+
 # Data model & data import and transformation
 
 The tool uses a logig called "extract-load-transform", i.e., I try to avoid additional tools and libraries for data wrangling beforehand, and instead I have included as much as possible of the application logic *inside the Postgres database*.
