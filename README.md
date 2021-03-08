@@ -32,23 +32,22 @@ The schedule model in turn enables analyzing planned-vs-operated time metrics su
 
 # Requirements
 
-You will need the following:
+The tool is being developed on an Ubuntu 18.04 LTS server with 2 TB of disk space, 8 GB RAM and 2 CPU cores.
+I have not tested anything on Windows.
 
-- The tool is being developed on an Ubuntu 18.04 LTS server with 2 TB of disk space, 8 GB RAM and 2 CPU cores.
-I use some Bash scripts and therefore have not tested anything on Windows.
-- [PostgreSQL](https://www.postgresql.org/) 11 *(planning to upgrade to 12 though)*.
+You will need the following, either installed on the machine or by using Docker:
+
+- [PostgreSQL](https://www.postgresql.org/) 13.
 This is the core of the tool.
 Also majority of the data transformation logic is written in PLPGSQL.
-- [PostGIS](https://postgis.net/) 3.0.
-Provides the numerous spatial operations required.
-- [pgRouting](http://docs.pgrouting.org/latest/en/index.html) 3.0.
-I use this to establish the node-link network and to find the shortest paths for transit routes on the network.
-- [TimescaleDB](https://docs.timescale.com/latest/main) >= 1.5.
-Smart timestamp column based table partitioning needed to manage huge amounts of the HFP data.
+- [PostGIS](https://postgis.net/) 3.
+Core of the geometries and spatial operations.
+- [pgRouting](http://docs.pgrouting.org/latest/en/index.html) 3.
+Core of the routable network model.
+- [TimescaleDB](https://docs.timescale.com/latest/main) 2.
+Supports partitioning and managing large amounts of the HFP data.
 
-Unfortunately, there is no automated deployment process.
-Having installed the aforementioned software, create a database named `sujuiko` as `postgres` superuser, and you should be able to run the DDL scripts in [`db/ddl`](/db/ddl).
-*NOTE:* Due to ongoing development, the scripts cannot be yet run neatly "as a whole" from scratch.
+Unfortunately, there is no automated deployment process at least yet.
 
 ## Deployment
 
@@ -56,7 +55,9 @@ After cloning the git repo:
 
 - Create `.env` file in the project root. See [`.example_env`](./.example_env).
 - Create `data/` directory in the project root. Populate it with the raw data for the database.
-- *To be continued!*
+- **... TODO**
+- Run `docker-compose up`, after this you should have a database instance up and running.
+- Connect to the database e.g. with `psql` from your machine, and run ddl scripts from [`db/ddl`](./db/ddl).
 
 # Data model & data import and transformation
 
