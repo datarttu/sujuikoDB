@@ -35,7 +35,7 @@ The schedule model in turn enables analyzing planned-vs-operated time metrics su
 The tool is being developed on an Ubuntu 18.04 LTS server with 2 TB of disk space, 8 GB RAM and 2 CPU cores.
 I have not tested anything on Windows.
 
-You will need the following, either installed on the machine or by using Docker:
+You will need the following, either installed on the machine or by using Docker (deployment instructed below):
 
 - [PostgreSQL](https://www.postgresql.org/) 13.
 This is the core of the tool.
@@ -47,17 +47,36 @@ Core of the routable network model.
 - [TimescaleDB](https://docs.timescale.com/latest/main) 2.
 Supports partitioning and managing large amounts of the HFP data.
 
-Unfortunately, there is no automated deployment process at least yet.
+# Development
 
-## Deployment
+This is how you should get the database up and running for development purposes.
+For production, you may want to create and fill the database using a PostgreSQL cluster installed directly on your server.
 
-After cloning the git repo:
+```
+git clone https://github.com/datarttu/sujuikoDB
+cd sujuikoDB
+cp .example_env .env
+```
 
-- Create `.env` file in the project root. See [`.example_env`](./.example_env).
-- Create `data/` directory in the project root. Populate it with the raw data for the database.
-- **... TODO**
-- Run `docker-compose up`, after this you should have a database instance up and running.
-- Connect to the database e.g. with `psql` from your machine, and run ddl scripts from [`db/ddl`](./db/ddl).
+Now configure the values in .env according to your environment.
+
+[`example_data`](./example_data/) is mapped as import data directory by default.
+If you are not just testing with the example data, set `IMPORT_DATA_DIR` in the `.env` file to a directory that contains the data you want to import when starting the db instance.
+
+At this point, you may want to check that the `docker-compose.yml` file suits your needs.
+Then you should able to start the database instance:
+
+```
+docker-compose up
+```
+
+This should start the database *TODO: and hydrate it with the data from `IMPORT_DATA_DIR`.*
+
+You should now be able to connect to the database e.g. using `psql` if it is installed on your machine (assuming connection parameter values of `.example_env`):
+
+```
+psql -d sujuiko -h localhost -p 1234 -U postgres
+```
 
 # Data model & data import and transformation
 

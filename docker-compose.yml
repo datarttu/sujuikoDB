@@ -10,7 +10,7 @@ services:
     volumes:
       - db_volume:/var/lib/postgresql/data
       - type: bind
-        source: ./data/rawdata
+        source: ${IMPORT_DATA_DIR:-./example_data}
         target: /data
         read_only: true
 volumes:

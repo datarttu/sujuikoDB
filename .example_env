@@ -2,3 +2,4 @@
 POSTGRES_PASSWORD=mysecretpassword
 POSTGRES_DB=sujuiko
 POSTGRES_LOCAL_PORT=1234
+IMPORT_DATA_DIR=actual/data/dir/here
