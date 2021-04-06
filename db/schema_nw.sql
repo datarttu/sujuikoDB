@@ -89,6 +89,7 @@ CREATE TABLE nw.analysis_segment (
   analysis_seg_id   text PRIMARY KEY,
   description       text,
   report            boolean DEFAULT true,
+  rotation          numeric DEFAULT 0.0,
   errors            text[]
   );
 
