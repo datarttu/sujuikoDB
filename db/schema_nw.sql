@@ -5,7 +5,6 @@ CREATE TYPE nw.vehicle_mode AS enum('bus', 'tram');
 -- NODES
 CREATE TABLE nw.node (
   node_id       integer PRIMARY KEY,
-  attributes    jsonb,
   errors        text[],
   geom          geometry(POINT, 3067) NOT NULL
   );
@@ -23,7 +22,6 @@ CREATE TABLE nw.link (
   link_label    text,
   data_source   text,
   source_date   date,
-  attributes    jsonb,
   errors        text[],
   geom          geometry(LINESTRING, 3067)
   );
