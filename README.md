@@ -63,6 +63,8 @@ Now configure the values in .env according to your environment.
 [`example_data`](./example_data/) is mapped as import data directory by default.
 If you are not just testing with the example data, set `IMPORT_DATA_DIR` in the `.env` file to a directory that contains the data you want to import when starting the db instance.
 
+[`db`](./db/) is mapped to the container as well, as `/db` directory, so any SQL scripts in it can be run inside the container as server-side processes.
+
 At this point, you may want to check that the `docker-compose.yml` file suits your needs.
 Then you should able to start the database instance:
 
@@ -77,6 +79,24 @@ You should now be able to connect to the database e.g. using `psql` if it is ins
 ```
 psql -d sujuiko -h localhost -p 1234 -U postgres
 ```
+
+## Testing with example data
+
+*NOTE: Automated testing solution(s) are in development.
+This is a temporary solution.*
+
+Once you have the database container up and running, go inside the container, start `psql` and run an SQL script that spins up a database `test_sujuiko`, runs DDL scripts in it and ingests `example_data` files to the tables:
+
+```
+docker exec -it sujuikodb_db_1 /bin/bash
+# Now inside the container:
+su postgres
+psql -d postgres
+# Now inside psql:
+> \i /db/test_hydrate.sql
+```
+
+You should see the DDL and `COPY` commands run successfully without error messages.
 
 # Data model & data import and transformation
 
