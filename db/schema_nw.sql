@@ -11,6 +11,30 @@ CREATE TABLE nw.node (
 
 CREATE INDEX ON nw.node USING GIST(geom);
 
+CREATE VIEW nw.view_node_wkt AS (
+  SELECT
+    node_id,
+    ST_AsText(geom) AS geom_text
+  FROM nw.node
+  );
+
+CREATE FUNCTION nw.tg_insert_wkt_node()
+RETURNS trigger
+AS $$
+BEGIN
+  INSERT INTO nw.node (node_id, geom)
+  VALUES (
+    NEW.node_id,
+    ST_GeomFromText(NEW.geom_text, 3067)
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE PLPGSQL;
+
+CREATE TRIGGER tg_insert_wkt_node
+INSTEAD OF INSERT ON nw.view_node_wkt
+FOR EACH ROW EXECUTE PROCEDURE nw.tg_insert_wkt_node();
+
 -- LINKS
 CREATE TABLE nw.link (
   link_id       integer PRIMARY KEY CHECK (link_id > 0),
@@ -29,6 +53,42 @@ CREATE TABLE nw.link (
 CREATE INDEX ON nw.link USING BTREE(i_node);
 CREATE INDEX ON nw.link USING BTREE(j_node);
 CREATE INDEX ON nw.link USING GIST(geom);
+
+CREATE VIEW nw.view_link_wkt AS (
+  SELECT
+    link_id,
+    i_node,
+    j_node,
+    oneway,
+    link_modes,
+    link_label,
+    data_source,
+    source_date,
+    ST_AsText(geom) AS geom_text
+  FROM nw.link
+  );
+
+CREATE FUNCTION nw.tg_insert_wkt_link()
+RETURNS trigger
+AS $$
+BEGIN
+  INSERT INTO nw.link (
+    link_id, i_node, j_node, oneway, link_modes,
+    link_label, data_source, source_date,
+    geom
+    )
+    VALUES (
+      NEW.link_id, NEW.i_node, NEW.j_node, NEW.oneway, NEW.link_modes,
+      NEW.link_label, NEW.data_source, NEW.source_date,
+      ST_GeomFromText(NEW.geom_text, 3067)
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE PLPGSQL;
+
+CREATE TRIGGER tg_insert_wkt_link
+INSTEAD OF INSERT ON nw.view_link_wkt
+FOR EACH ROW EXECUTE PROCEDURE nw.tg_insert_wkt_link();
 
 -- STOP VERSIONS
 CREATE TABLE nw.stop_version (
