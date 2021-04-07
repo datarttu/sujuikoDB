@@ -13,5 +13,9 @@ services:
         source: ${IMPORT_DATA_DIR:-./example_data}
         target: /data
         read_only: true
+      - type: bind
+        source: ./db
+        target: /db
+        read_only: true
 volumes:
   db_volume:
