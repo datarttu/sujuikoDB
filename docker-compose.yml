@@ -1,21 +1,56 @@
+---
+# Compose file for test runs
 version: "3.7"
 services:
   db:
+    image: datarttu/sujuikodb:latest
     build: .
-    restart: always
-    ports:
-      - "127.0.0.1:${POSTGRES_LOCAL_PORT}:5432"
+    restart: unless-stopped
+    # ports:
+    #   - "127.0.0.1:${POSTGRES_LOCAL_PORT}:5432"
     # See .example_env for required environment variables.
     env_file: .env
     volumes:
-      - db_volume:/var/lib/postgresql/data
+      - type: bind
+        source: ./db_test
+        # TODO: Create ordered .sql files!
+        target: /docker-entrypoint-initdb.d/
+        read_only: true
+      - type: tmpfs
+        target: /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-U", "${POSTGRES_USER:-postgres}"]
+      interval: 30s
+      start_period: 5s
+      timeout: 20s
+      retries: 3
+
+  # migrator:
+    # condition: service_completed_successfully
+
+  dataimporter:
+    image: datarttu/sujuikodb:latest
+    depends_on:
+      - db
+    #   db:
+    # TODO: Use this
+    #     condition: service_healthy
+    restart: on-failure
+    volumes:
       - type: bind
         source: ${IMPORT_DATA_DIR:-./example_data}
         target: /data
         read_only: true
-      - type: bind
-        source: ./db
-        target: /db
-        read_only: true
-volumes:
-  db_volume:
+    # TODO: add enough env vars for psql to get into host "db"
+    # env_file: .env
+    # TODO: Create import.sql master script!
+    command: ["psql", "-f", "/data/import.sql"]
+    environment:
+      PGHOST: db
+      PGPORT: 5432
+      PGUSER: postgres
+      PGDATABASE: sujuiko
+      PGPASSWORD: postgres
+# volumes:
+#   db_volume:
+#     type: tmpfs
