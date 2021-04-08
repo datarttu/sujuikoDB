@@ -6,7 +6,7 @@ services:
     image: datarttu/sujuikodb:latest
     build: .
     restart: unless-stopped
-    env_file: .env
+    env_file: .env_test
     volumes:
       - type: bind
         source: ./db/db_test
@@ -31,7 +31,7 @@ services:
         source: ${IMPORT_DATA_DIR}
         target: /data
         read_only: true
-    env_file: .env
+    env_file: .env_test
     # TODO: See if there is a better way to prevent dataimporter from
     #       trying imports before db is ready.
     #       Can we utilize healthcheck of db
