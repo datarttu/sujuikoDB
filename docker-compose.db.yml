@@ -33,10 +33,8 @@ services:
         target: /data
         read_only: true
     env_file: .env
-    # TODO: See if there is a better way to prevent dataimporter from
-    #       trying imports before db is ready.
-    #       Can we utilize healthcheck of db
-    #       like docker-compose < v3 depends_on condition can do?
+    # TODO: could we somehow ensure that the imports are run
+    #       only when starting the db for the first time, without existing db_volume?
     # command: ["psql", "-f", "/data/import.sql"]
     command: sh -c "sleep 5 && psql -f /data/import.sql"
     environment:
