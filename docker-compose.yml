@@ -9,7 +9,6 @@ services:
     env_file: .env
     volumes:
       - type: bind
-        # TODO: Change this to ./db after cleaning up old .sql files
         source: ./db/db_test
         target: /docker-entrypoint-initdb.d/
         read_only: true
@@ -25,6 +24,7 @@ services:
     image: datarttu/sujuikodb:latest
     depends_on:
       - db
+      # TODO: condition: service_healthy here if possible!
     restart: on-failure
     volumes:
       - type: bind
@@ -32,7 +32,12 @@ services:
         target: /data
         read_only: true
     env_file: .env
-    command: ["psql", "-f", "/data/import.sql"]
+    # TODO: See if there is a better way to prevent dataimporter from
+    #       trying imports before db is ready.
+    #       Can we utilize healthcheck of db
+    #       like docker-compose < v3 depends_on condition can do?
+    # command: ["psql", "-f", "/data/import.sql"]
+    command: sh -c "sleep 5 && psql -f /data/import.sql"
     environment:
       PGHOST: db
       PGPORT: 5432
