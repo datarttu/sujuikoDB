@@ -1,6 +1,6 @@
 ---
 # Compose file for a "persistent" database whose data will be kept in db_volume.
-version: "3.7"
+version: "3.8"
 services:
   db:
     image: datarttu/sujuikodb:latest
@@ -24,8 +24,8 @@ services:
   dataimporter:
     image: datarttu/sujuikodb:latest
     depends_on:
-      - db
-      # TODO: condition: service_healthy here if possible!
+      db:
+        condition: service_healthy
     restart: on-failure
     volumes:
       - type: bind
@@ -35,8 +35,7 @@ services:
     env_file: .env
     # TODO: could we somehow ensure that the imports are run
     #       only when starting the db for the first time, without existing db_volume?
-    # command: ["psql", "-f", "/data/import.sql"]
-    command: sh -c "sleep 5 && psql -f /data/import.sql"
+    command: ["psql", "-f", "/data/import.sql"]
     environment:
       PGHOST: db
       PGPORT: 5432

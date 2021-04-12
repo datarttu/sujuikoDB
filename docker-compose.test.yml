@@ -23,8 +23,8 @@ services:
   dataimporter:
     image: datarttu/sujuikodb:latest
     depends_on:
-      - db
-      # TODO: condition: service_healthy here if possible!
+      db:
+        condition: service_healthy
     restart: on-failure
     volumes:
       - type: bind
@@ -36,8 +36,7 @@ services:
     #       trying imports before db is ready.
     #       Can we utilize healthcheck of db
     #       like docker-compose < v3 depends_on condition can do?
-    # command: ["psql", "-f", "/data/import.sql"]
-    command: sh -c "sleep 5 && psql -f /data/import.sql"
+    command: ["psql", "-f", "/data/import.sql"]
     environment:
       PGHOST: db
       PGPORT: 5432
