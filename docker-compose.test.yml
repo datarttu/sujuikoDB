@@ -5,7 +5,7 @@ services:
   db:
     image: datarttu/sujuikodb:latest
     build: .
-    restart: unless-stopped
+    restart: "no"
     env_file: .env_test
     volumes:
       - type: bind
