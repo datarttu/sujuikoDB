@@ -15,7 +15,7 @@ services:
       - type: tmpfs
         target: /var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready", "-q", "-U", "${POSTGRES_USER}"]
+      test: ["CMD", "pg_isready", "-q"]
       interval: 30s
       start_period: 5s
       timeout: 20s
