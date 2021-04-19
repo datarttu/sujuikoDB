@@ -1,6 +1,6 @@
 ---
 # Compose file for test runs
-version: "3.7"
+version: "3.8"
 services:
   db:
     image: datarttu/sujuikodb:latest
