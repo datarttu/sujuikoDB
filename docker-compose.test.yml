@@ -37,9 +37,3 @@ services:
     #       Can we utilize healthcheck of db
     #       like docker-compose < v3 depends_on condition can do?
     command: ["psql", "-f", "/data/import.sql"]
-    environment:
-      PGHOST: db
-      PGPORT: 5432
-      PGUSER: ${POSTGRES_USER}
-      PGDATABASE: ${POSTGRES_DB}
-      PGPASSWORD: ${POSTGRES_PASSWORD}
