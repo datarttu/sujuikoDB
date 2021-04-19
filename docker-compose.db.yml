@@ -1,0 +1,46 @@
+---
+# Compose file for a "persistent" database whose data will be kept in db_volume.
+version: "3.8"
+services:
+  db:
+    image: datarttu/sujuikodb:latest
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - 127.0.0.1:${POSTGRES_LOCAL_PORT}:5432
+    volumes:
+      - type: bind
+        source: ./db/db_test
+        target: /docker-entrypoint-initdb.d/
+        read_only: true
+      - db_volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-U", "${POSTGRES_USER}"]
+      interval: 30s
+      start_period: 5s
+      timeout: 20s
+      retries: 3
+  dataimporter:
+    image: datarttu/sujuikodb:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
+    volumes:
+      - type: bind
+        source: ${IMPORT_DATA_DIR}
+        target: /data
+        read_only: true
+    env_file: .env
+    # TODO: could we somehow ensure that the imports are run
+    #       only when starting the db for the first time, without existing db_volume?
+    command: ["psql", "-f", "/data/import.sql"]
+    environment:
+      PGHOST: db
+      PGPORT: 5432
+      PGUSER: ${POSTGRES_USER}
+      PGDATABASE: ${POSTGRES_DB}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+volumes:
+  db_volume:

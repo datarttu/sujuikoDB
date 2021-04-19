@@ -56,47 +56,33 @@ For production, you may want to create and fill the database using a PostgreSQL 
 git clone https://github.com/datarttu/sujuikoDB
 cd sujuikoDB
 cp .example_env .env
+cp .example_env .env_test
 ```
 
-Now configure the values in .env according to your environment.
+Now configure the values in `.env` and `.env_test` according to your environment.
+Also check that the `docker-compose` files suit your needs.
 
-[`example_data`](./example_data/) is mapped as import data directory by default.
-If you are not just testing with the example data, set `IMPORT_DATA_DIR` in the `.env` file to a directory that contains the data you want to import when starting the db instance.
+## Testing the DDL and data imports with example data
 
-[`db`](./db/) is mapped to the container as well, as `/db` directory, so any SQL scripts in it can be run inside the container as server-side processes.
+1. In `.env_test`, set `IMPORT_DATA_DIR` to `./example_data`.
+1. Start the *test run* version of the database: `docker-compose -f docker-compose.test.yml up`.
+1. Check `db` and `dataimporter` log entries in your terminal. They should end successfully after the `COPY` commands (like `sujuikodb_dataimporter_1 exited with code 0`).
+1. `Ctrl-C` and `docker-compose -f docker-compose.test.yml down` to exit and remove the services.
 
-At this point, you may want to check that the `docker-compose.yml` file suits your needs.
-Then you should able to start the database instance:
+The database data is saved on a temporary volume that is removed after removing the services.
 
-```
-docker-compose up
-```
+## Testing with a persistent database
 
-This should start the database *TODO: and hydrate it with the data from `IMPORT_DATA_DIR`.*
+1. In `.env`, set `IMPORT_DATA_DIR` to a directory containing the import files you want into the database, as well as `import.sql` script, structured the same way as in [`example_data/`](./example_data/).
+1. Start the database: `docker-compose -f docker-compose.db.yml up`.
+1. Check `db` and `dataimporter` log entries in your terminal. They should end successfully after the `COPY` commands (like `sujuikodb_dataimporter_1 exited with code 0`).
+1. Now you can connect to the database e.g. with psql or QGIS, using `localhost` and the connection parameters you set in `.env`.
 
-You should now be able to connect to the database e.g. using `psql` if it is installed on your machine (assuming connection parameter values of `.example_env`):
+Here, a Docker volume `db_volume` is created and the database data is kept there between `docker-compose` runs unless you explicitly remove the volume.
 
-```
-psql -d sujuiko -h localhost -p 1234 -U postgres
-```
+Should you run any incremental / ad-hoc changes to the database, they are saved on `db_volume` and the database state will be the same if you restart the services.
 
-## Testing with example data
-
-*NOTE: Automated testing solution(s) are in development.
-This is a temporary solution.*
-
-Once you have the database container up and running, go inside the container, start `psql` and run an SQL script that spins up a database `test_sujuiko`, runs DDL scripts in it and ingests `example_data` files to the tables:
-
-```
-docker exec -it sujuikodb_db_1 /bin/bash
-# Now inside the container:
-su postgres
-psql -d postgres
-# Now inside psql:
-> \i /db/test_hydrate.sql
-```
-
-You should see the DDL and `COPY` commands run successfully without error messages.
+**NOTE:** If you restart the database with pre-existing `db_volume` and data imported to it, the `dataimporter` service will fail the imports because of primary key conflicts.
 
 # Data model & data import and transformation
 

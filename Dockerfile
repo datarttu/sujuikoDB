@@ -6,4 +6,3 @@ RUN set -ex \
   && wget --quiet -O - https://packagecloud.io/timescale/timescaledb/gpgkey | apt-key add - \
   && apt-get update \
   && apt-get -y install timescaledb-2-postgresql-13
-COPY config/001_timescaledb_tune.sh /docker-entrypoint-initdb.d/
