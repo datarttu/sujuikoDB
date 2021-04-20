@@ -21,26 +21,5 @@ services:
       start_period: 5s
       timeout: 20s
       retries: 3
-  dataimporter:
-    image: datarttu/sujuikodb:latest
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: on-failure
-    volumes:
-      - type: bind
-        source: ${IMPORT_DATA_DIR}
-        target: /data
-        read_only: true
-    env_file: .env
-    # TODO: could we somehow ensure that the imports are run
-    #       only when starting the db for the first time, without existing db_volume?
-    command: ["psql", "-f", "/data/import.sql"]
-    environment:
-      PGHOST: db
-      PGPORT: 5432
-      PGUSER: ${POSTGRES_USER}
-      PGDATABASE: ${POSTGRES_DB}
-      PGPASSWORD: ${POSTGRES_PASSWORD}
 volumes:
   db_volume:
