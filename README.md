@@ -55,16 +55,15 @@ For production, you may want to create and fill the database using a PostgreSQL 
 ```
 git clone https://github.com/datarttu/sujuikoDB
 cd sujuikoDB
-cp .example_env .env
-cp .example_env .env_test
+cp .env_test .env
 ```
 
-Now configure the values in `.env` and `.env_test` according to your environment.
+Now configure the values in `.env` according to your local environment.
+For instance, you may want to use a custom Postgres port instead of `5432` if a Postgres cluster is already running on your system.
 Also check that the `docker-compose` files suit your needs.
 
 ## Testing the DDL and data imports with example data
 
-1. In `.env_test`, set `IMPORT_DATA_DIR` to `./example_data`.
 1. Start the *test run* version of the database: `docker-compose -f docker-compose.test.yml up`.
 1. Check `db` and `dataimporter` log entries in your terminal. They should end successfully after the `COPY` commands (like `sujuikodb_dataimporter_1 exited with code 0`).
 1. `Ctrl-C` and `docker-compose -f docker-compose.test.yml down` to exit and remove the services.

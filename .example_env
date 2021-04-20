@@ -1,6 +1,0 @@
-# Example of vars that should be in the .env file.
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=mysecretpassword
-POSTGRES_DB=sujuiko
-POSTGRES_LOCAL_PORT=1234
-IMPORT_DATA_DIR=actual/data/dir/here
