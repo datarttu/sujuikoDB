@@ -61,6 +61,11 @@ cp .env_test .env
 Now configure the values in `.env` according to your local environment.
 For instance, you may want to use a custom Postgres port instead of `5432` if a Postgres cluster is already running on your system.
 Also check that the `docker-compose` files suit your needs.
+Then build the Docker image:
+
+```
+docker build -t datarttu/sujuikodb:latest .
+```
 
 ## Testing the DDL and data imports with example data
 
