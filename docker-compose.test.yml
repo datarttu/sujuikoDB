@@ -34,7 +34,7 @@ services:
     env_file: .env_test
     command: |
       sh -c "
-        psql -v ON_ERROR_STOP=on -f /data/import.sql
+        psql -1 -v ON_ERROR_STOP=on -f /data/import.sql
         status=\"$$?\"
         psql -c \"COPY (SELECT 1) TO PROGRAM 'pg_ctl stop --mode=smart --no-wait';\"
         exit \"$${status}\"
