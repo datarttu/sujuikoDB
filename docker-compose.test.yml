@@ -9,7 +9,7 @@ services:
     env_file: .env_test
     volumes:
       - type: bind
-        source: ./db/db_test
+        source: ./db
         target: /docker-entrypoint-initdb.d/
         read_only: true
       - type: tmpfs

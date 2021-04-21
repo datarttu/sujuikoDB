@@ -11,7 +11,7 @@ services:
       - 127.0.0.1:${POSTGRES_LOCAL_PORT}:5432
     volumes:
       - type: bind
-        source: ./db/db_test
+        source: ./db
         target: /docker-entrypoint-initdb.d/
         read_only: true
       - db_volume:/var/lib/postgresql/data
