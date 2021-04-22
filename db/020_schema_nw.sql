@@ -90,24 +90,25 @@ CREATE TRIGGER tg_insert_wkt_link
 INSTEAD OF INSERT ON nw.view_link_wkt
 FOR EACH ROW EXECUTE PROCEDURE nw.tg_insert_wkt_link();
 
--- STOP VERSIONS
-CREATE TABLE nw.stop_version (
-  stop_id           integer NOT NULL,
-  version_id        integer NOT NULL CHECK (version_id > 0),
-  valid_range       daterange NOT NULL,
-  link_id           integer NOT NULL REFERENCES nw.link(link_id),
-  link_rel_covered  numrange,
-  radius_m          numeric,
-  stop_mode         nw.vehicle_mode,
-  stop_code         text,
-  stop_name         text,
-  stop_place        text,
-  parent_stop_id    integer,
-  errors            text[],
-
-  PRIMARY KEY (stop_id, version_id),
-  EXCLUDE USING GIST (valid_range WITH &&)
+-- STOPS
+CREATE TABLE nw.stop (
+  stop_id             integer PRIMARY KEY,
+  link_id             integer REFERENCES nw.link(link_id),
+  location_on_link    float8,
+  distance_from_link  float8,
+  link_ref_manual     boolean DEFAULT false,
+  stop_radius_m       float8,
+  stop_mode           nw.vehicle_mode,
+  stop_code           text,
+  stop_name           text,
+  stop_place          text,
+  parent_stop_id      integer,
+  valid_date          date,
+  errors              text[],
+  geom                geometry(POINT, 3067)
   );
+
+CREATE INDEX ON nw.stop USING GIST(geom);
 
 -- ROUTE VERSIONS
 CREATE TABLE nw.route_version (
