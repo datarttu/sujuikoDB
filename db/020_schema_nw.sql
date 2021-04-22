@@ -154,7 +154,7 @@ CREATE TABLE nw.route_version (
   route_mode    nw.vehicle_mode NOT NULL,
   errors        text[],
 
-  EXCLUDE USING GIST (valid_during WITH &&)
+  EXCLUDE USING GIST (route_ver_id WITH =, valid_during WITH &&)
   );
 
 CREATE TABLE nw.stop_on_route (
