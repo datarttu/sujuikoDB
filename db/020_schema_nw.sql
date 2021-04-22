@@ -103,16 +103,47 @@ CREATE TABLE nw.stop (
   stop_name           text,
   stop_place          text,
   parent_stop_id      integer,
-  valid_date          date,
+  source_date         date,
   errors              text[],
   geom                geometry(POINT, 3067)
   );
 
-<<<<<<< HEAD
 CREATE INDEX ON nw.stop USING GIST(geom);
-=======
-CREATE INDEX ON nw.link USING GIST(geom);
->>>>>>> 4cd7ffce2cb71f1900b7ad08eb6b152b4b9a5e6f
+
+CREATE VIEW nw.view_stop_wkt AS (
+  SELECT
+    stop_id,
+    stop_radius_m,
+    stop_mode,
+    stop_code,
+    stop_name,
+    stop_place,
+    parent_stop_id,
+    source_date,
+    ST_AsText(geom) AS geom_text
+  FROM nw.stop
+  );
+
+CREATE FUNCTION nw.tg_insert_wkt_stop()
+RETURNS trigger
+AS $$
+BEGIN
+  INSERT INTO nw.stop (
+    stop_id, stop_radius_m, stop_mode, stop_code, stop_name, stop_place,
+    parent_stop_id, source_date, geom
+    )
+    VALUES (
+      NEW.stop_id, NEW.stop_radius_m, NEW.stop_mode, NEW.stop_code,
+      NEW.stop_name, NEW.stop_place, NEW.parent_stop_id, NEW.source_date,
+      ST_GeomFromText(NEW.geom_text, 3067)
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE PLPGSQL;
+
+CREATE TRIGGER tg_insert_wkt_stop
+INSTEAD OF INSERT ON nw.view_stop_wkt
+FOR EACH ROW EXECUTE PROCEDURE nw.tg_insert_wkt_stop();
 
 -- ROUTE VERSIONS
 CREATE TABLE nw.route_version (
