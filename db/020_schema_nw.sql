@@ -108,7 +108,11 @@ CREATE TABLE nw.stop (
   geom                geometry(POINT, 3067)
   );
 
+<<<<<<< HEAD
 CREATE INDEX ON nw.stop USING GIST(geom);
+=======
+CREATE INDEX ON nw.link USING GIST(geom);
+>>>>>>> 4cd7ffce2cb71f1900b7ad08eb6b152b4b9a5e6f
 
 -- ROUTE VERSIONS
 CREATE TABLE nw.route_version (
