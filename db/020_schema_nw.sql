@@ -41,7 +41,7 @@ CREATE TABLE nw.link (
   i_node        integer,
   j_node        integer,
   oneway        boolean,
-  length_m      numeric GENERATED ALWAYS AS (ST_Length(geom)) STORED,
+  length_m      float8 GENERATED ALWAYS AS (ST_Length(geom)) STORED,
   link_modes    nw.vehicle_mode[],
   link_label    text,
   data_source   text,
@@ -180,7 +180,7 @@ CREATE TABLE nw.section (
   section_id        text PRIMARY KEY,
   description       text,
   report            boolean DEFAULT true,
-  rotation          numeric DEFAULT 0.0,
+  rotation          float8 DEFAULT 0.0,
   errors            text[]
   );
 
