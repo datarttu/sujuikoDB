@@ -7,7 +7,7 @@ CREATE TABLE nw.node (
   node_id       integer PRIMARY KEY,
   errors        text[],
   geom          geometry(POINT, 3067) NOT NULL
-  );
+);
 
 CREATE INDEX ON nw.node USING GIST(geom);
 
@@ -16,7 +16,7 @@ CREATE VIEW nw.view_node_wkt AS (
     node_id,
     ST_AsText(geom) AS geom_text
   FROM nw.node
-  );
+);
 
 CREATE FUNCTION nw.tg_insert_wkt_node()
 RETURNS trigger
@@ -48,7 +48,7 @@ CREATE TABLE nw.link (
   source_date   date,
   errors        text[],
   geom          geometry(LINESTRING, 3067)
-  );
+);
 
 CREATE INDEX ON nw.link USING BTREE(i_node);
 CREATE INDEX ON nw.link USING BTREE(j_node);
@@ -66,7 +66,7 @@ CREATE VIEW nw.view_link_wkt AS (
     source_date,
     ST_AsText(geom) AS geom_text
   FROM nw.link
-  );
+);
 
 CREATE FUNCTION nw.tg_insert_wkt_link()
 RETURNS trigger
@@ -106,7 +106,7 @@ CREATE TABLE nw.stop (
   source_date         date,
   errors              text[],
   geom                geometry(POINT, 3067)
-  );
+);
 
 CREATE INDEX ON nw.stop USING GIST(geom);
 
@@ -122,7 +122,7 @@ CREATE VIEW nw.view_stop_wkt AS (
     source_date,
     ST_AsText(geom) AS geom_text
   FROM nw.stop
-  );
+);
 
 CREATE FUNCTION nw.tg_insert_wkt_stop()
 RETURNS trigger
@@ -155,7 +155,7 @@ CREATE TABLE nw.route_version (
   errors        text[],
 
   EXCLUDE USING GIST (route_ver_id WITH =, valid_during WITH &&)
-  );
+);
 
 CREATE TABLE nw.stop_on_route (
   route_ver_id    text NOT NULL REFERENCES nw.route_version(route_ver_id),
@@ -164,7 +164,7 @@ CREATE TABLE nw.stop_on_route (
   active_place    text,
 
   PRIMARY KEY (route_ver_id, stop_seq)
-  );
+);
 
 CREATE TABLE nw.link_on_route (
   route_ver_id  text NOT NULL REFERENCES nw.route_version(route_ver_id),
@@ -173,7 +173,7 @@ CREATE TABLE nw.link_on_route (
   link_dir      smallint NOT NULL CHECK (link_dir IN (-1, 1)),
 
   PRIMARY KEY (route_ver_id, link_seq)
-  );
+);
 
 -- ANALYSIS SEGMENTS
 CREATE TABLE nw.section (
@@ -182,7 +182,7 @@ CREATE TABLE nw.section (
   report            boolean DEFAULT true,
   rotation          float8 DEFAULT 0.0,
   errors            text[]
-  );
+);
 
 CREATE TABLE nw.link_on_section (
   section_id        text NOT NULL REFERENCES nw.section(section_id),
@@ -191,4 +191,4 @@ CREATE TABLE nw.link_on_section (
   link_dir          smallint NOT NULL CHECK (link_dir IN (-1, 1)),
 
   PRIMARY KEY (section_id, link_seq)
-  );
+);
