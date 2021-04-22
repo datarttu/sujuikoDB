@@ -150,12 +150,11 @@ CREATE TABLE nw.route_version (
   route_ver_id  text PRIMARY KEY,
   route         text NOT NULL,
   dir           smallint NOT NULL CHECK (dir IN (1, 2)),
-  version_id    integer NOT NULL,
-  valid_range   daterange NOT NULL,
+  valid_during  daterange NOT NULL,
   route_mode    nw.vehicle_mode NOT NULL,
   errors        text[],
 
-  EXCLUDE USING GIST (valid_range WITH &&)
+  EXCLUDE USING GIST (valid_during WITH &&)
   );
 
 CREATE TABLE nw.stop_on_route (
