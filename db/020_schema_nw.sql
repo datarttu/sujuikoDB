@@ -158,18 +158,16 @@ CREATE TABLE nw.route_version (
   EXCLUDE USING GIST (valid_range WITH &&)
   );
 
-CREATE TABLE nw.route_stop (
+CREATE TABLE nw.stop_on_route (
   route_ver_id    text NOT NULL REFERENCES nw.route_version(route_ver_id),
   stop_seq        integer NOT NULL CHECK (stop_seq > 0),
-  stop_id         integer NOT NULL,
-  stop_version_id integer NOT NULL,
+  stop_id         integer NOT NULL REFERENCES nw.stop(stop_id),
   active_place    text,
 
-  PRIMARY KEY (route_ver_id, stop_seq),
-  FOREIGN KEY (stop_id, stop_version_id) REFERENCES nw.stop_version (stop_id, version_id)
+  PRIMARY KEY (route_ver_id, stop_seq)
   );
 
-CREATE TABLE nw.route_link (
+CREATE TABLE nw.link_on_route (
   route_ver_id  text NOT NULL REFERENCES nw.route_version(route_ver_id),
   link_seq      integer NOT NULL CHECK (link_seq > 0),
   link_id       integer NOT NULL REFERENCES nw.link(link_id),
@@ -179,19 +177,19 @@ CREATE TABLE nw.route_link (
   );
 
 -- ANALYSIS SEGMENTS
-CREATE TABLE nw.analysis_segment (
-  analysis_seg_id   text PRIMARY KEY,
+CREATE TABLE nw.section (
+  section_id        text PRIMARY KEY,
   description       text,
   report            boolean DEFAULT true,
   rotation          numeric DEFAULT 0.0,
   errors            text[]
   );
 
-CREATE TABLE nw.analysis_seg_link (
-  analysis_seg_id   text NOT NULL REFERENCES nw.analysis_segment(analysis_seg_id),
+CREATE TABLE nw.link_on_section (
+  section_id        text NOT NULL REFERENCES nw.section(section_id),
   link_seq          integer NOT NULL CHECK (link_seq > 0),
   link_id           integer NOT NULL REFERENCES nw.link(link_id),
   link_dir          smallint NOT NULL CHECK (link_dir IN (-1, 1)),
 
-  PRIMARY KEY (analysis_seg_id, link_seq)
+  PRIMARY KEY (section_id, link_seq)
   );
