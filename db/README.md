@@ -95,11 +95,24 @@ If `link_dir = -1`, the link is traversed to the reverse direction (i.e., the `i
 
 #### `nw.section`
 
-_TODO_
+Continuous part of the network selected for aggregations and analyses from `obs` data, and finally for reporting.
+
+`section_id` can be any (preferably descriptive) string as long as it is unique.
+`description` can be populated with a longer description text.
+
+Only sections where `report IS true` are to be included in visualizations and reports; this attribute allows saving "draft" sections aside, for example, or making a larger batch of sections and then choosing which ones should be reported in the end.
+
+`rotation` can be used to control the map view rotation angle of the section line geometry, to align it nicely with a landscape viewport, for example.
+
+_TODO: Add an array for start-via-end nodes to control link_on_section creation process._
+
+Note that section paths must not have branches or gaps: they work as `2D -> 1D` projections from the network geometries, allowing for space-time plotting, for example.
+Also note that opposite versions of the same street section must be defined as separate analysis sections.
 
 #### `nw.link_on_section`
 
-_TODO_
+Links that form a continuous path of an analysis section along the network, ordered by `link_seq`.
+Technically, this works exactly the same way as `nw.link_on_route`.
 
 ### Data processing in the network model
 
