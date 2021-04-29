@@ -2,7 +2,7 @@
 # Compose file for test runs
 version: "3.8"
 services:
-  db:
+  db_test:
     image: datarttu/sujuikodb:latest
     build: .
     restart: "no"
@@ -20,10 +20,12 @@ services:
       start_period: 5s
       timeout: 20s
       retries: 3
-  dataimporter:
+    networks:
+      - sujuikodb_test
+  dataimporter_test:
     image: datarttu/sujuikodb:latest
     depends_on:
-      db:
+      db_test:
         condition: service_healthy
     restart: "no"
     volumes:
@@ -39,3 +41,7 @@ services:
         psql -c \"COPY (SELECT 1) TO PROGRAM 'pg_ctl stop --mode=smart --no-wait';\"
         exit \"$${status}\"
       "
+    networks:
+      - sujuikodb_test
+networks:
+  sujuikodb_test: {}

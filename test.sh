@@ -2,10 +2,12 @@
 
 set -u
 
-docker build -t datarttu/sujuikodb:latest .
-docker-compose -f ./docker-compose.test.yml up
-status="$?"
-[ "${status}" -ne 0 ] && {
-  docker-compose -f ./docker-compose.test.yml logs
+docker build -t datarttu/sujuikodb:latest . && {
+  docker-compose -f ./docker-compose.test.yml up
+  status="$?"
+  [ "${status}" -ne 0 ] && {
+    docker-compose -f ./docker-compose.test.yml logs
+  }
+  docker-compose -f ./docker-compose.test.yml down
+  exit "${status}"
 }
-exit "${status}"
