@@ -76,16 +76,15 @@ The database data is saved on a temporary volume that is removed after removing 
 
 ## Testing with a persistent database
 
-1. In `.env`, set `IMPORT_DATA_DIR` to a directory containing the import files you want into the database, as well as `import.sql` script, structured the same way as in [`example_data/`](./example_data/).
-1. Start the database: `docker-compose -f docker-compose.db.yml up`.
+1. In `.env`, set `IMPORT_DATA_DIR` to a directory containing the import files you want into the database, as well as the `import.sql` script, structured the same way as in [`example_data/`](./example_data/).
+Or just use the example data directory.
+1. Start the database: `docker-compose -f docker-compose.db.yml up -d`.
 1. Now you can connect to the database e.g. with psql or QGIS, using `localhost` and the connection parameters you set in `.env`.
+1. If you started the database from scratch, run the data importer: `./db_importer.sh`.
+(If the data has already been imported, the importer will crash to the first primary key conflict.)
 
 A Docker volume `db_volume` is created and the database data is kept there between `docker-compose` runs unless you explicitly remove the volume.
-
 Should you run any incremental / ad-hoc changes to the database, they are saved on `db_volume` and the database state will be the same if you restart the services.
-
-**NOTE:** For now, you have to run the data imports manually, e.g. with `psql` from within your local environment.
-See the [example import script](./example_data/import.sql) for correct import order.
 
 # Data model & data import and transformation
 
