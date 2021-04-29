@@ -131,6 +131,7 @@ FOR EACH ROW EXECUTE PROCEDURE nw.tg_insert_wkt_link();
 CREATE TABLE nw.stop (
   stop_id             integer PRIMARY KEY,
   link_id             integer REFERENCES nw.link(link_id),
+  link_dir            smallint CHECK (link_dir IN (1, -1)),
   location_on_link    float8,
   distance_from_link  float8,
   link_ref_manual     boolean DEFAULT false,
