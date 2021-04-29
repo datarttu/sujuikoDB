@@ -54,6 +54,43 @@ CREATE INDEX ON nw.link USING BTREE(i_node);
 CREATE INDEX ON nw.link USING BTREE(j_node);
 CREATE INDEX ON nw.link USING GIST(geom);
 
+CREATE VIEW nw.view_link_directed AS (
+  WITH oneways AS (
+    SELECT
+      link_id,
+      1::smallint AS link_dir,
+      i_node,
+      j_node,
+      oneway,
+      length_m,
+      link_modes,
+      link_label,
+      data_source,
+      source_date,
+      geom
+    FROM nw.link
+    UNION
+    SELECT
+      link_id,
+      -1::smallint AS link_dir,
+      j_node AS i_node,
+      i_node AS j_node,
+      oneway,
+      length_m,
+      link_modes,
+      link_label,
+      data_source,
+      source_date,
+      ST_Reverse(geom) AS geom
+    FROM nw.link
+    WHERE NOT oneway
+  )
+  SELECT
+    row_number() OVER (ORDER BY link_id, link_dir) AS uniq_link_id,
+    *
+  FROM oneways
+);
+
 CREATE VIEW nw.view_link_wkt AS (
   SELECT
     link_id,
