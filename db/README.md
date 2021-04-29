@@ -60,7 +60,16 @@ See [link example data](../example_data/link.csv).
 
 #### `nw.stop`
 
-_TODO_
+Points along the transit network where passengers can board and alight transit vehicles.
+More importantly than the point location, a stop must have a "projected" location along a directed link, so the stop location can be visualized together with vehicle movements on the link.
+The projected location is modeled by `link_id`, `link_dir`, and `location_on_link` (float 0 ... 1, relative to the link length).
+
+If `link_dir = 1`, `location_on_link` value shows the relative position of the stop along the original link geometry.
+If `link_dir = -1`, the relative position is calculated using the reverse geometry of the link, or from `j_node` to `i_node`.
+`link_dir` cannot be `-1` for oneway links since they cannot be traversed to the opposite direction.
+`link_dir` also determines which direction version of a two-way link will be used when creating `nw.link_on_route` sequences from `nw.stop_on_route` sequences.
+
+`link_ref_manual` can be set to `true` to omit a stop from batch modifications to the stop-link references, e.g., in case a stop has been manually connected to a link different than a link closest (default) to the stop point.
 
 #### `nw.route_version`
 
