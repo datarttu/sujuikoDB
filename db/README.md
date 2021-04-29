@@ -58,6 +58,50 @@ This view helps creating route and section paths, where the traversal direction 
 `nw.view_link_wkt` works as a data insert API that allows copying CSV files with WKT geometries (through the `INSTEAD OF INSERT` trigger).
 See [link example data](../example_data/link.csv).
 
+#### `nw.stop`
+
+_TODO_
+
+#### `nw.route_version`
+
+_TODO_
+
+#### `nw.stop_on_route`
+
+_TODO_
+
+#### `nw.link_on_route`
+
+_TODO_
+
+#### `nw.section`
+
+_TODO_
+
+#### `nw.link_on_section`
+
+_TODO_
+
+### Data processing in the network model
+
+Data for the `nw` tables is prepared outside the database and copied to the tables.
+Some modifications and fixes may be needed, and they can be done to the import data or once the data is already in the database.
+Below, further data processing inside the database is described in the correct order.
+
+#### Connect stops to links
+
+_TODO: Populate / update stop link reference fields, consider closest links and right hand side version of two-way links; do not touch `link_ref_manual IS true` stops; manual check on map afterwards; return to this step if incorrect route paths found_
+
+#### Create route link paths
+
+_TODO: Populate / update route link paths (`nw.link_on_route`) with `pgr_dijkstra`, `nw.stop_on_route` and `nw.view_link_directed`; check results; re-run for particular route versions with via nodes, or fix stop-link refs and/or network links and nodes if errors found_
+
+_After this step, the modelled routes should correspond to the real ones in the past, and the database should be ready to receive and process HFP observation data._
+
+#### Create analysis sections
+
+_TODO: Add sections of network to use in analyses; define ids, descriptions and other attrs & start, via and end nodes; get shortest paths for sections and save to `nw.link_on_section`_
+
 ## `obs` observations model
 
 _TODO_
