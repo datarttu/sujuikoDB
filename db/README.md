@@ -73,15 +73,25 @@ If `link_dir = -1`, the relative position is calculated using the reverse geomet
 
 #### `nw.route_version`
 
-_TODO_
+Passenger service of a transit `route` and direction `dir` that has been valid during a date range `valid_during`.
+The ordered stops server by the route its direction may have changed (either permanently, or temporarily due to a construction site, for instance), and any such change should cause a new route version with new `valid_during` validity time to be issued.
+
+`route_ver_id` is a surrogate primary key and should be created as `<route>_<dir>_<valid_during_start_date>_<valid_during_end_date>` for readibility.
+
+`route_mode` is used to select the allowed subset of network links for routing when the ordered set of `nw.link_on_route` is created with `pgr_dijkstra`.
 
 #### `nw.stop_on_route`
 
-_TODO_
+Stops served by route versions, ordered by `stop_seq`.
+
+`active_place` indicates that the stop is an "active [Hastus](https://www.giro.ca/en-ca/our-solutions/hastus-software/) place", meaning it is used as definitive point in the stop list for transit planning and measurements.
 
 #### `nw.link_on_route`
 
-_TODO_
+Links that form a continuous path of a route version along the network, ordered by `link_seq`.
+
+If `link_dir = 1`, the route version traverses through the link `link_id` to the original, digitized direction.
+If `link_dir = -1`, the link is traversed to the reverse direction (i.e., the `i_node` and `j_node` have been flipped in routing).
 
 #### `nw.section`
 
