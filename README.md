@@ -69,9 +69,8 @@ docker build -t datarttu/sujuikodb:latest .
 
 ## Testing the DDL and data imports with example data
 
-1. Start the *test run* version of the database: `docker-compose -f docker-compose.test.yml up`.
+1. Run `./test.sh`.
 1. Check `db` and `dataimporter` log entries in your terminal. They should end successfully after the `COPY` commands (like `sujuikodb_dataimporter_1 exited with code 0`).
-1. `Ctrl-C` and `docker-compose -f docker-compose.test.yml down` to exit and remove the services.
 
 The database data is saved on a temporary volume that is removed after removing the services.
 
