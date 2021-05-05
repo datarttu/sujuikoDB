@@ -16,6 +16,8 @@
  * such that the stop shall lie on the right-hand side of the link,
  * viewed from the link start to end node.
  *
+ * Why we are using sided ST_Buffer: see https://github.com/datarttu/sujuikoDB/issues/70
+ *
  * The second procedure is just for calling the first one and saving the results
  * to the actual nw.stop table by stop_id.
  * Example:
@@ -41,12 +43,24 @@ AS $$
     st.stop_id,
     li.link_id,
     li.link_dir,
-    ST_LineLocatePoint(li.geom, st.geom)  AS location_on_link,
-    ST_Distance(li.geom, st.geom)         AS distance_from_link
+    li.location_on_link,
+    li.distance_from_link
   FROM nw.stop AS st
-  INNER JOIN nw.view_link_directed AS li
-    ON ST_DWithin(st.geom, li.geom, max_distance_m)
-  ORDER BY st.stop_id, ST_Distance(st.geom, li.geom);
+  INNER JOIN LATERAL (
+    SELECT
+      vld.link_id,
+      vld.link_dir,
+      ST_LineLocatePoint(vld.geom, st.geom) AS location_on_link,
+      ST_Distance(vld.geom, st.geom)        AS distance_from_link
+    FROM nw.view_link_directed AS vld
+    WHERE ARRAY[st.stop_mode] <@ vld.link_modes
+      AND ST_Contains(
+        ST_Buffer(vld.geom, max_distance_m, 'side=right'),
+        st.geom)
+    ORDER BY ST_Distance(vld.geom, st.geom)
+    LIMIT 1
+  ) AS li
+  ON true;
 $$;
 
 CREATE PROCEDURE nw.update_stop_link_refs(
@@ -64,7 +78,7 @@ BEGIN
 
   -- TODO: Invoke the above function inside an UPDATE statement
   n_updated := 0;
-  
+
   RAISE INFO '% nw.stop records updated (total % stops, % protected from updates)',
     n_updated, n_total, n_updated;
 END;
