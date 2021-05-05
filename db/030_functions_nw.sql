@@ -53,7 +53,8 @@ AS $$
       ST_LineLocatePoint(vld.geom, st.geom) AS location_on_link,
       ST_Distance(vld.geom, st.geom)        AS distance_from_link
     FROM nw.view_link_directed AS vld
-    WHERE ARRAY[st.stop_mode] <@ vld.link_modes
+    WHERE ST_DWithin(vld.geom, st.geom, max_distance_m)
+      AND ARRAY[st.stop_mode] <@ vld.link_modes
       AND ST_Contains(
         ST_Buffer(vld.geom, max_distance_m, 'side=right'),
         st.geom)
