@@ -98,3 +98,102 @@ BEGIN
     n_updated, n_total, n_manual;
 END;
 $$;
+
+/*
+ * # Routing (generating link_on_route and link_on_section results)
+ *
+ * We have separate nw.parts_dijkstra_via_nodes and a parent function
+ * nw.dijkstra_via_nodes, because we do not have a handy way to add
+ * a "global" link_seq running number right away when loop-returning
+ * the pgr_dijkstra result sets along via_nodes 1-2, 2-3, etc.
+ * Also we cannot return a completely empty set from the loop if there is even
+ * one node pair without a path found (pgr_dijkstra returns an empty set
+ * in such cases): instead, we can raise an exception, catch it in the parent
+ * function and in that case return an empty set from the parent.
+ *
+ * Example:
+ * > SELECT * FROM nw.dijkstra_via_nodes(ARRAY[233, 176, 197]);
+ */
+
+CREATE FUNCTION nw.parts_dijkstra_via_nodes(via_nodes integer[])
+RETURNS TABLE (
+  part_seq      integer,
+  link_sub_seq  integer,
+  link_id       integer,
+  link_dir      smallint
+)
+STABLE
+PARALLEL SAFE
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  i integer;
+BEGIN
+  IF cardinality(via_nodes) < 2 THEN
+    RAISE EXCEPTION 'via_nodes must contain at least 2 nodes';
+  END IF;
+
+  i := 1;
+
+  WHILE i < cardinality(via_nodes)
+  LOOP
+    RETURN QUERY
+      SELECT
+        i           AS part_seq,
+        pd.seq      AS link_sub_seq,
+        li.link_id  AS link_id,
+        li.link_dir AS link_dir
+      FROM pgr_dijkstra(
+        'SELECT uniq_link_id AS id, i_node AS source, j_node AS target, length_m AS cost FROM nw.view_link_directed',
+        via_nodes[i],
+        via_nodes[i+1]
+        ) AS pd
+      INNER JOIN nw.view_link_directed AS li
+        ON pd.edge = li.uniq_link_id
+      WHERE pd.edge <> -1;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'No path between nodes % and %',
+        via_nodes[i], via_nodes[i+1]
+        USING ERRCODE = 'no_data_found';
+      EXIT;
+    END IF;
+
+    i := i + 1;
+  END LOOP;
+END;
+$$;
+
+CREATE FUNCTION nw.dijkstra_via_nodes(via_nodes integer[])
+RETURNS TABLE (
+  link_seq  integer,
+  link_id   integer,
+  link_dir  smallint
+)
+STABLE
+PARALLEL SAFE
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  msg text;
+BEGIN
+  RETURN QUERY
+    WITH part_paths AS (
+      SELECT
+        row_number() OVER () AS link_seq,
+        pd.part_seq,
+        pd.link_sub_seq,
+        pd.link_id,
+        pd.link_dir
+      FROM nw.parts_dijkstra_via_nodes(via_nodes := via_nodes) AS pd
+      ORDER BY part_seq, link_sub_seq
+    )
+    SELECT pp.link_seq::integer, pp.link_id, pp.link_dir
+    FROM part_paths AS pp;
+
+EXCEPTION WHEN no_data_found THEN
+  GET STACKED DIAGNOSTICS msg := MESSAGE_TEXT;
+  RAISE NOTICE '%', msg;
+  RETURN;
+END;
+$$;
