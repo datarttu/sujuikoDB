@@ -4,3 +4,8 @@
 \copy nw.route_version (route_ver_id, route, dir, valid_during, route_mode) FROM '/data/route_version.csv' CSV HEADER;
 \copy nw.stop_on_route FROM '/data/stop_on_route.csv' CSV HEADER;
 CALL nw.update_stop_link_refs(20.0);
+
+\copy nw.section (section_id, description, via_nodes) FROM '/data/section.csv' CSV HEADER;
+CALL nw.batch_upsert_links_on_section();
+CALL nw.upsert_links_on_section('akk_sture_teoll_2', ARRAY[240, 214]);
+CALL nw.upsert_links_on_section('non_existing_section', ARRAY[240, 214]);

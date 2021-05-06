@@ -1,0 +1,7 @@
+section_id,description,via_nodes
+akk_sture_teoll_1,Sturenkatu – Aleksis Kiven katu – Teollisuuskatu,"{214,256}"
+akk_sture_teoll_2,Teollisuuskatu – Aleksis Kiven katu – Sturenkatu,"{257,214}"
+akk_rata_sture_1,Ratapihantie – Aleksis Kiven katu – Sturenkatu,"{150,214}"
+akk_rata_sture_2,Sturenkatu – Aleksis Kiven katu – Ratapihantie,"{214,160}"
+rata_akk_pasi_1,Aleksis Kiven katu – Ratapihantie – Pasilansilta,"{162,137}"
+rata_akk_pasi_2,Pasilansilta – Ratapihantie – Aleksis Kiven katu,"{138,161}"
