@@ -213,7 +213,7 @@ CREATE TABLE nw.link_on_route (
   PRIMARY KEY (route_ver_id, link_seq)
 );
 
--- ANALYSIS SEGMENTS
+-- SECTIONS FOR ANALYSIS
 CREATE TABLE nw.section (
   section_id        text PRIMARY KEY,
   description       text,
