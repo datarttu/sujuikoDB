@@ -219,6 +219,7 @@ CREATE TABLE nw.section (
   description       text,
   report            boolean DEFAULT true,
   rotation          float8 DEFAULT 0.0,
+  via_nodes         integer[],
   errors            text[]
 );
 
