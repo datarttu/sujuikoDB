@@ -231,3 +231,24 @@ CREATE TABLE nw.link_on_section (
 
   PRIMARY KEY (section_id, link_seq)
 );
+
+CREATE VIEW nw.view_link_on_section_geom AS (
+  SELECT
+    sec.section_id,
+    sec.description,
+    sec.report,
+    sec.rotation,
+    sec.via_nodes,
+    los.link_seq,
+    ld.link_id,
+    ld.length_m AS link_length_m,
+    sum(ld.length_m) OVER (PARTITION BY sec.section_id ORDER BY los.link_seq) AS cumul_length_m,
+    ld.i_node,
+    ld.j_node,
+    ld.geom
+  FROM nw.section                   AS sec
+  INNER JOIN nw.link_on_section     AS los
+    ON sec.section_id = los.section_id
+  INNER JOIN nw.view_link_directed  AS ld
+    ON (los.link_id = ld.link_id AND los.link_dir = ld.link_dir)
+);
