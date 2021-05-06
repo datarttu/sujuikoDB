@@ -265,3 +265,32 @@ BEGIN
 
 END;
 $$;
+
+/*
+ * The following procedure will mostly be run right after data imports:
+ * after that, the user should check through the sections
+ * and re-run nw.upsert_links_on_section() for the ones that need revisions.
+ * It is not very elegant that we loop through the sections and then within
+ * each step we check again if the section_id exists in the table, etc.
+ * but the performance overhead is not significant since this procedure is not
+ * run very often and the number of sections will probably be quite moderate.
+ */
+
+CREATE PROCEDURE nw.batch_upsert_links_on_section()
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  rec record;
+BEGIN
+  FOR rec IN (
+    SELECT section_id, via_nodes
+    FROM nw.section
+    WHERE cardinality(via_nodes) > 1
+  ) LOOP
+    CALL nw.upsert_links_on_section(
+      target_section_id := rec.section_id,
+      target_via_nodes := rec.via_nodes
+    );
+  END LOOP;
+END;
+$$;
