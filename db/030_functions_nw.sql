@@ -197,3 +197,71 @@ EXCEPTION WHEN no_data_found THEN
   RETURN;
 END;
 $$;
+
+/*
+ * # Creating and updating sections (for analysis)
+ *
+ * "upsert" = if links on section of target_section_id already exist,
+ * delete them and create new ones.
+ * Some notes:
+ * - Section target_section_id must be present in nw.section
+ * - If via_nodes in nw.section is empty or differs from target_via_nodes,
+ *   it is updated
+ * - Empty routing result does NOT interrupt the update process at the moment,
+ *   old rows are still deleted from nw.link_on_section.
+ *   The user must re-run this function with different via_nodes if needed.
+ *   (Interrupting would require storing the nw.dijkstra_via_nodes result
+ *   temporarily and checking if it has > 0 rows.)
+ */
+
+CREATE PROCEDURE nw.upsert_links_on_section(
+  target_section_id text,
+  target_via_nodes  integer[]
+)
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  n_results integer;
+BEGIN
+
+  IF NOT EXISTS (SELECT * FROM nw.section WHERE section_id = target_section_id) THEN
+    RAISE INFO 'section_id % not in nw.section: skipping', target_section_id;
+    RETURN;
+  END IF;
+
+  WITH deleted AS (
+    DELETE FROM nw.link_on_section
+    WHERE section_id = target_section_id
+    RETURNING 1
+  )
+  SELECT INTO n_results count(*) FROM deleted;
+  IF n_results > 0 THEN
+    RAISE INFO '% old links on section % deleted',
+      n_results, target_section_id;
+  END IF;
+
+  WITH inserted AS (
+    INSERT INTO nw.link_on_section (section_id, link_seq, link_id, link_dir)
+    SELECT target_section_id, dvn.link_seq, dvn.link_id, dvn.link_dir
+    FROM nw.dijkstra_via_nodes(via_nodes := target_via_nodes) AS dvn
+    RETURNING 1
+  )
+  SELECT INTO n_results count(*) FROM inserted;
+  RAISE INFO '% new links on section % created',
+    n_results, target_section_id;
+
+  IF (
+    SELECT coalesce(via_nodes, ARRAY[0]) <> target_via_nodes
+    FROM nw.section
+    WHERE section_id = target_section_id
+  ) THEN
+    UPDATE nw.section
+    SET via_nodes = target_via_nodes
+    WHERE section_id = target_section_id;
+    RAISE INFO '{%} updated as via_nodes of %',
+      array_to_string(target_via_nodes, ','),
+      target_section_id;
+  END IF;
+
+END;
+$$;
