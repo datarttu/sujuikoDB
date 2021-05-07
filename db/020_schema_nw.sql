@@ -204,6 +204,31 @@ CREATE TABLE nw.stop_on_route (
   PRIMARY KEY (route_ver_id, stop_seq)
 );
 
+CREATE VIEW nw.view_stop_on_route_expanded AS (
+  SELECT
+    rv.route_ver_id,
+    rv.route,
+    rv.dir,
+    lower(rv.valid_during) AS valid_from,
+    upper(rv.valid_during) AS valid_until,
+    rv.route_mode,
+    sor.stop_seq,
+    sor.active_place,
+    st.stop_id,
+    st.link_id,
+    st.link_dir,
+    li.i_node,
+    li.j_node,
+    st.geom
+  FROM nw.route_version AS rv
+  INNER JOIN nw.stop_on_route AS sor
+    ON rv.route_ver_id = sor.route_ver_id
+  INNER JOIN nw.stop AS st
+    ON sor.stop_id = st.stop_id
+  LEFT JOIN nw.view_link_directed AS li
+    ON (st.link_id = li.link_id AND st.link_dir = li.link_dir)
+);
+
 CREATE TABLE nw.link_on_route (
   route_ver_id  text NOT NULL REFERENCES nw.route_version(route_ver_id),
   link_seq      integer NOT NULL CHECK (link_seq > 0),
