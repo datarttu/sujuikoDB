@@ -294,3 +294,97 @@ BEGIN
   END LOOP;
 END;
 $$;
+
+/*
+ * # Creating and updating nw.link_on_route route version paths
+ *
+ * This works with the same idea as the sections and links on section above,
+ * except via nodes cannot be passed directly to the procedure.
+ * Instead, they must be available through nw.view_vianode_on_route,
+ * from where they are made into an array to pass to the routing algorithm.
+ * User interaction is a bit different here than in section via nodes:
+ * stop_on_route stops must be located in a valid way on the network such
+ * that they can be used for via nodes anyway, and if the user wants,
+ * they can add their own via nodes by nw.manual_vianode_on_route.
+ *
+ * Again, this is decomposed to a single route version procedure and a parent
+ * procedure calling it in a loop for all route versions.
+ * The latter can be run first, then individual route version paths are checked
+ * and the ones with errors can be fixed by adding manual via nodes and
+ * re-running nw.upsert_links_on_route() for individual route versions.
+ */
+
+CREATE PROCEDURE nw.upsert_links_on_route(
+  target_route_ver_id text
+)
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  target_rec  record;
+  n_results   integer;
+BEGIN
+
+  IF NOT EXISTS (SELECT * FROM nw.route_version WHERE route_ver_id = target_route_ver_id) THEN
+    RAISE NOTICE 'route_ver_id % not in nw.route_ver_id: skipping', target_route_ver_id;
+    RETURN;
+  END IF;
+
+  SELECT
+    route_ver_id,
+    bool_or(node_id IS NULL)              AS has_null_nodes,
+    array_agg(node_id ORDER BY node_seq)  AS via_nodes
+  INTO target_rec
+  FROM nw.view_vianode_on_route
+  WHERE route_ver_id = target_route_ver_id
+  GROUP BY route_ver_id;
+
+  IF target_rec.via_nodes IS NULL THEN
+    RAISE NOTICE 'No via nodes for % in nw.view_vianode_on_route: skipping', target_route_ver_id;
+    RETURN;
+  END IF;
+
+  IF target_rec.has_null_nodes THEN
+    RAISE NOTICE '% has NULL via nodes (see nw.view_vianode_on_route): skipping', target_route_ver_id;
+    RETURN;
+  END IF;
+
+  WITH deleted AS (
+    DELETE FROM nw.link_on_route
+    WHERE route_ver_id = target_route_ver_id
+    RETURNING 1
+  )
+  SELECT INTO n_results count(*) FROM deleted;
+  IF n_results > 0 THEN
+    RAISE INFO '% old links on route % deleted',
+      n_results, target_route_ver_id;
+  END IF;
+
+  WITH inserted AS (
+    INSERT INTO nw.link_on_route (route_ver_id, link_seq, link_id, link_dir)
+    SELECT target_route_ver_id, dvn.link_seq, dvn.link_id, dvn.link_dir
+    FROM nw.dijkstra_via_nodes(via_nodes := target_rec.via_nodes) AS dvn
+    RETURNING 1
+  )
+  SELECT INTO n_results count(*) FROM inserted;
+  RAISE INFO '% new links on route % created',
+    n_results, target_route_ver_id;
+
+END;
+$$;
+
+CREATE PROCEDURE nw.batch_upsert_links_on_route()
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  rec record;
+BEGIN
+  FOR rec IN (
+    SELECT route_ver_id
+    FROM nw.route_version
+  ) LOOP
+    CALL nw.upsert_links_on_route(
+      target_route_ver_id := rec.route_ver_id
+    );
+  END LOOP;
+END;
+$$;
