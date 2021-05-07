@@ -9,3 +9,8 @@ CALL nw.update_stop_link_refs(20.0);
 CALL nw.batch_upsert_links_on_section();
 CALL nw.upsert_links_on_section('akk_sture_teoll_2', ARRAY[240, 214]);
 CALL nw.upsert_links_on_section('non_existing_section', ARRAY[240, 214]);
+
+CALL nw.batch_upsert_links_on_route();
+INSERT INTO nw.manual_vianode_on_route (route_ver_id, after_stop_seq, sub_seq, node_id)
+  VALUES ('1059_1_20200921_20201015', 25, 1, 2);
+CALL nw.upsert_links_on_route(target_route_ver_id := '1059_1_20200921_20201015');
