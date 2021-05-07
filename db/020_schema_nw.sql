@@ -229,6 +229,50 @@ CREATE VIEW nw.view_stop_on_route_expanded AS (
     ON (st.link_id = li.link_id AND st.link_dir = li.link_dir)
 );
 
+CREATE TABLE nw.manual_vianode_on_route (
+  route_ver_id    text NOT NULL REFERENCES nw.route_version(route_ver_id),
+  after_stop_seq  integer NOT NULL CHECK (after_stop_seq >= 0),
+  sub_seq         integer NOT NULL CHECK (sub_seq > 0) DEFAULT 1,
+  node_id         integer NOT NULL REFERENCES nw.node(node_id),
+
+  PRIMARY KEY (route_ver_id, after_stop_seq, sub_seq)
+);
+
+CREATE VIEW nw.view_vianode_on_route AS (
+  WITH union_stop_manual AS (
+    SELECT
+      route_ver_id,
+      stop_seq,
+      0::integer AS sub_seq,
+      stop_id,
+      CASE WHEN stop_seq = (min(stop_seq) OVER (PARTITION BY route_ver_id))
+        THEN i_node ELSE j_node
+      END AS node_id
+    FROM nw.view_stop_on_route_expanded
+    UNION ALL
+    SELECT
+      route_ver_id,
+      after_stop_seq AS stop_seq,
+      sub_seq,
+      NULL::integer AS stop_id,
+      node_id
+    FROM nw.manual_vianode_on_route
+  )
+  SELECT
+    usm.route_ver_id,
+    row_number() OVER w_rtver AS node_seq,
+    usm.stop_seq,
+    usm.sub_seq,
+    usm.stop_id,
+    usm.node_id,
+    nd.geom
+  FROM union_stop_manual  AS usm
+  LEFT JOIN nw.node       AS nd
+    ON usm.node_id = nd.node_id
+  WINDOW w_rtver AS (PARTITION BY usm.route_ver_id ORDER BY usm.stop_seq, usm.sub_seq)
+  ORDER BY 1, 2
+);
+
 CREATE TABLE nw.link_on_route (
   route_ver_id  text NOT NULL REFERENCES nw.route_version(route_ver_id),
   link_seq      integer NOT NULL CHECK (link_seq > 0),

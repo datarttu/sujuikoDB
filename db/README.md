@@ -86,6 +86,48 @@ Stops served by route versions, ordered by `stop_seq`.
 
 `active_place` indicates that the stop is an "active [Hastus](https://www.giro.ca/en-ca/our-solutions/hastus-software/) place", meaning it is used as definitive point in the stop list for transit planning and measurements.
 
+#### `nw.manual_vianode_on_route`
+
+By default, ordered stops are used as basis for creating `link_on_route` paths for route versions.
+With values in this table we can force a path to be routed via an additional node between stops.
+It is well possible that the shortest path between a stop pair is not what we want.
+
+Additional, or "manual", via nodes are defined *after* a stop by sequence number (therefore `after_stop_seq`).
+If multiple via nodes are needed before the next stop, use `sub_seq` values for ordering.
+If via nodes are needed before the first stop, use `after_stop_seq = 0`.
+
+Consider this situation where we have last stops of a route version `1059_1_20200921_20201015`, `stop_seq` numbers 25 and 26:
+
+![](../docs/img/manual_vianode_situation_example.png)
+
+By default, end nodes `j_node` of stop links are chosen as via nodes for routing (except for the 1st stop of a route version `i_node` is chosen).
+So the path from 25 to 26 would go via nodes 4, 3 and 1.
+But we see that the last stop is above the loop, so we could do the following:
+
+```
+> INSERT INTO nw.manual_vianode_on_route (route_ver_id, after_stop_seq, sub_seq, node_id)
+  VALUES ('1059_1_20200921_20201015', 25, 1, 2);
+```
+
+So node 2 would be added between stop seq numbers 25 and 26 as *manual via node*, and the shortest path algorithm used to create the corresponding `nw.link_on_route` path would then correctly route via nodes 4, 3, 2 and 1.
+
+The **`nw.view_vianode_on_route`** view combines via nodes automatically derived from stops-on-route with manually added via nodes.
+The end of our example route version would look like this, note how the `sub_seq` and `stop_id` values indicate whether the via point is manual or derived from a stop:
+
+```
+> SELECT node_seq, stop_seq, sub_seq, stop_id, node_id FROM nw.view_vianode_on_route
+  WHERE route_ver_id = '1059_1_20200921_20201015' AND stop_seq > 23;
+  node_seq │ stop_seq │ sub_seq │ stop_id │ node_id
+ ══════════╪══════════╪═════════╪═════════╪═════════
+        24 │       24 │       0 │ 1465105 │      10
+        25 │       25 │       0 │ 1461107 │       4
+        26 │       25 │       1 │       ¤ │       2
+        27 │       26 │       0 │ 1461109 │       1
+```
+
+This view would also show stops outside the network, i.e. `nw.stop` without `link_id` values and thus without node references too.
+Such route versions or their stops must be fixed before `link_on_route` paths can be created.
+
 #### `nw.link_on_route`
 
 Links that form a continuous path of a route version along the network, ordered by `link_seq`.
