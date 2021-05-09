@@ -282,6 +282,29 @@ CREATE TABLE nw.link_on_route (
   PRIMARY KEY (route_ver_id, link_seq)
 );
 
+CREATE VIEW nw.view_link_on_route_geom AS (
+  SELECT
+    rv.route_ver_id,
+    rv.route,
+    rv.dir,
+    lower(rv.valid_during)  AS valid_from,
+    upper(rv.valid_during)  AS valid_until,
+    rv.route_mode,
+    lor.link_seq,
+    ld.link_id,
+    ld.length_m AS link_length_m,
+    sum(ld.length_m) OVER rtver_grp AS cumul_length_m,
+    ld.i_node,
+    ld.j_node,
+    ld.geom
+  FROM nw.route_version             AS rv
+  INNER JOIN nw.link_on_route       AS lor
+    ON rv.route_ver_id = lor.route_ver_id
+  INNER JOIN nw.view_link_directed  AS ld
+    ON (lor.link_id = ld.link_id AND lor.link_dir = ld.link_dir)
+  WINDOW rtver_grp AS (PARTITION BY rv.route_ver_id ORDER BY lor.link_seq)
+);
+
 -- SECTIONS FOR ANALYSIS
 CREATE TABLE nw.section (
   section_id        text PRIMARY KEY,
