@@ -21,10 +21,52 @@ All the geometry columns use **SRID 3067 (ETRS-TM35FIN)**.
 This is a metric coordinate system, meaning it is more straightforward with geospatial functions such as `ST_Distance()`, and it works pretty accurately in the HSL / Greater Helsinki area.
 This SRID is hard-coded to the DDL and should be changed if the model is applied to a different area, but this is not likely to happen at the moment.
 
-There are some logical rules and assumptions in the data model that are not strictly modeled and enforced by foreign keys, for example, but are still required for consistent results.
-For example, links belonging to a route version should form a continuous path without gaps, but saving data that is against this rule is still allowed to provide flexibility in modifying the data in the database.
-Most relations have an array field `errors` to indicate such cases where rules or assumptions are not fulfilled.
-_TODO: The user must run validation procedures to validate the data and to update these fields._
+## Data validation
+
+There are some logical rules and assumptions in the data model that are not strictly modeled and enforced by foreign keys but are still required for consistent results.
+For example, ordered links on route should form a continuous path (by route version) without gaps, but it is possible to save arbitrary data to `nw.link_on_route` against that principle: enforcing this by constraints or triggers would make data modifications more difficult, and it would also be costly in terms of complex and repetitive queries.
+
+Adherence to such rules and assumptions can be checked with validation procedures.
+Most relations have an array field `errors`: if a row is found invalid according to a rule, the validation procedure adds an error label to this field.
+
+The rules are defined in [`validation-rules.csv`](./validation-rules.csv).
+
+### Usage
+
+**NOTE: TO-DO starts** - not yet implemented!
+
+For example, the following would reset the `errors` field of `nw.link` from old values, run link-specific validations and tag `nw.link` rows breaking the validation criteria:
+
+```
+> CALL nw.validate_links();
+```
+
+We could then look up the rows with any errors:
+
+```
+> SELECT * FROM nw.link WHERE cardinality(errors) > 0;
+```
+
+Or find links breaking a particular rule:
+
+```
+> SELECT * FROM nw.link WHERE errors @> array['start_end_same_point'];
+```
+
+Individual validation functions return a set of rows of the target relation that break the rule, and the callable procedures just run `UPDATE` statements according to them.
+This means we can check individual rules also on the fly, without updating the `errors` field, if we like:
+
+```
+> SELECT * FROM nw.vld_link_start_end_same_point();
+```
+
+Finally, we can run all the network validations with one command:
+
+```
+> CALL nw.validate_all();
+```
+
+**TO-DO ends**
 
 ## `nw` network model
 
