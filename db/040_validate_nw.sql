@@ -130,3 +130,63 @@ BEGIN
 
 END;
 $$;
+
+/*
+ * # STOPS
+ */
+
+CREATE FUNCTION nw.vld_stop_no_link_ref()
+RETURNS SETOF nw.stop
+STABLE
+PARALLEL SAFE
+LANGUAGE SQL
+AS $$
+  SELECT *
+  FROM nw.stop
+  WHERE link_id IS NULL;
+$$;
+
+CREATE FUNCTION nw.vld_stop_incomplete_link_ref()
+RETURNS SETOF nw.stop
+STABLE
+PARALLEL SAFE
+LANGUAGE SQL
+AS $$
+  SELECT *
+  FROM nw.stop
+  WHERE link_id IS NOT NULL
+    AND (link_dir IS NULL OR location_on_link IS NULL OR distance_from_link IS NULL);
+$$;
+
+CREATE PROCEDURE nw.validate_stops()
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  n_invalid integer DEFAULT 0;
+BEGIN
+
+  UPDATE nw.stop SET errors = NULL;
+  RAISE INFO 'Validate nw.stop: errors reset';
+
+  WITH updated AS (
+    UPDATE nw.stop AS upd
+    SET errors = append_unique(errors, 'no_link_ref')
+    FROM (SELECT stop_id FROM nw.vld_stop_no_link_ref()) AS res
+    WHERE upd.stop_id = res.stop_id
+    RETURNING 1
+  )
+  SELECT INTO n_invalid count(*) FROM updated;
+  RAISE INFO 'Validate nw.stop: % no_link_ref', n_invalid;
+
+  WITH updated AS (
+    UPDATE nw.stop AS upd
+    SET errors = append_unique(errors, 'incomplete_link_ref')
+    FROM (SELECT stop_id FROM nw.vld_stop_incomplete_link_ref()) AS res
+    WHERE upd.stop_id = res.stop_id
+    RETURNING 1
+  )
+  SELECT INTO n_invalid count(*) FROM updated;
+  RAISE INFO 'Validate nw.stop: % incomplete_link_ref', n_invalid;
+
+END;
+$$;
