@@ -14,3 +14,7 @@ CALL nw.batch_upsert_links_on_route();
 INSERT INTO nw.manual_vianode_on_route (route_ver_id, after_stop_seq, sub_seq, node_id)
   VALUES ('1059_1_20200921_20201015', 25, 1, 2);
 CALL nw.upsert_links_on_route(target_route_ver_id := '1059_1_20200921_20201015');
+
+-- Custom append_unique() in 010_global.sql
+SELECT append_unique(array['foo', 'bar'], 'baz') = array['foo', 'bar', 'baz'];
+SELECT append_unique(array['foo', 'bar'], 'bar') = array['foo', 'bar'];
