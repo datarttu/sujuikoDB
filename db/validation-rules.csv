@@ -1,8 +1,8 @@
 Implemented,Target,Label,Rule,Notes
 X,nw.node,duplicated_node,Two nodes must not be located at the same point,
-,nw.link,i_node_mismatch,i_node of the link must be located at the link start point,
-,nw.link,j_node_mismatch,j_node of the link must be located at the link end point,
-,nw.link,start_end_same_point,Link start and end must not be at the same point,Loop links are bad because we cannot model the traverse direction unambiguously.
+X,nw.link,i_node_mismatch,i_node of the link must be located at the link start point,
+X,nw.link,j_node_mismatch,j_node of the link must be located at the link end point,
+X,nw.link,start_end_same_point,Link start and end must not be at the same point,Loop links are bad because we cannot model the traverse direction unambiguously.
 ,nw.stop,no_link_ref,Stop must have link_id reference to an existing link,
 ,nw.stop,incomplete_link_ref,"If stop has link_id reference, it must have link_dir, location_on_link and distance_from_link values too",
 ,nw.stop_on_route,first_stop_seq_not_1,stop_seq must be 1 for the first stop in order,

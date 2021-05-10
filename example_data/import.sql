@@ -20,3 +20,4 @@ SELECT append_unique(array['foo', 'bar'], 'baz') = array['foo', 'bar', 'baz'];
 SELECT append_unique(array['foo', 'bar'], 'bar') = array['foo', 'bar'];
 
 CALL nw.validate_nodes();
+CALL nw.validate_links();
