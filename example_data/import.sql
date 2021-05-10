@@ -18,3 +18,5 @@ CALL nw.upsert_links_on_route(target_route_ver_id := '1059_1_20200921_20201015')
 -- Custom append_unique() in 010_global.sql
 SELECT append_unique(array['foo', 'bar'], 'baz') = array['foo', 'bar', 'baz'];
 SELECT append_unique(array['foo', 'bar'], 'bar') = array['foo', 'bar'];
+
+CALL nw.validate_nodes();
