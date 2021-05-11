@@ -33,8 +33,6 @@ The rules are defined in [`validation-rules.csv`](./validation-rules.csv).
 
 ### Usage
 
-**NOTE: TO-DO starts** - not yet implemented!
-
 For example, the following would reset the `errors` field of `nw.link` from old values, run link-specific validations and tag `nw.link` rows breaking the validation criteria:
 
 ```
@@ -65,8 +63,6 @@ Finally, we can run all the network validations with one command:
 ```
 > CALL nw.validate_all();
 ```
-
-**TO-DO ends**
 
 ## `nw` network model
 

@@ -293,3 +293,18 @@ BEGIN
 
 END;
 $$;
+
+CREATE PROCEDURE nw.validate_all()
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  n_invalid integer DEFAULT 0;
+BEGIN
+
+  CALL nw.validate_nodes();
+  CALL nw.validate_links();
+  CALL nw.validate_stops();
+  CALL nw.validate_stops_on_route();
+
+END;
+$$;
