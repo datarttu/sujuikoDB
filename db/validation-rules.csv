@@ -5,9 +5,9 @@ X,nw.link,j_node_mismatch,j_node of the link must be located at the link end poi
 X,nw.link,start_end_same_point,Link start and end must not be at the same point,Loop links are bad because we cannot model the traverse direction unambiguously.
 X,nw.stop,no_link_ref,Stop must have link_id reference to an existing link,
 X,nw.stop,incomplete_link_ref,"If stop has link_id reference, it must have link_dir, location_on_link and distance_from_link values too",
-,nw.stop_on_route,first_stop_seq_not_1,stop_seq must be 1 for the first stop in order,
-,nw.stop_on_route,stop_seq_increment_not_1,"stop_seq difference must be 1 to the previous stop in order, if not first stop",
-,nw.stop_on_route,no_link_ref_on_stop,Stop on route must have a valid link reference (no incomplete_link_ref on stop),
+X,nw.stop_on_route,first_stop_seq_not_1,stop_seq must be 1 for the first stop in order,
+X,nw.stop_on_route,stop_seq_increment_not_1,"stop_seq difference must be 1 to the previous stop in order, if not first stop",
+X,nw.stop_on_route,no_link_ref_on_stop,Stop on route must have a valid link reference (no incomplete_link_ref on stop),
 ,nw.stop_on_route,missed_by_links_on_route,"Stop must be accessible by links on route, in correct order by stop_seq (only if route version has links on route)",
 ,nw.manual_vianode_on_route,after_stop_seq_mismatch,"after_stop_seq, if not 0, must refer to an existing stop_seq on the route version",
 ,nw.link_on_route,gap_before_link,"If not the first link, i_node of the link must be j_node of the previous link (path must not have gaps)",

@@ -190,3 +190,106 @@ BEGIN
 
 END;
 $$;
+
+/*
+ * # STOPS ON ROUTE
+ */
+
+CREATE FUNCTION nw.vld_stop_on_route_first_stop_seq_not_1()
+RETURNS SETOF nw.stop_on_route
+STABLE
+PARALLEL SAFE
+LANGUAGE SQL
+AS $$
+  WITH minimums AS (
+    SELECT route_ver_id, stop_seq, stop_id, active_place, errors,
+      min(stop_seq) OVER (PARTITION BY route_ver_id) AS min_stop_seq
+    FROM nw.stop_on_route
+    )
+  SELECT route_ver_id, stop_seq, stop_id, active_place, errors
+  FROM minimums
+  WHERE stop_seq = min_stop_seq
+    AND stop_seq <> 1;
+$$;
+
+CREATE FUNCTION nw.vld_stop_on_route_stop_seq_increment_not_1()
+RETURNS SETOF nw.stop_on_route
+STABLE
+PARALLEL SAFE
+LANGUAGE SQL
+AS $$
+  WITH increments AS (
+    SELECT route_ver_id, stop_seq, stop_id, active_place, errors,
+      stop_seq - coalesce(lag(stop_seq) OVER w_rtver, 0) AS stop_seq_incr
+    FROM nw.stop_on_route
+    WINDOW w_rtver AS (PARTITION BY route_ver_id ORDER BY stop_seq)
+    )
+  SELECT route_ver_id, stop_seq, stop_id, active_place, errors
+  FROM increments
+  WHERE stop_seq_incr <> 1;
+$$;
+
+CREATE FUNCTION nw.vld_stop_on_route_no_link_ref_on_stop()
+RETURNS SETOF nw.stop_on_route
+STABLE
+PARALLEL SAFE
+LANGUAGE SQL
+AS $$
+  SELECT sor.*
+  FROM nw.stop_on_route AS sor
+  INNER JOIN (
+    SELECT * FROM nw.vld_stop_no_link_ref()
+    UNION
+    SELECT * FROM nw.vld_stop_incomplete_link_ref()
+  ) AS invalid_stop
+  ON sor.stop_id = invalid_stop.stop_id;
+$$;
+
+CREATE PROCEDURE nw.validate_stops_on_route()
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  n_invalid integer DEFAULT 0;
+BEGIN
+
+  UPDATE nw.stop_on_route SET errors = NULL;
+  RAISE INFO 'Validate nw.stop_on_route: errors reset';
+
+  WITH updated AS (
+    UPDATE nw.stop_on_route AS upd
+    SET errors = append_unique(errors, 'first_stop_seq_not_1')
+    FROM (SELECT route_ver_id, stop_seq
+      FROM nw.vld_stop_on_route_first_stop_seq_not_1()) AS res
+    WHERE upd.route_ver_id = res.route_ver_id
+      AND upd.stop_seq = res.stop_seq
+    RETURNING 1
+  )
+  SELECT INTO n_invalid count(*) FROM updated;
+  RAISE INFO 'Validate nw.stop_on_route: % first_stop_seq_not_1', n_invalid;
+
+  WITH updated AS (
+    UPDATE nw.stop_on_route AS upd
+    SET errors = append_unique(errors, 'stop_seq_increment_not_1')
+    FROM (SELECT route_ver_id, stop_seq
+      FROM nw.vld_stop_on_route_stop_seq_increment_not_1()) AS res
+    WHERE upd.route_ver_id = res.route_ver_id
+      AND upd.stop_seq = res.stop_seq
+    RETURNING 1
+  )
+  SELECT INTO n_invalid count(*) FROM updated;
+  RAISE INFO 'Validate nw.stop_on_route: % stop_seq_increment_not_1', n_invalid;
+
+  WITH updated AS (
+    UPDATE nw.stop_on_route AS upd
+    SET errors = append_unique(errors, 'no_link_ref_on_stop')
+    FROM (SELECT route_ver_id, stop_seq
+      FROM nw.vld_stop_on_route_no_link_ref_on_stop()) AS res
+    WHERE upd.route_ver_id = res.route_ver_id
+      AND upd.stop_seq = res.stop_seq
+    RETURNING 1
+  )
+  SELECT INTO n_invalid count(*) FROM updated;
+  RAISE INFO 'Validate nw.stop_on_route: % no_link_ref_on_stop', n_invalid;
+
+END;
+$$;
