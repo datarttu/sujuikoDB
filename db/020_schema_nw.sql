@@ -200,6 +200,7 @@ CREATE TABLE nw.stop_on_route (
   stop_seq        integer NOT NULL CHECK (stop_seq > 0),
   stop_id         integer NOT NULL REFERENCES nw.stop(stop_id),
   active_place    text,
+  errors          text[],
 
   PRIMARY KEY (route_ver_id, stop_seq)
 );
