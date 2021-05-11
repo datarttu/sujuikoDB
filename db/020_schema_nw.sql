@@ -241,16 +241,26 @@ CREATE TABLE nw.manual_vianode_on_route (
 );
 
 CREATE VIEW nw.view_vianode_on_route AS (
-  WITH union_stop_manual AS (
+  WITH significant_stops AS (
+    SELECT
+      route_ver_id,
+      stop_seq,
+      stop_id,
+      CASE WHEN stop_seq = (min(stop_seq) OVER (PARTITION BY route_ver_id))
+        THEN i_node ELSE j_node
+      END AS node_id,
+      lag(j_node) OVER (PARTITION BY route_ver_id ORDER BY stop_seq) AS previous_j_node
+    FROM nw.view_stop_on_route_expanded
+  ),
+  union_stop_manual AS (
     SELECT
       route_ver_id,
       stop_seq,
       0::integer AS sub_seq,
       stop_id,
-      CASE WHEN stop_seq = (min(stop_seq) OVER (PARTITION BY route_ver_id))
-        THEN i_node ELSE j_node
-      END AS node_id
-    FROM nw.view_stop_on_route_expanded
+      node_id
+    FROM significant_stops
+    WHERE node_id <> previous_j_node
     UNION ALL
     SELECT
       route_ver_id,
