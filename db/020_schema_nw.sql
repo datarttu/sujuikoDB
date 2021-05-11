@@ -235,6 +235,7 @@ CREATE TABLE nw.manual_vianode_on_route (
   after_stop_seq  integer NOT NULL CHECK (after_stop_seq >= 0),
   sub_seq         integer NOT NULL CHECK (sub_seq > 0) DEFAULT 1,
   node_id         integer NOT NULL REFERENCES nw.node(node_id),
+  errors          text[],
 
   PRIMARY KEY (route_ver_id, after_stop_seq, sub_seq)
 );
@@ -279,6 +280,7 @@ CREATE TABLE nw.link_on_route (
   link_seq      integer NOT NULL CHECK (link_seq > 0),
   link_id       integer NOT NULL REFERENCES nw.link(link_id),
   link_dir      smallint NOT NULL CHECK (link_dir IN (-1, 1)),
+  errors        text[],
 
   PRIMARY KEY (route_ver_id, link_seq)
 );
@@ -321,6 +323,7 @@ CREATE TABLE nw.link_on_section (
   link_seq          integer NOT NULL CHECK (link_seq > 0),
   link_id           integer NOT NULL REFERENCES nw.link(link_id),
   link_dir          smallint NOT NULL CHECK (link_dir IN (-1, 1)),
+  errors            text[],
 
   PRIMARY KEY (section_id, link_seq)
 );
