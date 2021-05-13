@@ -91,7 +91,7 @@ This is why `link_modes` is an array rather than a single value.
 Two-way links are duplicated into original and reversed versions of the geometries and i/j node orders.
 Oneway links are included as such.
 A (non-persistent) `uniq_link_id` is given to distinct between the oneway versions of the links.
-This view helps creating route and section paths, where the traversal direction of a link must be known exactly (by `link_dir` attribute value).
+This view helps creating route and section paths, where the traversal direction of a link must be known exactly (by `link_reversed`).
 
 `nw.view_link_wkt` works as a data insert API that allows copying CSV files with WKT geometries (through the `INSTEAD OF INSERT` trigger).
 See [link example data](../example_data/link.csv).
@@ -100,12 +100,12 @@ See [link example data](../example_data/link.csv).
 
 Points along the transit network where passengers can board and alight transit vehicles.
 More importantly than the point location, a stop must have a "projected" location along a directed link, so the stop location can be visualized together with vehicle movements on the link.
-The projected location is modeled by `link_id`, `link_dir`, and `location_on_link` (float 0 ... 1, relative to the link length).
+The projected location is modeled by `link_id`, `link_reversed`, and `location_on_link` (float 0 ... 1, relative to the link length).
 
-If `link_dir = 1`, `location_on_link` value shows the relative position of the stop along the original link geometry.
-If `link_dir = -1`, the relative position is calculated using the reverse geometry of the link, or from `j_node` to `i_node`.
-`link_dir` cannot be `-1` for oneway links since they cannot be traversed to the opposite direction.
-`link_dir` also determines which direction version of a two-way link will be used when creating `nw.link_on_route` sequences from `nw.stop_on_route` sequences.
+If `link_reversed` is `false`, `location_on_link` value shows the relative position of the stop along the original link geometry.
+If `link_reversed` is `true`, the relative position is calculated using the reverse geometry of the link, or from `j_node` to `i_node`.
+`link_reversed` cannot be `true` for oneway links since they cannot be traversed to the opposite direction.
+`link_reversed` also determines which direction version of a two-way link will be used when creating `nw.link_on_route` sequences from `nw.stop_on_route` sequences.
 
 `link_ref_manual` can be set to `true` to omit a stop from batch modifications to the stop-link references, e.g., in case a stop has been manually connected to a link different than a link closest (default) to the stop point.
 
@@ -170,8 +170,8 @@ Such route versions or their stops must be fixed before `link_on_route` paths ca
 
 Links that form a continuous path of a route version along the network, ordered by `link_seq`.
 
-If `link_dir = 1`, the route version traverses through the link `link_id` to the original, digitized direction.
-If `link_dir = -1`, the link is traversed to the reverse direction (i.e., the `i_node` and `j_node` have been flipped in routing).
+If `link_reversed` is `false`, the route version traverses through the link `link_id` to the original, digitized direction.
+If `link_reversed` is `true`, the link is traversed to the reverse direction (i.e., the `i_node` and `j_node` have been flipped in routing).
 
 #### `nw.section`
 

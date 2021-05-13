@@ -13,10 +13,10 @@ X,nw.stop_on_route,no_link_ref_on_stop,Stop on route must have a valid link refe
 ,nw.link_on_route,gap_before_link,"If not the first link, i_node of the link must be j_node of the previous link (path must not have gaps)",
 ,nw.link_on_route,first_link_seq_not_1,link_seq must be 1 for the first link in order,
 ,nw.link_on_route,link_seq_increment_not_1,"link_seq difference must be 1 to the previous link in order, if not first link",
-,nw.link_on_route,restricted_reverse_direction,"If link_dir = -1, the referenced link must be two-way",
+,nw.link_on_route,restricted_reverse_direction,"If link_reversed is true, the referenced link must be two-way",
 ,nw.link_on_route,u_turn,"Link must not be the same as the previous link reversed (U-turns not allowed; for real dead-ends, loops must be modelled on the network)",U-turns are very likely if routing fails due to errors in the network while returning a seemingly valid result that is hard to detect visually as an error.
 ,nw.link_on_section,gap_before_link,"If not the first link, i_node of the link must be j_node of the previous link (path must not have gaps)",
 ,nw.link_on_section,first_link_seq_not_1,link_seq must be 1 for the first link in order,
 ,nw.link_on_section,link_seq_increment_not_1,"link_seq difference must be 1 to the previous link in order, if not first link",
-,nw.link_on_section,restricted_reverse_direction,"If link_dir = -1, the referenced link must be two-way",
+,nw.link_on_section,restricted_reverse_direction,"If link_reversed is true, the referenced link must be two-way",
 ,nw.link_on_section,u_turn,"Link must not be the same as the previous link reversed (U-turns not allowed; for real dead-ends, loops must be modelled on the network)",

@@ -31,7 +31,7 @@ CREATE FUNCTION nw.get_stop_link_refs(
 RETURNS TABLE (
     stop_id             integer,
     link_id             integer,
-    link_dir            smallint,
+    link_reversed       boolean,
     location_on_link    float8,
     distance_from_link  float8
 )
@@ -42,14 +42,14 @@ AS $$
   SELECT
     st.stop_id,
     li.link_id,
-    li.link_dir,
+    li.link_reversed,
     li.location_on_link,
     li.distance_from_link
   FROM nw.stop AS st
   INNER JOIN LATERAL (
     SELECT
       vld.link_id,
-      vld.link_dir,
+      vld.link_reversed,
       ST_LineLocatePoint(vld.geom, st.geom) AS location_on_link,
       ST_Distance(vld.geom, st.geom)        AS distance_from_link
     FROM nw.view_link_directed AS vld
@@ -81,7 +81,7 @@ BEGIN
     UPDATE nw.stop AS st
     SET
       link_id = upd.link_id,
-      link_dir = upd.link_dir,
+      link_reversed = upd.link_reversed,
       location_on_link = upd.location_on_link,
       distance_from_link = upd.distance_from_link
     FROM (
@@ -120,7 +120,7 @@ RETURNS TABLE (
   part_seq      integer,
   link_sub_seq  integer,
   link_id       integer,
-  link_dir      smallint
+  link_reversed boolean
 )
 STABLE
 PARALLEL SAFE
@@ -139,10 +139,10 @@ BEGIN
   LOOP
     RETURN QUERY
       SELECT
-        i           AS part_seq,
-        pd.seq      AS link_sub_seq,
-        li.link_id  AS link_id,
-        li.link_dir AS link_dir
+        i                 AS part_seq,
+        pd.seq            AS link_sub_seq,
+        li.link_id        AS link_id,
+        li.link_reversed  AS link_reversed
       FROM pgr_dijkstra(
         'SELECT uniq_link_id AS id, i_node AS source, j_node AS target, length_m AS cost FROM nw.view_link_directed',
         via_nodes[i],
@@ -166,9 +166,9 @@ $$;
 
 CREATE FUNCTION nw.dijkstra_via_nodes(via_nodes integer[])
 RETURNS TABLE (
-  link_seq  integer,
-  link_id   integer,
-  link_dir  smallint
+  link_seq        integer,
+  link_id         integer,
+  link_reversed   boolean
 )
 STABLE
 PARALLEL SAFE
@@ -184,11 +184,11 @@ BEGIN
         pd.part_seq,
         pd.link_sub_seq,
         pd.link_id,
-        pd.link_dir
+        pd.link_reversed
       FROM nw.parts_dijkstra_via_nodes(via_nodes := via_nodes) AS pd
       ORDER BY part_seq, link_sub_seq
     )
-    SELECT pp.link_seq::integer, pp.link_id, pp.link_dir
+    SELECT pp.link_seq::integer, pp.link_id, pp.link_reversed
     FROM part_paths AS pp;
 
 EXCEPTION WHEN no_data_found THEN
@@ -241,8 +241,8 @@ BEGIN
   END IF;
 
   WITH inserted AS (
-    INSERT INTO nw.link_on_section (section_id, link_seq, link_id, link_dir)
-    SELECT target_section_id, dvn.link_seq, dvn.link_id, dvn.link_dir
+    INSERT INTO nw.link_on_section (section_id, link_seq, link_id, link_reversed)
+    SELECT target_section_id, dvn.link_seq, dvn.link_id, dvn.link_reversed
     FROM nw.dijkstra_via_nodes(via_nodes := target_via_nodes) AS dvn
     RETURNING 1
   )
@@ -360,8 +360,8 @@ BEGIN
   END IF;
 
   WITH inserted AS (
-    INSERT INTO nw.link_on_route (route_ver_id, link_seq, link_id, link_dir)
-    SELECT target_route_ver_id, dvn.link_seq, dvn.link_id, dvn.link_dir
+    INSERT INTO nw.link_on_route (route_ver_id, link_seq, link_id, link_reversed)
+    SELECT target_route_ver_id, dvn.link_seq, dvn.link_id, dvn.link_reversed
     FROM nw.dijkstra_via_nodes(via_nodes := target_rec.via_nodes) AS dvn
     RETURNING 1
   )

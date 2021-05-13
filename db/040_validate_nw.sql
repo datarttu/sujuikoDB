@@ -155,7 +155,7 @@ AS $$
   SELECT *
   FROM nw.stop
   WHERE link_id IS NOT NULL
-    AND (link_dir IS NULL OR location_on_link IS NULL OR distance_from_link IS NULL);
+    AND (link_reversed IS NULL OR location_on_link IS NULL OR distance_from_link IS NULL);
 $$;
 
 CREATE PROCEDURE nw.validate_stops()

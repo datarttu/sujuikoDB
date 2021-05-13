@@ -58,7 +58,7 @@ CREATE VIEW nw.view_link_directed AS (
   WITH oneways AS (
     SELECT
       link_id,
-      1::smallint AS link_dir,
+      false AS link_reversed,
       i_node,
       j_node,
       oneway,
@@ -72,7 +72,7 @@ CREATE VIEW nw.view_link_directed AS (
     UNION
     SELECT
       link_id,
-      -1::smallint AS link_dir,
+      true AS link_reversed,
       j_node AS i_node,
       i_node AS j_node,
       oneway,
@@ -86,7 +86,7 @@ CREATE VIEW nw.view_link_directed AS (
     WHERE NOT oneway
   )
   SELECT
-    row_number() OVER (ORDER BY link_id, link_dir) AS uniq_link_id,
+    row_number() OVER (ORDER BY link_id, link_reversed) AS uniq_link_id,
     *
   FROM oneways
 );
@@ -131,7 +131,7 @@ FOR EACH ROW EXECUTE PROCEDURE nw.tg_insert_wkt_link();
 CREATE TABLE nw.stop (
   stop_id             integer PRIMARY KEY,
   link_id             integer REFERENCES nw.link(link_id),
-  link_dir            smallint CHECK (link_dir IN (1, -1)),
+  link_reversed       boolean,
   location_on_link    float8,
   distance_from_link  float8,
   link_ref_manual     boolean DEFAULT false,
@@ -217,7 +217,7 @@ CREATE VIEW nw.view_stop_on_route_expanded AS (
     sor.active_place,
     st.stop_id,
     st.link_id,
-    st.link_dir,
+    st.link_reversed,
     li.i_node,
     li.j_node,
     st.geom
@@ -227,7 +227,7 @@ CREATE VIEW nw.view_stop_on_route_expanded AS (
   INNER JOIN nw.stop AS st
     ON sor.stop_id = st.stop_id
   LEFT JOIN nw.view_link_directed AS li
-    ON (st.link_id = li.link_id AND st.link_dir = li.link_dir)
+    ON (st.link_id = li.link_id AND st.link_reversed = li.link_reversed)
 );
 
 CREATE TABLE nw.manual_vianode_on_route (
@@ -289,7 +289,7 @@ CREATE TABLE nw.link_on_route (
   route_ver_id  text NOT NULL REFERENCES nw.route_version(route_ver_id),
   link_seq      integer NOT NULL CHECK (link_seq > 0),
   link_id       integer NOT NULL REFERENCES nw.link(link_id),
-  link_dir      smallint NOT NULL CHECK (link_dir IN (-1, 1)),
+  link_reversed boolean NOT NULL,
   errors        text[],
 
   PRIMARY KEY (route_ver_id, link_seq)
@@ -314,7 +314,7 @@ CREATE VIEW nw.view_link_on_route_geom AS (
   INNER JOIN nw.link_on_route       AS lor
     ON rv.route_ver_id = lor.route_ver_id
   INNER JOIN nw.view_link_directed  AS ld
-    ON (lor.link_id = ld.link_id AND lor.link_dir = ld.link_dir)
+    ON (lor.link_id = ld.link_id AND lor.link_reversed = ld.link_reversed)
   WINDOW rtver_grp AS (PARTITION BY rv.route_ver_id ORDER BY lor.link_seq)
 );
 
@@ -332,7 +332,7 @@ CREATE TABLE nw.link_on_section (
   section_id        text NOT NULL REFERENCES nw.section(section_id),
   link_seq          integer NOT NULL CHECK (link_seq > 0),
   link_id           integer NOT NULL REFERENCES nw.link(link_id),
-  link_dir          smallint NOT NULL CHECK (link_dir IN (-1, 1)),
+  link_reversed     boolean NOT NULL,
   errors            text[],
 
   PRIMARY KEY (section_id, link_seq)
@@ -356,5 +356,5 @@ CREATE VIEW nw.view_link_on_section_geom AS (
   INNER JOIN nw.link_on_section     AS los
     ON sec.section_id = los.section_id
   INNER JOIN nw.view_link_directed  AS ld
-    ON (los.link_id = ld.link_id AND los.link_dir = ld.link_dir)
+    ON (los.link_id = ld.link_id AND los.link_reversed = ld.link_reversed)
 );
