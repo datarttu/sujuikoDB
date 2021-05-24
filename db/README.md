@@ -66,7 +66,7 @@ Finally, we can run all the network validations with one command:
 
 ## `nw` network model
 
-![ER diagram of the network tables](../docs/img/db_relations_er.png)
+![ER diagram of the network tables](../docs/img/db_relations_nw.png)
 
 ### Relations and views
 
@@ -215,5 +215,7 @@ _After this step, the modelled routes should correspond to the real ones in the 
 _TODO: Add sections of network to use in analyses; define ids, descriptions and other attrs & start, via and end nodes; get shortest paths for sections and save to `nw.link_on_section`_
 
 ## `obs` observations model
+
+![ER diagram of the observation tables](../docs/img/db_relations_obs.png)
 
 _TODO_
