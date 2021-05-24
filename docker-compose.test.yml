@@ -30,7 +30,7 @@ services:
     restart: "no"
     volumes:
       - type: bind
-        source: ${IMPORT_DATA_DIR}
+        source: ./example_data
         target: /data
         read_only: true
     env_file: .env_test
