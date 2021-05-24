@@ -59,7 +59,7 @@ FOR EACH ROW EXECUTE FUNCTION obs.tg_insert_journey_handler();
 
 -- HFP POINTS (obs)
 CREATE TABLE obs.hfp_point (
-  jrnid                 uuid          NOT NULL,
+  jrnid                 uuid          NOT NULL REFERENCES obs.journey(jrnid),
   tst                   timestamptz   NOT NULL,
   odo                   integer       NOT NULL,
   drst                  boolean,
