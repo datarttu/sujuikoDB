@@ -180,13 +180,12 @@ BEGIN
   RETURN QUERY
     WITH part_paths AS (
       SELECT
-        row_number() OVER () AS link_seq,
+        row_number() OVER (ORDER BY pd.part_seq, pd.link_sub_seq) AS link_seq,
         pd.part_seq,
         pd.link_sub_seq,
         pd.link_id,
         pd.link_reversed
       FROM nw.parts_dijkstra_via_nodes(via_nodes := via_nodes) AS pd
-      ORDER BY part_seq, link_sub_seq
     )
     SELECT pp.link_seq::integer, pp.link_id, pp.link_reversed
     FROM part_paths AS pp;
