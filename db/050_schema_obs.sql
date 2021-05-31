@@ -104,3 +104,16 @@ $$ LANGUAGE PLPGSQL;
 CREATE TRIGGER tg_insert_xy_hfp_point
 INSTEAD OF INSERT ON obs.view_hfp_point_xy
 FOR EACH ROW EXECUTE FUNCTION obs.tg_insert_xy_hfp_point();
+
+-- PROJECTED POINTS ON LINKS
+CREATE TABLE obs.point_on_link (
+  jrnid                 uuid          NOT NULL REFERENCES obs.journey(jrnid),
+  tst                   timestamptz   NOT NULL,
+  link_seq              integer,
+  link_id               integer,
+  link_reversed         boolean,
+  location_on_link      float8,
+  distance_from_link    float8,
+
+  PRIMARY KEY (jrnid, tst)
+);

@@ -26,3 +26,5 @@ CALL nw.validate_stops_on_route();
 
 \copy obs.journey(jrnid, route, dir, start_tst, oper, veh) FROM '/data/hfp/jrn_2510_1_2020-09-23.csv' CSV HEADER;
 \copy obs.view_hfp_point_xy FROM '/data/hfp/obs_2510_1_2020-09-23.csv' CSV HEADER;
+
+CALL obs.batch_create_points_on_link(20.0);
