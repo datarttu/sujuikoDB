@@ -56,7 +56,9 @@ SELECT
   lor.link_seq,
   lor.link_id,
   lor.link_reversed,
-  ST_LineLocatePoint(li.geom, hfp.geom)   AS location_on_link,
+  abs(
+    ST_LineLocatePoint(li.geom, hfp.geom) - (lor.link_reversed::integer)
+  )                                       AS location_on_link,
   ST_Distance(li.geom, hfp.geom)          AS distance_from_link
 FROM obs.hfp_point          AS hfp
 INNER JOIN obs.journey      AS jrn
