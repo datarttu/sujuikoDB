@@ -261,6 +261,7 @@ CREATE VIEW nw.view_vianode_on_route AS (
       node_id
     FROM significant_stops
     WHERE node_id <> previous_j_node
+      OR previous_j_node IS NULL
     UNION ALL
     SELECT
       route_ver_id,
