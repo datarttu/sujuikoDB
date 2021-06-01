@@ -218,4 +218,94 @@ _TODO: Add sections of network to use in analyses; define ids, descriptions and 
 
 ![ER diagram of the observation tables](../docs/img/db_relations_obs.png)
 
-_TODO_
+### Relations and views
+
+![Example of `links_on_route`, `hfp_points` and `points_on_link` on a map.](../docs/img/obs_model_map_example.png)
+
+Above: Example map including `hfp_points` of a `journey` (blue points), `links_on_route` of that `journey`'s `route_version` (red lines), and `points_on_link` projected to the `links_on_route` (blue lines).
+Here the link candidates have been picked within 20 meters between points and links: note how near the intersection there are multiple possible link matches for a point.
+The current algorithm simply selects the closest link, but this would not work well if the route version used the same link twice or more, for example.
+
+#### `obs.journey`
+
+Realized transit service journeys that correspond to a route version (`route_ver_id`) by route, direction and operating day, have an exact scheduled initial departure time (`scheduled_start_utc`), and have been operated by a unique vehicle (`oper`, `veh`).
+Note that the same scheduled journey might have been realized by multiple vehicles.
+HFP points belonging to the same journey form a path in space and time.
+
+Unique `jrnid` identifier is used as primary key so we do not have to deal with composite keys that would be more complex to join on and take up more space in large HFP observation tables.
+Unlike sequential or other surrogate keys, this UUID key is actually derived from the data so we can ensure its correctness with other journey attributes if we want, and this is in fact done in the `obs.tg_insert_journey_handler()` trigger upon importing journey data.
+`jrnid` is composed as follows:
+
+```
+md5('{route}_{dir}_{oday [yyyy-mm-dd]}_{start [HH:MM:SS]}_{oper}_{veh}')::uuid
+```
+
+`oday` and `start`, which are originally in local Finnish time, are converted into a single UTC timestamp in our data model.
+
+`journeys` are imported directly from CSV files with `COPY FROM`.
+
+#### `obs.hfp_point`
+
+GPS points with EPSG:3067 coordinates `X, Y`, UTC timestamp `tst`, vehicle odometer value `odo` (in meters), and door open/closed status `drst`, belonging to a `journey`.
+This data should be prepared from the raw HFP `VP` messages (using [hslhfp](https://github.com/datarttu/hslhfp)), which includes eliminating clear outliers, clustering points, where the vehicle is really stopped, into the same position, and removing redundant, repeated stopped points, for example.
+
+`represents_n_points` tells how many _valid_ raw data points the point in question represents; when the vehicle has been stopped long enough (at least 3 s by default), redundant points have been deleted up to the last point before moving again, or before a door status change.
+`represents_time_s` tells the same but in terms of `tst` timestamp difference up to the last deleted redundant point.
+If `represents_time_s` is less than the time difference to the next point, then there have been some raw data points that got deleted as _invalid_ (e.g., spatial outliers or missing coordinates).
+
+`hfp_points` are imported from CSV files with `COPY FROM` through the `obs.view_hfp_point_xy` view: this way the CSV files can have `X` and `Y` coordinate values instead of binary geometry values.
+
+This table is partitioned by Timescale hypertable on `tst` and `jrnid`.
+Partitioning settings (`1 day` interval in `tst`, and 4 space partitions by `jrnid`) may require tuning depending on your system.
+
+#### `obs.point_on_link`
+
+Linear locations of `hfp_points` along `links_on_route` of their `journey` and `route_version`.
+Each `hfp_point` gets here a reference to the closest directed link on the route (`link_seq`, `link_id`, `link_reversed`) and a relative distance value `0.0 ... 1.0` along the link: this value can be converted to absolute distance with `link_length` of the link.
+
+Unlike GPS points in 2D space, these distance values on the same link, and consequently on a path formed by links (`section` or `route_version`), can be analyzed in a common 1D space.
+Thus `points_on_link` are the core data for space-time visualizations and analyses.
+
+Note that depending on the `max_distance_m`, `hfp_points` too far away from any `link_on_route` will not have respective `point_on_link` entries.
+Finding the suitable `max_distance_m` value may require some trial and error, and this is one reason why we want to persist the imported HFP points in the database instead of discarding them after creating `points_on_link`.
+
+This table is partitioned by Timescale hypertable on `tst` and `jrnid`.
+Partitioning settings (`1 day` interval in `tst`, and 4 space partitions by `jrnid`) may require tuning depending on your system.
+
+Once `hfp_points` have been imported, `points_on_link` can be created with the following stored procedure, here using `max_distance_m` of 20 meters:
+
+```
+> CALL obs.batch_create_points_on_link(20.0);
+INFO:  jrnid 68108530-6edf-2862-f2f2-b69fc053c787: 2037 hfp_point -> 2023 point_on_link
+INFO:  jrnid 29e2c9b9-d0d7-2f35-b67d-c2599e7f2f98: 2165 hfp_point -> 1965 point_on_link
+...
+```
+
+The number of `hfp_point` and `point_on_link` differs because some points are not near enough to `links_on_route` to get matched.
+Alternatively, run the creation procedure for a single journey only:
+
+```
+> CALL obs.create_points_on_link(target_jrnid => '68108530-6edf-2862-f2f2-b69fc053c787', max_distance_m => 20.0);
+INFO:  jrnid 68108530-6edf-2862-f2f2-b69fc053c787: 2037 hfp_point -> 2023 point_on_link
+```
+
+#### `obs.link_on_journey`
+
+_TODO: per-link aggregates derived from `points_on_link`._
+_The descriptions below are plans only!_
+
+`links_on_journey` entries are only created for `links_on_route` of a `journey` that are completely traversed and thus "enclosed" by `points_on_link`: in other words, there must be HFP observations _before_ and _after_ the `link_on_route`, so that the link can get properly interpolated enter and exit time values.
+This means that the first and last `links_on_route` of a `journey` will not get respective `link_on_journey` entries.
+
+An _interpolated-only_ `link_on_journey` does not have any respective `points_on_link` at all: instead, its enter and exit times have been interpolated linearly, in relation to the link length, using the last and next `points_on_link` possible on other links.
+
+Fields in addition to `jrnid`:
+
+- `i_time_utc`: Interpolated enter time of the journey to the link.
+- `j_time_utc`: Interpolated exit time of the journey from the link.
+- `link_seq`, `link_id`, `link_reversed`: These refer to the `link_on_route` of the `route_version` of the `journey`.
+- `thru_s`: Run time of the journey through the link. Same as `j_time_utc - i_time_utc` but generated and stored in advance to enable fast calculation of mean speeds, for example.
+- `halted_s`: Time that the journey has spent _not moving_ on the link. `NULL` for interpolated-only `link_on_journey`.
+- `door_open_s`: Time that the journey has spent with _doors open_ (`drst IS true`) on the link. Note that doors may be or at least appear open even on moving points, although they should not! So, you cannot always assume that "door_closed_s" equals `halted_s - door_open_s` without more detailed analysis of `points_on_link`. `NULL` for interpolated-only `link_on_journey`.
+- `n_halts`: Number of times that the journey has stopped on the link. `NULL` for interpolated-only `link_on_journey`.
+- `represents_n_points`: Sum of `represents_n_points` values of the respective `points_on_link`. In other words, describes the HFP "sample size" of the `link_on_journey`: lots of points on a short link can be considered more reliable data than few points on a long link, for example. `0` for interpolated-only `link_on_journey`.
