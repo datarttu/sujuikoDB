@@ -348,8 +348,10 @@ CREATE VIEW nw.view_link_on_section_geom AS (
     sec.via_nodes,
     los.link_seq,
     ld.link_id,
+    ld.link_reversed,
     ld.length_m AS link_length_m,
     sum(ld.length_m) OVER (PARTITION BY sec.section_id ORDER BY los.link_seq) AS cumul_length_m,
+    ld.link_label,
     ld.i_node,
     ld.j_node,
     ld.geom
