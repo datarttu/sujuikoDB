@@ -110,10 +110,18 @@ CREATE TABLE obs.point_on_link (
   jrnid                 uuid          NOT NULL REFERENCES obs.journey(jrnid),
   tst                   timestamptz   NOT NULL,
   link_seq              integer,
-  link_id               integer,
+  link_id               integer       NOT NULL REFERENCES nw.link(link_id),
   link_reversed         boolean,
   location_on_link      float8,
   distance_from_link    float8,
 
   PRIMARY KEY (jrnid, tst)
+);
+
+SELECT create_hypertable(
+  relation            => 'obs.point_on_link',
+  time_column_name    => 'tst',
+  partitioning_column => 'jrnid',
+  number_partitions   => 4,
+  chunk_time_interval => '1 day'::interval
 );
