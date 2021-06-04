@@ -64,6 +64,44 @@ AS $$
   ON true;
 $$;
 
+CREATE PROCEDURE nw.update_stop_link_ref(
+  target_stop_id  integer,
+  max_distance_m  float8 DEFAULT 20.0
+)
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  n_total   integer;
+  n_manual  integer;
+  n_updated integer;
+BEGIN
+  SELECT INTO n_total count(*) FROM nw.stop WHERE stop_id = target_stop_id;
+  SELECT INTO n_manual count(*) FROM nw.stop WHERE link_ref_manual AND stop_id = target_stop_id;
+
+  WITH updated AS (
+    UPDATE nw.stop AS st
+    SET
+      link_id = upd.link_id,
+      link_reversed = upd.link_reversed,
+      location_on_link = upd.location_on_link,
+      distance_from_link = upd.distance_from_link
+    FROM (
+      SELECT * FROM nw.get_stop_link_refs(max_distance_m := max_distance_m)
+      WHERE stop_id = target_stop_id
+    ) AS upd
+    WHERE st.stop_id = target_stop_id
+      AND st.stop_id = upd.stop_id
+      AND NOT st.link_ref_manual
+    RETURNING 1
+  )
+  SELECT INTO n_updated count(*)
+  FROM updated;
+
+  RAISE INFO '% nw.stop records updated (total % stops, % protected from updates)',
+    n_updated, n_total, n_manual;
+END;
+$$;
+
 CREATE PROCEDURE nw.batch_update_stop_link_refs(
   max_distance_m float8 DEFAULT 20.0
 )
