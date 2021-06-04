@@ -64,7 +64,7 @@ AS $$
   ON true;
 $$;
 
-CREATE PROCEDURE nw.update_stop_link_refs(
+CREATE PROCEDURE nw.batch_update_stop_link_refs(
   max_distance_m float8 DEFAULT 20.0
 )
 LANGUAGE PLPGSQL
