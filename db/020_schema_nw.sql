@@ -378,3 +378,63 @@ CREATE VIEW nw.view_section_ij_line AS (
     ON (se.via_nodes[cardinality(se.via_nodes)] = jnd.node_id)
   WHERE cardinality(se.via_nodes) > 1
 );
+
+CREATE FUNCTION nw.tg_upsert_section_ij_line()
+RETURNS trigger
+AS $$
+DECLARE
+  closest_i_node_id integer;
+  closest_j_node_id integer;
+BEGIN
+
+  SELECT node_id INTO closest_i_node_id
+  FROM (
+    SELECT
+      nd.node_id,
+      ST_Distance(nd.geom, ST_StartPoint(NEW.geom))
+    FROM nw.node  AS nd
+    WHERE ST_DWithin(nd.geom, ST_StartPoint(NEW.geom), 100.0)
+    ORDER BY 2
+    LIMIT 1
+  ) AS _;
+
+  SELECT node_id INTO closest_j_node_id
+  FROM (
+    SELECT
+      nd.node_id,
+      ST_Distance(nd.geom, ST_EndPoint(NEW.geom))
+    FROM nw.node  AS nd
+    WHERE ST_DWithin(nd.geom, ST_EndPoint(NEW.geom), 100.0)
+    ORDER BY 2
+    LIMIT 1
+  ) AS _;
+
+  IF TG_OP = 'INSERT' THEN
+    INSERT INTO nw.section(
+      section_id, description, report, rotation, via_nodes
+    ) VALUES (
+      NEW.section_id,
+      NEW.description,
+      NEW.report,
+      NEW.rotation,
+      ARRAY[closest_i_node_id, closest_j_node_id]
+    );
+  END IF;
+
+  IF TG_OP = 'UPDATE' THEN
+    UPDATE nw.section
+    SET
+      description = NEW.description,
+      report = NEW.report,
+      rotation = NEW.rotation,
+      via_nodes = ARRAY[closest_i_node_id, closest_j_node_id]
+    WHERE section_id = NEW.section_id;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE PLPGSQL;
+
+CREATE TRIGGER tg_upsert_section_ij_line
+INSTEAD OF INSERT OR UPDATE ON nw.view_section_ij_line
+FOR EACH ROW EXECUTE PROCEDURE nw.tg_upsert_section_ij_line();
