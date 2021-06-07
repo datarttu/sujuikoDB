@@ -361,3 +361,20 @@ CREATE VIEW nw.view_link_on_section_geom AS (
   INNER JOIN nw.view_link_directed  AS ld
     ON (los.link_id = ld.link_id AND los.link_reversed = ld.link_reversed)
 );
+
+CREATE VIEW nw.view_section_ij_line AS (
+  SELECT
+    se.section_id,
+    se.description,
+    se.report,
+    se.rotation,
+    se.via_nodes[1]                         AS i_node,
+    se.via_nodes[cardinality(se.via_nodes)] AS j_node,
+    ST_MakeLine(ind.geom, jnd.geom)         AS geom
+  FROM nw.section AS se
+  INNER JOIN nw.node  AS ind
+    ON (se.via_nodes[1] = ind.node_id)
+  INNER JOIN nw.node  AS jnd
+    ON (se.via_nodes[cardinality(se.via_nodes)] = jnd.node_id)
+  WHERE cardinality(se.via_nodes) > 1
+);
