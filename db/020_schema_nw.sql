@@ -324,6 +324,7 @@ CREATE TABLE nw.section (
   section_id        text PRIMARY KEY,
   description       text,
   section_group     text,
+  section_order     integer,
   report            boolean DEFAULT true,
   rotation          float8 DEFAULT 0.0,
   via_nodes         integer[],
@@ -345,6 +346,7 @@ CREATE VIEW nw.view_link_on_section_geom AS (
     sec.section_id,
     sec.description,
     sec.section_group,
+    sec.section_order,
     sec.report,
     sec.rotation,
     sec.via_nodes,
@@ -369,6 +371,7 @@ CREATE VIEW nw.view_section_ij_line AS (
     se.section_id,
     se.description,
     se.section_group,
+    se.section_order,
     se.report,
     se.rotation,
     se.via_nodes[1]                         AS i_node,
@@ -419,6 +422,7 @@ BEGIN
       NEW.section_id,
       NEW.description,
       NEW.section_group,
+      NEW.section_order,
       NEW.report,
       NEW.rotation,
       ARRAY[closest_i_node_id, closest_j_node_id]
@@ -430,6 +434,7 @@ BEGIN
     SET
       description = NEW.description,
       section_group = NEW.section_group,
+      section_order = NEW.section_order,
       report = NEW.report,
       rotation = NEW.rotation,
       via_nodes = ARRAY[closest_i_node_id, closest_j_node_id]
