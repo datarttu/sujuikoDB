@@ -323,6 +323,7 @@ CREATE VIEW nw.view_link_on_route_geom AS (
 CREATE TABLE nw.section (
   section_id        text PRIMARY KEY,
   description       text,
+  section_group     text,
   report            boolean DEFAULT true,
   rotation          float8 DEFAULT 0.0,
   via_nodes         integer[],
@@ -343,6 +344,7 @@ CREATE VIEW nw.view_link_on_section_geom AS (
   SELECT
     sec.section_id,
     sec.description,
+    sec.section_group,
     sec.report,
     sec.rotation,
     sec.via_nodes,
@@ -366,6 +368,7 @@ CREATE VIEW nw.view_section_ij_line AS (
   SELECT
     se.section_id,
     se.description,
+    se.section_group,
     se.report,
     se.rotation,
     se.via_nodes[1]                         AS i_node,
@@ -411,10 +414,11 @@ BEGIN
 
   IF TG_OP = 'INSERT' THEN
     INSERT INTO nw.section(
-      section_id, description, report, rotation, via_nodes
+      section_id, description, section_group, report, rotation, via_nodes
     ) VALUES (
       NEW.section_id,
       NEW.description,
+      NEW.section_group,
       NEW.report,
       NEW.rotation,
       ARRAY[closest_i_node_id, closest_j_node_id]
@@ -425,6 +429,7 @@ BEGIN
     UPDATE nw.section
     SET
       description = NEW.description,
+      section_group = NEW.section_group,
       report = NEW.report,
       rotation = NEW.rotation,
       via_nodes = ARRAY[closest_i_node_id, closest_j_node_id]
