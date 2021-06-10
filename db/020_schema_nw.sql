@@ -482,7 +482,7 @@ CREATE VIEW nw.view_section_geom AS (
   INNER JOIN (
     SELECT
       los.section_id,
-      ST_LineMerge(ST_Union(ld.geom ORDER BY los.link_seq)) AS geom
+      ST_MakeLine(ld.geom ORDER BY los.link_seq) AS geom
       FROM nw.link_on_section     AS los
       INNER JOIN nw.view_link_directed  AS ld
         ON (los.link_id = ld.link_id AND los.link_reversed = ld.link_reversed)
