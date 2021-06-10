@@ -467,3 +467,26 @@ $$ LANGUAGE PLPGSQL;
 CREATE TRIGGER tg_delete_section_ij_line
 INSTEAD OF DELETE ON nw.view_section_ij_line
 FOR EACH ROW EXECUTE PROCEDURE nw.tg_delete_section_ij_line();
+
+CREATE VIEW nw.view_section_geom AS (
+  SELECT
+    sec.section_id,
+    sec.description,
+    sec.section_group,
+    sec.section_order,
+    sec.report,
+    sec.rotation,
+    sec.via_nodes,
+    sg.geom
+  FROM nw.section                   AS sec
+  INNER JOIN (
+    SELECT
+      los.section_id,
+      ST_LineMerge(ST_Union(ld.geom ORDER BY los.link_seq)) AS geom
+      FROM nw.link_on_section     AS los
+      INNER JOIN nw.view_link_directed  AS ld
+        ON (los.link_id = ld.link_id AND los.link_reversed = ld.link_reversed)
+      GROUP BY los.section_id
+  ) AS sg
+    ON sec.section_id = sg.section_id
+);
