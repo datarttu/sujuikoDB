@@ -492,23 +492,29 @@ CREATE VIEW nw.view_section_geom AS (
 );
 
 CREATE VIEW nw.view_section_stop_points AS (
-  WITH all_cumul_locations AS (
+  WITH cumul_links AS (
     SELECT
       los.section_id,
       los.link_seq,
-      st.stop_id,
-      st.stop_code,
-      st.stop_radius_m,
-      (sum(ld.length_m) OVER w_section) - ld.length_m + (ld.length_m * st.location_on_link) AS stop_cumul_loc_m,
-      ST_LineInterpolatePoint(ld.geom, st.location_on_link) AS geom
+      los.link_id,
+      los.link_reversed,
+      ld.length_m AS link_length_m,
+      sum(ld.length_m) OVER w_section - ld.length_m AS link_i_dist,
+      ld.geom AS link_geom
     FROM nw.link_on_section AS los
     INNER JOIN nw.view_link_directed AS ld
       ON (los.link_id = ld.link_id AND los.link_reversed = ld.link_reversed)
-    LEFT JOIN nw.stop AS st
-      ON (ld.link_id = st.link_id AND ld.link_reversed = st.link_reversed)
-    WINDOW w_section AS (PARTITION BY section_id ORDER BY link_seq)
+    WINDOW w_section AS (PARTITION BY los.section_id ORDER BY los.link_seq)
   )
-  SELECT *
-  FROM all_cumul_locations
-  WHERE stop_id IS NOT NULL
+  SELECT
+    cl.section_id,
+    cl.link_seq,
+    st.stop_id,
+    st.stop_code,
+    st.stop_radius_m,
+    cl.link_i_dist + (cl.link_length_m * st.location_on_link) AS stop_cumul_loc_m,
+    ST_LineInterpolatePoint(cl.link_geom, st.location_on_link) AS geom
+  FROM cumul_links AS cl
+  INNER JOIN nw.stop AS st
+    ON (cl.link_id = st.link_id AND cl.link_reversed = st.link_reversed)
 );
