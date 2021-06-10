@@ -333,6 +333,42 @@ END;
 $$;
 
 /*
+ * This procedure updates the section rotation value in degrees
+ * with the azimuth between the start and end nodes of the section.
+ * Note that it uses the via_nodes, NOT the links_on_section geometries.
+ */
+CREATE PROCEDURE nw.batch_update_section_rotation()
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  n_updated bigint;
+BEGIN
+  WITH rotations AS (
+    SELECT
+      se.section_id,
+      degrees(
+        ST_Azimuth(ind.geom, jnd.geom)
+      ) AS rotation
+    FROM nw.section AS se
+    INNER JOIN nw.node  AS ind
+      ON (se.via_nodes[1] = ind.node_id)
+    INNER JOIN nw.node  AS jnd
+      ON (se.via_nodes[cardinality(se.via_nodes)] = jnd.node_id)
+    WHERE cardinality(se.via_nodes) > 1
+  ),
+  updated AS (
+    UPDATE nw.section AS upd
+    SET rotation = rt.rotation
+    FROM rotations AS rt
+    WHERE upd.section_id = rt.section_id
+    RETURNING 1
+  )
+  SELECT INTO n_updated count(*) FROM updated;
+  RAISE INFO '% section rotation values updated', n_updated;
+END;
+$$;
+
+/*
  * # Creating and updating nw.link_on_route route version paths
  *
  * This works with the same idea as the sections and links on section above,
