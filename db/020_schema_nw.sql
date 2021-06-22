@@ -323,6 +323,8 @@ CREATE VIEW nw.view_link_on_route_geom AS (
 CREATE TABLE nw.section (
   section_id        text PRIMARY KEY,
   description       text,
+  section_group     text,
+  section_order     integer,
   report            boolean DEFAULT true,
   rotation          float8 DEFAULT 0.0,
   via_nodes         integer[],
@@ -343,6 +345,8 @@ CREATE VIEW nw.view_link_on_section_geom AS (
   SELECT
     sec.section_id,
     sec.description,
+    sec.section_group,
+    sec.section_order,
     sec.report,
     sec.rotation,
     sec.via_nodes,
@@ -366,6 +370,8 @@ CREATE VIEW nw.view_section_ij_line AS (
   SELECT
     se.section_id,
     se.description,
+    se.section_group,
+    se.section_order,
     se.report,
     se.rotation,
     se.via_nodes[1]                         AS i_node,
@@ -411,10 +417,12 @@ BEGIN
 
   IF TG_OP = 'INSERT' THEN
     INSERT INTO nw.section(
-      section_id, description, report, rotation, via_nodes
+      section_id, description, section_group, report, rotation, via_nodes
     ) VALUES (
       NEW.section_id,
       NEW.description,
+      NEW.section_group,
+      NEW.section_order,
       NEW.report,
       NEW.rotation,
       ARRAY[closest_i_node_id, closest_j_node_id]
@@ -425,6 +433,8 @@ BEGIN
     UPDATE nw.section
     SET
       description = NEW.description,
+      section_group = NEW.section_group,
+      section_order = NEW.section_order,
       report = NEW.report,
       rotation = NEW.rotation,
       via_nodes = ARRAY[closest_i_node_id, closest_j_node_id]
@@ -457,3 +467,54 @@ $$ LANGUAGE PLPGSQL;
 CREATE TRIGGER tg_delete_section_ij_line
 INSTEAD OF DELETE ON nw.view_section_ij_line
 FOR EACH ROW EXECUTE PROCEDURE nw.tg_delete_section_ij_line();
+
+CREATE VIEW nw.view_section_geom AS (
+  SELECT
+    sec.section_id,
+    sec.description,
+    sec.section_group,
+    sec.section_order,
+    sec.report,
+    sec.rotation,
+    sec.via_nodes,
+    sg.geom
+  FROM nw.section                   AS sec
+  INNER JOIN (
+    SELECT
+      los.section_id,
+      ST_MakeLine(ld.geom ORDER BY los.link_seq) AS geom
+      FROM nw.link_on_section     AS los
+      INNER JOIN nw.view_link_directed  AS ld
+        ON (los.link_id = ld.link_id AND los.link_reversed = ld.link_reversed)
+      GROUP BY los.section_id
+  ) AS sg
+    ON sec.section_id = sg.section_id
+);
+
+CREATE VIEW nw.view_section_stop_points AS (
+  WITH cumul_links AS (
+    SELECT
+      los.section_id,
+      los.link_seq,
+      los.link_id,
+      los.link_reversed,
+      ld.length_m AS link_length_m,
+      sum(ld.length_m) OVER w_section - ld.length_m AS link_i_dist,
+      ld.geom AS link_geom
+    FROM nw.link_on_section AS los
+    INNER JOIN nw.view_link_directed AS ld
+      ON (los.link_id = ld.link_id AND los.link_reversed = ld.link_reversed)
+    WINDOW w_section AS (PARTITION BY los.section_id ORDER BY los.link_seq)
+  )
+  SELECT
+    cl.section_id,
+    cl.link_seq,
+    st.stop_id,
+    st.stop_code,
+    st.stop_radius_m,
+    cl.link_i_dist + (cl.link_length_m * st.location_on_link) AS stop_cumul_loc_m,
+    ST_LineInterpolatePoint(cl.link_geom, st.location_on_link) AS geom
+  FROM cumul_links AS cl
+  INNER JOIN nw.stop AS st
+    ON (cl.link_id = st.link_id AND cl.link_reversed = st.link_reversed)
+);
