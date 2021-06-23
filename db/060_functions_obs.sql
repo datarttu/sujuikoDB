@@ -172,15 +172,12 @@ $$;
  *   to join these events back to the HFP data, so we no longer need
  *   the halt_group attribute in the result set.
  *
- * Note that this function could as well be a view, but we do not want to
- * make this available as a view in obs schema, since this CTE is only meant
- * for importing data to the table.
- * On the other hand, we do not want to do this import with a batch import
+ * We do not want to do this import with a batch import
  * procedure only, since we might well want to use this function flexibly
  * to import halts from a subset of journeys only, for instance.
  */
 
-CREATE FUNCTION obs.get_halts_on_journey()
+CREATE FUNCTION obs.get_halts_on_journey(min_halt_duration_s float4 DEFAULT 3.0)
 RETURNS SETOF obs.halt_on_journey
 LANGUAGE SQL
 AS $$
@@ -234,16 +231,18 @@ AS $$
     GROUP BY jrnid, halt_group
   )
   SELECT jrnid, tst, NULL::int AS stop_id, total_s, door_open_s, door_closed_s, represents_time_s
-  FROM halt_groups;
+  FROM halt_groups
+  WHERE total_s >= $1;
 $$;
 
-CREATE PROCEDURE obs.batch_create_halts_on_journey()
-LANGUAGE PLPGSQL
+CREATE PROCEDURE obs.batch_create_halts_on_journey(
+  min_halt_duration_s float4 DEFAULT 3.0
+) LANGUAGE PLPGSQL
 AS $$
 BEGIN
   INSERT INTO obs.halt_on_journey
   SELECT *
-  FROM obs.get_halts_on_journey()
+  FROM obs.get_halts_on_journey(min_halt_duration_s)
   ORDER BY jrnid, tst;
 END;
 $$;
