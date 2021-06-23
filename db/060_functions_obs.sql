@@ -126,3 +126,113 @@ BEGIN
   END LOOP;
 END;
 $$;
+
+/*
+ * Creating NON-MOVEMENT EVENTS, i.e. the halt_on_journey data
+ *
+ * The following function is based on some important assumptions:
+ * firstly, when the vehicle has not moved, the HFP signal has been really
+ * locked into one position (at least in post-processing of HFP before
+ * db import), and there is a new HFP point whenever the vehicle stops,
+ * changes its door status, or starts to move.
+ * Secondly, it is assumed that the door sensor works correctly;
+ * if drst is just NULL, then that door time remains unknown, but it is more
+ * dangerous if the drst is accidentally inverted (which has happened).
+ * Thirdly, since we use points_on_link, any HFP points left without a link
+ * match are ignored, so that these result may underestimate total halt times
+ * of entire journeys, for instance.
+ *
+ * Now the CTE expression below is rather complex and multi-staged,
+ * mainly due to the separation of
+ * 1) total time of the halt event, that is, the difference between the
+ *    first timestamp of the event and the next timestamp
+ *    when the vehicle moves again; and
+ * 2) represented time, which originates from the represents_time_s attribute
+ *    of the original HFP data and tells the duration of _valid_ raw data points
+ *    that the point in question represents.
+ * By comparing these two, we can figure out the "gaps", i.e. how much raw data
+ * has been lost at some stage, either in raw HFP preparation before db,
+ * or when matching hfp_point data to route links.
+ *
+ * To explain the CTE a bit:
+ * - First we compare successive locations along route geometry (link_seq, location_on_link)
+ *   to determine the points that do not move. At this point, we also get to save
+ *   the timestamp of the next moving point through end_tst.
+ * - Then we leave out the moving points, now having a couple of rows for each halt event
+ *   (start and end of the halt, as well as door status changes).
+ *   By comparing consecutive rows from these, we can mark the beginning of each
+ *   halt event with 1 (new_halt_marker), 0 otherwise.
+ * - Then we take the cumulative sum of the new_halt_markers -> unique halt group
+ *   number within each jrnid. Yes, we could just group by link_seq and location_on_link,
+ *   but as long as we allow backing up along the route geometry, this would impose
+ *   the risk of grouping multiple halt events at the same location together.
+ * - Finally we get to calculate totals by halt event by using the halt_group.
+ * - However, since the original HFP points are unique by jrnid, tst,
+ *   so are also the halt events by jrnid, min(tst), and these can be used
+ *   to join these events back to the HFP data, so we no longer need
+ *   the halt_group attribute in the result set.
+ *
+ * Note that this function could as well be a view, but we do not want to
+ * make this available as a view in obs schema, since this CTE is only meant
+ * for importing data to the table.
+ * On the other hand, we do not want to do this import with a batch import
+ * procedure only, since we might well want to use this function flexibly
+ * to import halts from a subset of journeys only, for instance.
+ */
+
+CREATE FUNCTION obs.get_halts_on_journey()
+RETURNS SETOF obs.halt_on_journey
+LANGUAGE SQL
+AS $$
+  WITH
+  successive_points AS (
+    SELECT
+      pol.jrnid,
+      pol.tst,
+      lead(pol.tst) OVER w  AS end_tst,
+      hp.drst,
+      hp.represents_time_s,
+      pol.link_seq,
+      pol.location_on_link  AS link_loc,
+      (
+        (pol.link_seq = lead(pol.link_seq) OVER w AND pol.location_on_link = lead(pol.location_on_link) OVER w)
+        OR
+        (pol.link_seq = lag(pol.link_seq) OVER w AND pol.location_on_link = lag(pol.location_on_link) OVER w)
+      )                     AS is_halted_point
+    FROM obs.hfp_point            AS hp
+    INNER JOIN obs.point_on_link  AS pol
+      ON (hp.jrnid = pol.jrnid AND hp.tst = pol.tst)
+    WINDOW w AS (PARTITION BY pol.jrnid ORDER BY pol.tst)
+  ),
+  halt_points AS (
+    SELECT
+      jrnid, tst, end_tst, drst, represents_time_s,
+      coalesce(
+        link_seq <> lag(link_seq) OVER w AND link_loc <> lag(link_loc) OVER w, true
+        )::integer      AS new_halt_marker
+    FROM successive_points
+    WHERE is_halted_point
+    WINDOW w AS (PARTITION BY jrnid ORDER BY tst)
+  ),
+  grouped_halt_points AS (
+    SELECT
+      jrnid, tst, end_tst, drst, represents_time_s,
+      sum(new_halt_marker) OVER w AS halt_group
+    FROM halt_points
+    WINDOW w AS (PARTITION BY jrnid ORDER BY tst)
+  ),
+  halt_groups AS (
+    SELECT
+      jrnid,
+      halt_group,
+      min(tst)                                                      AS tst,
+      extract(epoch FROM max(end_tst) - min(tst))                   AS total_s,
+      coalesce(sum(represents_time_s) FILTER(WHERE drst), 0.0)      AS door_open_s,
+      coalesce(sum(represents_time_s) FILTER(WHERE NOT drst), 0.0)  AS door_closed_s,
+      sum(represents_time_s)                                        AS represents_time_s
+    FROM grouped_halt_points
+    GROUP BY jrnid, halt_group
+  )
+  SELECT jrnid, tst, NULL::int AS stop_id, total_s, door_open_s, door_closed_s, represents_time_s
+  FROM halt_groups;
+$$;
