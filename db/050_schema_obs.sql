@@ -125,3 +125,16 @@ SELECT create_hypertable(
   number_partitions   => 4,
   chunk_time_interval => '1 day'::interval
 );
+
+-- HALT (non-movement) events calculated from points_on_link
+CREATE TABLE obs.halt_on_journey (
+  jrnid                 uuid          NOT NULL REFERENCES obs.journey(jrnid),
+  tst                   timestamptz   NOT NULL,
+  stop_id               integer           NULL REFERENCES nw.stop(stop_id),
+  total_s               float4,
+  door_open_s           float4,
+  door_closed_s         float4,
+  represents_time_s     float4,
+
+  PRIMARY KEY (jrnid, tst)
+);
