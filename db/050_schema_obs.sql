@@ -138,3 +138,27 @@ CREATE TABLE obs.halt_on_journey (
 
   PRIMARY KEY (jrnid, tst)
 );
+
+CREATE VIEW obs.view_halt_on_journey_extended AS (
+  SELECT
+    hoj.jrnid,
+    hoj.tst,
+    hoj.tst + hoj.total_s * interval '1 second'             AS end_tst,
+    hoj.stop_id,
+    hoj.total_s,
+    hoj.total_s - hoj.represents_time_s                     AS unknown_s,
+    hoj.door_open_s,
+    hoj.door_closed_s,
+    hoj.total_s - hoj.door_open_s - hoj.door_closed_s       AS door_unknown_s,
+    hoj.represents_time_s,
+    pol.link_id,
+    pol.link_reversed,
+    pol.link_seq,
+    pol.distance_from_link,
+    ST_LineInterpolatePoint(vld.geom, pol.location_on_link) AS geom
+  FROM obs.halt_on_journey          AS hoj
+  INNER JOIN obs.point_on_link      AS pol
+    ON (hoj.jrnid = pol.jrnid AND hoj.tst = pol.tst)
+  INNER JOIN nw.view_link_directed  AS vld
+    ON (pol.link_id = vld.link_id AND pol.link_reversed = vld.link_reversed)
+);
