@@ -236,3 +236,14 @@ AS $$
   SELECT jrnid, tst, NULL::int AS stop_id, total_s, door_open_s, door_closed_s, represents_time_s
   FROM halt_groups;
 $$;
+
+CREATE PROCEDURE obs.batch_create_halts_on_journey()
+LANGUAGE PLPGSQL
+AS $$
+BEGIN
+  INSERT INTO obs.halt_on_journey
+  SELECT *
+  FROM obs.get_halts_on_journey()
+  ORDER BY jrnid, tst;
+END;
+$$;
