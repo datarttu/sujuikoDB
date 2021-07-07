@@ -130,7 +130,6 @@ SELECT create_hypertable(
 CREATE TABLE obs.halt_on_journey (
   jrnid                 uuid          NOT NULL REFERENCES obs.journey(jrnid),
   tst                   timestamptz   NOT NULL,
-  stop_id               integer           NULL REFERENCES nw.stop(stop_id),
   total_s               float4,
   door_open_s           float4,
   door_closed_s         float4,
@@ -144,7 +143,7 @@ CREATE VIEW obs.view_halt_on_journey_extended AS (
     hoj.jrnid,
     hoj.tst,
     hoj.tst + hoj.total_s * interval '1 second'             AS end_tst,
-    hoj.stop_id,
+    st.stop_id,
     hoj.total_s,
     hoj.total_s - hoj.represents_time_s                     AS unknown_s,
     hoj.door_open_s,
@@ -154,6 +153,7 @@ CREATE VIEW obs.view_halt_on_journey_extended AS (
     pol.link_id,
     pol.link_reversed,
     pol.link_seq,
+    pol.location_on_link * vld.length_m                     AS halt_location_m,
     pol.distance_from_link,
     ST_LineInterpolatePoint(vld.geom, pol.location_on_link) AS geom
   FROM obs.halt_on_journey          AS hoj
@@ -161,4 +161,10 @@ CREATE VIEW obs.view_halt_on_journey_extended AS (
     ON (hoj.jrnid = pol.jrnid AND hoj.tst = pol.tst)
   INNER JOIN nw.view_link_directed  AS vld
     ON (pol.link_id = vld.link_id AND pol.link_reversed = vld.link_reversed)
+  LEFT JOIN nw.stop                 AS st
+    ON (
+      vld.link_id = st.link_id AND vld.link_reversed = st.link_reversed
+      AND (pol.location_on_link * vld.length_m) >= (st.location_on_link * vld.length_m - st.stop_radius_m)
+      AND (pol.location_on_link * vld.length_m) <= (st.location_on_link * vld.length_m + st.stop_radius_m)
+    )
 );
