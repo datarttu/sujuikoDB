@@ -38,8 +38,8 @@ FOR EACH ROW EXECUTE PROCEDURE nw.tg_insert_wkt_node();
 -- LINKS
 CREATE TABLE nw.link (
   link_id       integer PRIMARY KEY CHECK (link_id > 0),
-  i_node        integer,
-  j_node        integer,
+  i_node        integer NOT NULL REFERENCES nw.node(node_id),
+  j_node        integer NOT NULL REFERENCES nw.node(node_id),
   oneway        boolean,
   length_m      float8 GENERATED ALWAYS AS (ST_Length(geom)) STORED,
   link_modes    nw.vehicle_mode[] DEFAULT ARRAY['bus'::nw.vehicle_mode],
