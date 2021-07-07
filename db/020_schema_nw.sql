@@ -42,10 +42,10 @@ CREATE TABLE nw.link (
   j_node        integer,
   oneway        boolean,
   length_m      float8 GENERATED ALWAYS AS (ST_Length(geom)) STORED,
-  link_modes    nw.vehicle_mode[],
+  link_modes    nw.vehicle_mode[] DEFAULT ARRAY['bus'::nw.vehicle_mode],
   link_label    text,
-  data_source   text,
-  source_date   date,
+  data_source   text DEFAULT 'Manual',
+  source_date   date DEFAULT CURRENT_DATE,
   errors        text[],
   geom          geometry(LINESTRING, 3067)
 );
