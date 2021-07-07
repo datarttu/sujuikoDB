@@ -289,6 +289,11 @@ Alternatively, run the creation procedure for a single journey only:
 INFO:  jrnid 68108530-6edf-2862-f2f2-b69fc053c787: 2037 hfp_point -> 2023 point_on_link
 ```
 
+#### `obs.halt_on_journey`
+
+Events where a vehicle on journey `jrnid` is _halted_, i.e. stopped, starting from `tst` for `total_s` seconds.
+We use the word "halt" to not confuse it with the word "stop" that is used for another meaning in the data model.
+
 #### `obs.link_on_journey`
 
 _TODO: per-link aggregates derived from `points_on_link`._
