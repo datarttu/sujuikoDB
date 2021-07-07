@@ -118,6 +118,9 @@ CREATE TABLE obs.point_on_link (
   PRIMARY KEY (jrnid, tst)
 );
 
+CREATE INDEX ON obs.point_on_link USING btree (tst DESC);
+CREATE INDEX ON obs.point_on_link USING btree (link_id, link_reversed);
+
 SELECT create_hypertable(
   relation            => 'obs.point_on_link',
   time_column_name    => 'tst',
