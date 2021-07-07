@@ -78,7 +78,7 @@ CREATE PROCEDURE obs.create_points_on_link(
   max_distance_m  float8  DEFAULT 20.0
 )
 LANGUAGE PLPGSQL
-AS $$
+AS $procedure$
 DECLARE
   n_source_points bigint;
   n_result_points bigint;
@@ -106,13 +106,13 @@ BEGIN
   RAISE INFO 'jrnid %: % hfp_point -> % point_on_link',
     target_jrnid, n_source_points, n_result_points;
 END;
-$$;
+$procedure$;
 
 CREATE PROCEDURE obs.batch_create_points_on_link(
   max_distance_m  float8  DEFAULT 20.0
 )
 LANGUAGE PLPGSQL
-AS $$
+AS $procedure$
 DECLARE
   rec record;
 BEGIN
@@ -125,7 +125,7 @@ BEGIN
     );
   END LOOP;
 END;
-$$;
+$procedure$;
 
 /*
  * Creating NON-MOVEMENT EVENTS, i.e. the halt_on_journey data

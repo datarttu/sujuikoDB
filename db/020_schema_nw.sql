@@ -387,7 +387,8 @@ CREATE VIEW nw.view_section_ij_line AS (
 
 CREATE FUNCTION nw.tg_upsert_section_ij_line()
 RETURNS trigger
-AS $$
+LANGUAGE PLPGSQL
+AS $function$
 DECLARE
   closest_i_node_id integer;
   closest_j_node_id integer;
@@ -443,7 +444,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$$ LANGUAGE PLPGSQL;
+$function$;
 
 CREATE TRIGGER tg_upsert_section_ij_line
 INSTEAD OF INSERT OR UPDATE ON nw.view_section_ij_line
@@ -451,7 +452,8 @@ FOR EACH ROW EXECUTE PROCEDURE nw.tg_upsert_section_ij_line();
 
 CREATE FUNCTION nw.tg_delete_section_ij_line()
 RETURNS trigger
-AS $$
+LANGUAGE PLPGSQL
+AS $function$
 BEGIN
 
   DELETE FROM nw.link_on_section
@@ -462,7 +464,7 @@ BEGIN
 
   RETURN OLD;
 END;
-$$ LANGUAGE PLPGSQL;
+$function$;
 
 CREATE TRIGGER tg_delete_section_ij_line
 INSTEAD OF DELETE ON nw.view_section_ij_line

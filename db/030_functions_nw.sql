@@ -106,7 +106,7 @@ CREATE PROCEDURE nw.batch_update_stop_link_refs(
   max_distance_m float8 DEFAULT 20.0
 )
 LANGUAGE PLPGSQL
-AS $$
+AS $procedure$
 DECLARE
   n_total   integer;
   n_manual  integer;
@@ -135,7 +135,7 @@ BEGIN
   RAISE INFO '% nw.stop records updated (total % stops, % protected from updates)',
     n_updated, n_total, n_manual;
 END;
-$$;
+$procedure$;
 
 /*
  * # Routing (generating link_on_route and link_on_section results)
@@ -339,7 +339,7 @@ $$;
  */
 CREATE PROCEDURE nw.batch_update_section_rotation()
 LANGUAGE PLPGSQL
-AS $$
+AS $procedure$
 DECLARE
   n_updated bigint;
 BEGIN
@@ -366,7 +366,7 @@ BEGIN
   SELECT INTO n_updated count(*) FROM updated;
   RAISE INFO '% section rotation values updated', n_updated;
 END;
-$$;
+$procedure$;
 
 /*
  * # Creating and updating nw.link_on_route route version paths
