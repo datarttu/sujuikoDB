@@ -230,7 +230,7 @@ AS $$
     FROM grouped_halt_points
     GROUP BY jrnid, halt_group
   )
-  SELECT jrnid, tst, NULL::int AS stop_id, total_s, door_open_s, door_closed_s, represents_time_s
+  SELECT jrnid, tst, total_s, door_open_s, door_closed_s, represents_time_s
   FROM halt_groups
   WHERE total_s >= $1;
 $$;
