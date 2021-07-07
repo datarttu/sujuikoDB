@@ -321,3 +321,82 @@ Fields in addition to `jrnid`:
 - `door_open_s`: Time that the journey has spent with _doors open_ (`drst IS true`) on the link. Note that doors may be or at least appear open even on moving points, although they should not! So, you cannot always assume that "door_closed_s" equals `halted_s - door_open_s` without more detailed analysis of `points_on_link`. `NULL` for interpolated-only `link_on_journey`.
 - `n_halts`: Number of times that the journey has stopped on the link. `NULL` for interpolated-only `link_on_journey`.
 - `represents_n_points`: Sum of `represents_n_points` values of the respective `points_on_link`. In other words, describes the HFP "sample size" of the `link_on_journey`: lots of points on a short link can be considered more reliable data than few points on a long link, for example. `0` for interpolated-only `link_on_journey`.
+
+### Data processing in the observation model
+
+First of all, your network data in `nw` schema should be ready and valid, include all the route versions you want to import observations from, and so on.
+
+Second, you should have prepared the observation data e.g. with the [hslhfp](https://github.com/datarttu/hslhfp) package so that you have the _observation_ and _journey_ files ready for import like this:
+
+```
+<import_dir>
+├── jrn_2510_1_2020-10-05.csv
+├── jrn_2510_1_2020-10-06.csv
+├── jrn_2510_1_2020-10-07.csv
+├── obs_2510_1_2020-10-05.csv
+├── obs_2510_1_2020-10-06.csv
+└── obs_2510_1_2020-10-07.csv
+```
+
+- `jrn` files should conform to the `obs.journey` table structure.
+- `obs` files should conform to the `obs.view_hfp_point_xy` view structure.
+
+Detailed requirements for prepared raw data are not covered here.
+
+#### Import journeys and HFP points
+
+Process one `route_dir_oday` dataset at a time.
+Start from journeys, since they have to be present to fulfil the `obs.hfp_point` foreign key constraint.
+Note that we specify columns here explicitly, because the `route_ver_id` field is populated automatically by the `obs.tg_insert_journey_handler()` trigger based on `route`, `dir` and `start_tst`.
+The same trigger also refuses to store a journey that does not have corresponding route version data in the `nw` schema, so you will probably notice missing `nw` data from warning messages at this point.
+
+```
+\copy obs.journey(jrnid, route, dir, start_tst, oper, veh) FROM '/<import_dir>/jrn_<route>_<dir>_<oday>.csv' CSV HEADER;
+```
+
+Now you can import the corresponding HFP points, i.e. observations.
+Note that we are using a view with an `INSTEAD OF INSERT` trigger for this, since the csv data contains TM35 X and Y coordinates rather whereas the actual table stores the point geometries as binary data.
+
+```
+\copy obs.view_hfp_point_xy FROM '/<import_dir>/obs_<route>_<dir>_<oday>.csv' CSV HEADER;
+```
+
+This way the `obs.hfp_point` table gets populated.
+
+Unfortunately there is currently no script for batch importing multiple datasets since the import needs vary depending on the situation.
+You might want to automate this with a shell script over a directory of files, for example.
+
+#### Project points to links
+
+Having populated the `obs.hfp_point` table, you can now connect each point to its closest link on the route of the journey, populating the `obs.point_on_link` table:
+
+```
+CALL obs.batch_create_points_on_link(max_distance_m => 20.0);
+```
+
+Note that this reads _all_ the points in `obs.hfp_point`, which makes it unoptimal to use with incremental data imports.
+To (re-)process individual journeys, use `obs.create_points_on_link(target_jrnid, max_distance_m)`, or apply it in an SQL script for multiple journeys.
+
+`max_distance_m` determines how far away a `hfp_point` can be from the closest link on route while still projected to the link.
+Points further away are considered too unreliable - or if there are a lot of them, you may want to check that your route version path in `nw.link_on_route` is surely correct.
+Points left outside `max_distance_m` are simply left in `obs.hfp_point`, they will just not get a corresponding row in `obs.point_on_link`.
+
+#### Create halts from points on links
+
+Now that we have projected observations along links, we can pick the ones that form _halt_ events, i.e., moments and locations where vehicles have not moved for a certain duration.
+This could be calculated from successive `obs.point_on_link` on the fly, but this operation is quite complex and slow: therefore it is better to materialize the halt events and their durations into a separate table in a usable data model.
+
+```
+CALL obs.batch_create_halts_on_journey(min_halt_duration_s => 3.0);
+```
+
+Again, this procedure uses _all_ the points in `obs.point_on_link`.
+Successive points must stay in the same location for at least `min_halt_duration_s` seconds (3 s by default, same as the `hslhfp` default) to be considered as a halt.
+Detecting the halt locations is currently based on the vehicle odometer value that tends to advance in "jumps", remaining the same for a second or two while the vehicle is actually moving.
+Therefore we want to use a reasonable constraint to not produce unrealistic halts.
+
+Note that this feature absolutely requires that the GPS jitter of halted vehicles has been eliminated when preparing the raw data, e.g. by clustering halted GPS coordinates to the same point by odometer value in `hslhfp`!
+
+#### Create interpolated link traversal events
+
+_TODO_
