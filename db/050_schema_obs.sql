@@ -168,3 +168,6 @@ CREATE VIEW obs.view_halt_on_journey_extended AS (
       AND (pol.location_on_link * vld.length_m) <= (st.location_on_link * vld.length_m + st.stop_radius_m)
     )
 );
+
+COMMENT ON VIEW obs.view_halt_on_journey_extended IS
+'Halt events with represented, total and door times, possible stop references as well as linear locations along links and derived point geometries.';

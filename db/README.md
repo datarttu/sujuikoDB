@@ -294,6 +294,13 @@ INFO:  jrnid 68108530-6edf-2862-f2f2-b69fc053c787: 2037 hfp_point -> 2023 point_
 Events where a vehicle on journey `jrnid` is _halted_, i.e. stopped, starting from `tst` for `total_s` seconds.
 We use the word "halt" to not confuse it with the word "stop" that is used for another meaning in the data model.
 
+Notes on stop references (accessible in `obs.view_halt_on_journey_extended` field `stop_id`):
+
+- Stop "coverage area", i.e. the distance `stop_radius_m` before and after the stop location along the link, is capped to the link end, should the stop be located closer than `stop_radius_m` to either end of its link.
+Halts located on the next or previous link on the route are not linked to the stop, even if their distance to the stop is less than `stop_radius_m`.
+- _Any_ stop located on the directed link counts, not only stops included in the stops of the route of the journey.
+This not only simplifies the data model but also makes sense in analytical terms, since stop areas and pockets can easily cause disruptions to transit flows even if they do not belong to the stops served by the journey of interest.
+
 #### `obs.link_on_journey`
 
 _TODO: per-link aggregates derived from `points_on_link`._
