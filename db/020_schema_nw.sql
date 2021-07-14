@@ -11,12 +11,24 @@ CREATE TABLE nw.node (
 
 CREATE INDEX ON nw.node USING GIST(geom);
 
+COMMENT ON TABLE nw.node IS
+'Geographical points where links start and end.';
+COMMENT ON COLUMN nw.node.node_id IS
+'Unique node identifier.';
+COMMENT ON COLUMN nw.node.errors IS
+'Error codes produced by validations.';
+COMMENT ON COLUMN nw.node.geom IS
+'Node POINT geometry in ETRS-TM35 coordinates.';
+
 CREATE VIEW nw.view_node_wkt AS (
   SELECT
     node_id,
     ST_AsText(geom) AS geom_text
   FROM nw.node
 );
+
+COMMENT ON VIEW nw.view_node_wkt IS
+'Node geometries as well-known text along with node_id. Also allows copying node data from csv files with WKT geometries.';
 
 CREATE FUNCTION nw.tg_insert_wkt_node()
 RETURNS trigger
@@ -30,6 +42,9 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE PLPGSQL;
+
+COMMENT ON FUNCTION nw.tg_insert_wkt_node IS
+'Stores WKT geoms inserted into nw.view_node_wkt view as binary geoms in the actual table.';
 
 CREATE TRIGGER tg_insert_wkt_node
 INSTEAD OF INSERT ON nw.view_node_wkt

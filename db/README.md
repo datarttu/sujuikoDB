@@ -72,10 +72,16 @@ Finally, we can run all the network validations with one command:
 
 #### `nw.node`
 
-Points where links start or end.
+Geographical points where links start and end.
+Nodes should be unique not only by `node_id` but also geographically: no two nodes should be in the same point, given a decent coordinate precision.
+Nodes breaking this rule can be found with this function that is also included in the `nw.validate_nodes()` procedure:
 
-`nw.view_node_wkt` works as a data insert API that allows copying CSV files with WKT geometries (through the `INSTEAD OF INSERT` trigger).
-See [node example data](../example_data/node.csv).
+```
+SELECT * FROM nw.vld_node_duplicated_node();
+```
+
+See [node example data](../example_data/node.csv) that can be imported through the `nw.view_node_wkt` view.
+This is possible with an `INSTEAD OF INSERT` trigger that calls the `nw.tg_insert_wkt_node()` function.
 
 #### `nw.link`
 
