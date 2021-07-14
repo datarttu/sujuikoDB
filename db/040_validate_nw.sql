@@ -47,6 +47,9 @@ BEGIN
 END;
 $$;
 
+COMMENT ON PROCEDURE nw.validate_nodes IS
+'Runs nw.node validations, clearing old error codes.';
+
 /*
  * # LINKS
  */
@@ -131,6 +134,9 @@ BEGIN
 END;
 $$;
 
+COMMENT ON PROCEDURE nw.validate_links IS
+'Runs nw.link validations, clearing old error codes.';
+
 /*
  * # STOPS
  */
@@ -190,6 +196,9 @@ BEGIN
 
 END;
 $$;
+
+COMMENT ON PROCEDURE nw.validate_stops IS
+'Runs nw.stop validations, clearing old error codes.';
 
 /*
  * # STOPS ON ROUTE
@@ -294,6 +303,9 @@ BEGIN
 END;
 $$;
 
+COMMENT ON PROCEDURE nw.validate_stops_on_route IS
+'Runs nw.stop_on_route validations, clearing old error codes.';
+
 CREATE PROCEDURE nw.validate_all()
 LANGUAGE PLPGSQL
 AS $$
@@ -308,3 +320,6 @@ BEGIN
 
 END;
 $$;
+
+COMMENT ON PROCEDURE nw.validate_all() IS
+'Runs all network validation procedures.';
