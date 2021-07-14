@@ -73,6 +73,9 @@ INNER JOIN nw.link          AS li
   );
 $$;
 
+COMMENT ON FUNCTION obs.get_point_on_link_candidates IS
+'Finds best matching link_on_route for hfp_points, searching for links at max. max_distance_m away from the point. Currently, simply the closest link on the corresponding route is returned. In future, link and point orders should be considered too.';
+
 CREATE PROCEDURE obs.create_points_on_link(
   target_jrnid    uuid,
   max_distance_m  float8  DEFAULT 20.0
@@ -108,6 +111,9 @@ BEGIN
 END;
 $procedure$;
 
+COMMENT ON PROCEDURE obs.create_points_on_link IS
+'Creates points on link for the target_jrnid. Does NOT overwrite existing data but ignores them: run relevant DELETE first if needed.';
+
 CREATE PROCEDURE obs.batch_create_points_on_link(
   max_distance_m  float8  DEFAULT 20.0
 )
@@ -126,6 +132,9 @@ BEGIN
   END LOOP;
 END;
 $procedure$;
+
+COMMENT ON PROCEDURE obs.batch_create_points_on_link IS
+'Creates points on link for all journeys.';
 
 /*
  * Creating NON-MOVEMENT EVENTS, i.e. the halt_on_journey data
@@ -235,6 +244,9 @@ AS $$
   WHERE total_s >= $1;
 $$;
 
+COMMENT ON FUNCTION obs.get_halts_on_journey IS
+'Aggregates halt events from points on link. A halt is created from successive non-moving points of a journey before the next moving point.';
+
 CREATE PROCEDURE obs.batch_create_halts_on_journey(
   min_halt_duration_s float4 DEFAULT 3.0
 ) LANGUAGE PLPGSQL
@@ -246,3 +258,6 @@ BEGIN
   ORDER BY jrnid, tst;
 END;
 $$;
+
+COMMENT ON PROCEDURE obs.batch_create_halts_on_journey IS
+'Creates halt events for all journeys. Does not overwrite existing data but raises an error on conflict.';
