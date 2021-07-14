@@ -283,6 +283,21 @@ CREATE TABLE nw.route_version (
   EXCLUDE USING GIST (route_ver_id WITH =, valid_during WITH &&)
 );
 
+COMMENT ON TABLE nw.route_version IS
+'Transit route & direction patterns that have been valid between given dates.';
+COMMENT ON COLUMN nw.route_version.route_ver_id IS
+'Unique route version identifier. Should be of form <route>_<dir>_<startdate>_<enddate>.';
+COMMENT ON COLUMN nw.route_version.route IS
+'Route identifier.';
+COMMENT ON COLUMN nw.route_version.dir IS
+'Direction identifier (1 or 2).';
+COMMENT ON COLUMN nw.route_version.valid_during IS
+'Date range during which the route version has been valid.';
+COMMENT ON COLUMN nw.route_version.route_mode IS
+'Vehicle mode of the route version.';
+COMMENT ON COLUMN nw.route_version.errors IS
+'Error codes produced by validations.';
+
 CREATE TABLE nw.stop_on_route (
   route_ver_id    text NOT NULL REFERENCES nw.route_version(route_ver_id),
   stop_seq        integer NOT NULL CHECK (stop_seq > 0),
