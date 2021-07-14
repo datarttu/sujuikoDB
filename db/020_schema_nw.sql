@@ -1,5 +1,8 @@
 CREATE SCHEMA nw;
 
+COMMENT ON SCHEMA nw IS
+'Transit network, route versions and analysis sections on it.';
+
 CREATE TYPE nw.vehicle_mode AS enum('bus', 'tram');
 
 -- NODES
