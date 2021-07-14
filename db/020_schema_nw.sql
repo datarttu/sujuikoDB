@@ -69,6 +69,31 @@ CREATE INDEX ON nw.link USING BTREE(i_node);
 CREATE INDEX ON nw.link USING BTREE(j_node);
 CREATE INDEX ON nw.link USING GIST(geom);
 
+COMMENT ON TABLE nw.link IS
+'Street or tram network parts where buses and/or trams can run.';
+COMMENT ON COLUMN nw.link.link_id IS
+'Unique link identifier. May be inherited from data source such as Digiroad.';
+COMMENT ON COLUMN nw.link.i_node IS
+'Node id at the start of the link geometry.';
+COMMENT ON COLUMN nw.link.j_node IS
+'Node id at the end of the link geometry.';
+COMMENT ON COLUMN nw.link.oneway IS
+'true = can be traversed to the geometry direction only, false = can be traversed both ways.';
+COMMENT ON COLUMN nw.link.length_m IS
+'Link length in meters, generated from the geometry.';
+COMMENT ON COLUMN nw.link.link_modes IS
+'Allowed vehicle modes on the link.';
+COMMENT ON COLUMN nw.link.link_label IS
+'Name or other readable identifier for the link (e.g. street name).';
+COMMENT ON COLUMN nw.link.data_source IS
+'Original data source name, e.g. `Digiroad`, or `Manual` for hand-edited links.';
+COMMENT ON COLUMN nw.link.source_date IS
+'Import or modification date of the link.';
+COMMENT ON COLUMN nw.link.errors IS
+'Error codes produced by validations.';
+COMMENT ON COLUMN nw.link.geom IS
+'Link LINESTRING geometry in ETRS-TM35 coordinates.';
+
 CREATE VIEW nw.view_link_directed AS (
   WITH oneways AS (
     SELECT
@@ -106,6 +131,9 @@ CREATE VIEW nw.view_link_directed AS (
   FROM oneways
 );
 
+COMMENT ON VIEW nw.view_link_directed IS
+'Two-way links duplicated into directed oneway versions, and oneway links as usual.';
+
 CREATE VIEW nw.view_link_wkt AS (
   SELECT
     link_id,
@@ -119,6 +147,9 @@ CREATE VIEW nw.view_link_wkt AS (
     ST_AsText(geom) AS geom_text
   FROM nw.link
 );
+
+COMMENT ON VIEW nw.view_link_wkt IS
+'Link geometries as well-known text. Allows copying link data from csv files with WKT geometries.';
 
 CREATE FUNCTION nw.tg_insert_wkt_link()
 RETURNS trigger
@@ -137,6 +168,9 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE PLPGSQL;
+
+COMMENT ON FUNCTION nw.tg_insert_wkt_link IS
+'Stores WKT geoms inserted into nw.view_link_wkt view as binary geoms in the actual table.';
 
 CREATE TRIGGER tg_insert_wkt_link
 INSTEAD OF INSERT ON nw.view_link_wkt

@@ -93,14 +93,9 @@ Links can be two-way or oneway (traversing allowed only from i to j).
 A link can allow multiple modes, if in reality buses and trams use the same lane and street space, for example.
 This is why `link_modes` is an array rather than a single value.
 
-`nw.view_link_directed` view returns oneway versions of all links.
-Two-way links are duplicated into original and reversed versions of the geometries and i/j node orders.
-Oneway links are included as such.
-A (non-persistent) `uniq_link_id` is given to distinct between the oneway versions of the links.
-This view helps creating route and section paths, where the traversal direction of a link must be known exactly (by `link_reversed`).
+The `nw.view_link_directed` view helps creating route and section paths, where the traversal direction of a link must be known exactly (by `link_reversed`).
 
-`nw.view_link_wkt` works as a data insert API that allows copying CSV files with WKT geometries (through the `INSTEAD OF INSERT` trigger).
-See [link example data](../example_data/link.csv).
+See [link example data](../example_data/link.csv) that can be imported through the `nw.view_link_wkt` view.
 
 #### `nw.stop`
 
