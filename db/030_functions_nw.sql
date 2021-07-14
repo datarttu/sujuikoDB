@@ -64,6 +64,9 @@ AS $$
   ON true;
 $$;
 
+COMMENT ON FUNCTION nw.get_stop_link_refs IS
+'Returns directed link reference candidates for stops. A stop must lie on the right-hand side of the link, max. max_distance_m away from it, and the closest link candidate is returned.';
+
 CREATE PROCEDURE nw.update_stop_link_ref(
   target_stop_id  integer,
   max_distance_m  float8 DEFAULT 20.0
@@ -102,6 +105,9 @@ BEGIN
 END;
 $$;
 
+COMMENT ON PROCEDURE nw.update_stop_link_ref IS
+'Updates link references of a single stop by `target_stop_id`.';
+
 CREATE PROCEDURE nw.batch_update_stop_link_refs(
   max_distance_m float8 DEFAULT 20.0
 )
@@ -136,6 +142,9 @@ BEGIN
     n_updated, n_total, n_manual;
 END;
 $procedure$;
+
+COMMENT ON PROCEDURE nw.batch_update_stop_link_refs IS
+'Updates link references of all stops not marked with `link_ref_manual = true`.';
 
 /*
  * # Routing (generating link_on_route and link_on_section results)
@@ -202,6 +211,9 @@ BEGIN
 END;
 $$;
 
+COMMENT ON FUNCTION nw.parts_dijkstra_via_nodes IS
+'Runs Dijkstra routing for <via_node_n>, <via_node_n+1> pairs and returns paths with `part_seq` identifying the pair order number.';
+
 CREATE FUNCTION nw.dijkstra_via_nodes(via_nodes integer[])
 RETURNS TABLE (
   link_seq        integer,
@@ -234,6 +246,9 @@ EXCEPTION WHEN no_data_found THEN
   RETURN;
 END;
 $$;
+
+COMMENT ON FUNCTION nw.dijkstra_via_nodes IS
+'Runs Dijkstra routing using an ordered array of via-nodes, and returns the path as set of ordered link references.';
 
 /*
  * # Creating and updating sections (for analysis)
@@ -303,6 +318,9 @@ BEGIN
 END;
 $$;
 
+COMMENT ON PROCEDURE nw.upsert_links_on_section IS
+'Creates / updates the link path of a section `target_section_id` using Dijkstra routing with `via_nodes`. If `via_nodes` are given in this procedure, they are also updated to the `nw.section.via_nodes`.';
+
 /*
  * The following procedure will mostly be run right after data imports:
  * after that, the user should check through the sections
@@ -331,6 +349,9 @@ BEGIN
   END LOOP;
 END;
 $$;
+
+COMMENT ON PROCEDURE nw.batch_upsert_links_on_section IS
+'Creates / updates link paths for all sections.';
 
 /*
  * This procedure updates the section rotation value in degrees
@@ -367,6 +388,9 @@ BEGIN
   RAISE INFO '% section rotation values updated', n_updated;
 END;
 $procedure$;
+
+COMMENT ON PROCEDURE nw.batch_update_section_rotation IS
+'Sets rotation values for `nw.section` by the azimuth between start and end nodes of the section.';
 
 /*
  * # Creating and updating nw.link_on_route route version paths
@@ -445,6 +469,9 @@ BEGIN
 END;
 $$;
 
+COMMENT ON PROCEDURE nw.upsert_links_on_route IS
+'Creates / updates `link_on_route` path of `target_route_ver_id` with Dijkstra routing, using via nodes from `nw.view_vianode_on_route`.';
+
 CREATE PROCEDURE nw.batch_upsert_links_on_route()
 LANGUAGE PLPGSQL
 AS $$
@@ -461,3 +488,6 @@ BEGIN
   END LOOP;
 END;
 $$;
+
+COMMENT ON PROCEDURE nw.batch_upsert_links_on_route IS
+'Creates / updates `link_on_route` paths for all route versions.';
