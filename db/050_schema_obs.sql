@@ -14,6 +14,23 @@ CREATE TABLE obs.journey (
   veh             integer       NOT NULL
 );
 
+COMMENT ON TABLE obs.journey IS
+'Realized transit vehicle journeys from HFP data.';
+COMMENT ON COLUMN obs.journey.jrnid IS
+'Unique journey identifier. MD5 hash from <route_dir_oday_start_oper_veh>.';
+COMMENT ON COLUMN obs.journey.route IS
+'Scheduled route according to HFP.';
+COMMENT ON COLUMN obs.journey.dir IS
+'Scheduled direction according to HFP.';
+COMMENT ON COLUMN obs.journey.start_tst IS
+'Scheduled (oday+start) timestamp in UTC according to HFP.';
+COMMENT ON COLUMN obs.journey.route_ver_id IS
+'Route version id matching nw.route_version.route_ver_id, generated using route, dir and start_tst.';
+COMMENT ON COLUMN obs.journey.oper IS
+'Unique transit operator id according to HFP.';
+COMMENT ON COLUMN obs.journey.veh IS
+'Vehicle id, unique within operator, according to HFP.';
+
 CREATE FUNCTION obs.tg_insert_journey_handler()
 RETURNS trigger
 AS $$
@@ -55,6 +72,9 @@ BEGIN
 
 END;
 $$ LANGUAGE PLPGSQL;
+
+COMMENT ON FUNCTION obs.tg_insert_journey_handler IS
+'Checks that the MD5 jrnid is correct and finds the correct route_ver_id when inserting a journey.';
 
 CREATE TRIGGER tg_insert_journey
 BEFORE INSERT OR UPDATE ON obs.journey
