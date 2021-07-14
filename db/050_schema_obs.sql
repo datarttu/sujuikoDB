@@ -1,5 +1,8 @@
 CREATE SCHEMA obs;
 
+COMMENT ON SCHEMA obs IS
+'Observed transit vehicle journeys and their events on the network.';
+
 -- JOURNEYS (jrn)
 CREATE TABLE obs.journey (
   jrnid           uuid          PRIMARY KEY,
