@@ -95,6 +95,23 @@ CREATE TABLE obs.hfp_point (
 
 CREATE INDEX ON obs.hfp_point USING GIST(geom);
 
+COMMENT ON TABLE obs.hfp_point IS
+'GPS positions of journeys from HFP data.';
+COMMENT ON COLUMN obs.hfp_point.jrnid IS
+'Journey identifier.';
+COMMENT ON COLUMN obs.hfp_point.tst IS
+'UTC timestamp.';
+COMMENT ON COLUMN obs.hfp_point.odo IS
+'Vehicle odometer reading in meters.';
+COMMENT ON COLUMN obs.hfp_point.drst IS
+'true = at least one vehicle door open, false = all doors closed, NULL = door status unknown.';
+COMMENT ON COLUMN obs.hfp_point.represents_n_points IS
+'Number of removed raw data points that this point represents reliably (when redundant halted points are removed).';
+COMMENT ON COLUMN obs.hfp_point.represents_time_s IS
+'Duration (with removed raw data points) that this point represents reliably.';
+COMMENT ON COLUMN obs.hfp_point.geom IS
+'Journey POINT position in ETRS-TM35 coordinates.';
+
 SELECT create_hypertable(
   relation            => 'obs.hfp_point',
   time_column_name    => 'tst',
@@ -108,6 +125,9 @@ CREATE VIEW obs.view_hfp_point_xy AS (
     ST_X(geom) AS X, ST_Y(geom) AS Y
   FROM obs.hfp_point
 );
+
+COMMENT ON VIEW obs.view_hfp_point_xy IS
+'HFP point geometries with coordinates in X and Y columns, enabling imports from CSV files.';
 
 CREATE FUNCTION obs.tg_insert_xy_hfp_point()
 RETURNS trigger
@@ -123,6 +143,9 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE PLPGSQL;
+
+COMMENT ON FUNCTION obs.tg_insert_xy_hfp_point IS
+'Converts X and Y coordinates into geom when inserting HFP points through obs.view_hfp_point_xy.';
 
 CREATE TRIGGER tg_insert_xy_hfp_point
 INSTEAD OF INSERT ON obs.view_hfp_point_xy
