@@ -159,7 +159,7 @@ But we see that the last stop is above the loop, so we could do the following:
 
 So node 2 would be added between stop seq numbers 25 and 26 as *manual via node*, and the shortest path algorithm used to create the corresponding `nw.link_on_route` path would then correctly route via nodes 4, 3, 2 and 1.
 
-The **`nw.view_vianode_on_route`** view combines via nodes automatically derived from stops-on-route with manually added via nodes.
+The **`nw.view_vianode_on_route`** view combines via-nodes automatically derived from stops-on-route with manually added via-nodes.
 The end of our example route version would look like this, note how the `sub_seq` and `stop_id` values indicate whether the via point is manual or derived from a stop:
 
 ```

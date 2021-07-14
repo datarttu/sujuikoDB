@@ -359,6 +359,19 @@ CREATE TABLE nw.manual_vianode_on_route (
   PRIMARY KEY (route_ver_id, after_stop_seq, sub_seq)
 );
 
+COMMENT ON TABLE nw.manual_vianode_on_route IS
+'Additional nodes used when creating link_on_route paths along the network.';
+COMMENT ON COLUMN nw.manual_vianode_on_route.route_ver_id IS
+'Route version identifier.';
+COMMENT ON COLUMN nw.manual_vianode_on_route.after_stop_seq IS
+'Stop order number after which this node is used as routing via-node.';
+COMMENT ON COLUMN nw.manual_vianode_on_route.sub_seq IS
+'Order number of via-node, in case there are multiple ones between successive stops on route.';
+COMMENT ON COLUMN nw.manual_vianode_on_route.node_id IS
+'Node identifier.';
+COMMENT ON COLUMN nw.manual_vianode_on_route.errors IS
+'Error codes produced by validations.';
+
 CREATE VIEW nw.view_vianode_on_route AS (
   WITH significant_stops AS (
     SELECT
@@ -404,6 +417,9 @@ CREATE VIEW nw.view_vianode_on_route AS (
   WINDOW w_rtver AS (PARTITION BY usm.route_ver_id ORDER BY usm.stop_seq, usm.sub_seq)
   ORDER BY 1, 2
 );
+
+COMMENT ON VIEW nw.view_vianode_on_route IS
+'All via-nodes for link_on_route paths of route versions: stops and manual via-nodes in correct order.';
 
 CREATE TABLE nw.link_on_route (
   route_ver_id  text NOT NULL REFERENCES nw.route_version(route_ver_id),
