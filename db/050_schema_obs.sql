@@ -204,6 +204,21 @@ CREATE TABLE obs.halt_on_journey (
   PRIMARY KEY (jrnid, tst)
 );
 
+COMMENT ON TABLE obs.halt_on_journey IS
+'Halt (non-movement) events derived from points on link. (jrnid, tst) connects these back to obs.point_on_link.';
+COMMENT ON COLUMN obs.halt_on_journey.jrnid IS
+'Journey identifier.';
+COMMENT ON COLUMN obs.halt_on_journey.tst IS
+'UTC timestamp.';
+COMMENT ON COLUMN obs.halt_on_journey.total_s IS
+'Total duration in seconds, before moving again.';
+COMMENT ON COLUMN obs.halt_on_journey.door_open_s IS
+'Total duration with doors open.';
+COMMENT ON COLUMN obs.halt_on_journey.door_closed_s IS
+'Total duration with doors closed.';
+COMMENT ON COLUMN obs.halt_on_journey.represents_time_s IS
+'Reliably represented total duration: sum(represents_time_s) from corresponding points on link.';
+
 CREATE VIEW obs.view_halt_on_journey_extended AS (
   SELECT
     hoj.jrnid,
