@@ -431,6 +431,19 @@ CREATE TABLE nw.link_on_route (
   PRIMARY KEY (route_ver_id, link_seq)
 );
 
+COMMENT ON TABLE nw.link_on_route IS
+'Ordered links (directed) that form a continuous path for a route version. Correct link matches are found from `nw.view_link_directed` by `link_id` and `link_reversed`.';
+COMMENT ON COLUMN nw.link_on_route.route_ver_id IS
+'Route version identifier.';
+COMMENT ON COLUMN nw.link_on_route.route_ver_id IS
+'Order number of the link within the route version.';
+COMMENT ON COLUMN nw.link_on_route.route_ver_id IS
+'Link identifier.';
+COMMENT ON COLUMN nw.link_on_route.route_ver_id IS
+'true = refers to the reversed version of the link.';
+COMMENT ON COLUMN nw.link_on_route.route_ver_id IS
+'Error codes produced by validations.';
+
 CREATE VIEW nw.view_link_on_route_geom AS (
   SELECT
     rv.route_ver_id,
@@ -453,6 +466,9 @@ CREATE VIEW nw.view_link_on_route_geom AS (
     ON (lor.link_id = ld.link_id AND lor.link_reversed = ld.link_reversed)
   WINDOW rtver_grp AS (PARTITION BY rv.route_ver_id ORDER BY lor.link_seq)
 );
+
+COMMENT ON VIEW nw.view_link_on_route_geom IS
+'Links on routes with related attributes, such as link geometries, mainly for visualization.';
 
 -- SECTIONS FOR ANALYSIS
 CREATE TABLE nw.section (

@@ -178,7 +178,12 @@ Such route versions or their stops must be fixed before `link_on_route` paths ca
 
 #### `nw.link_on_route`
 
-Links that form a continuous path of a route version along the network, ordered by `link_seq`.
+Links that form a continuous path of a route version along the network.
+Created with the `nw.batch_upsert_links_on_section()` Dijkstra routing procedure by default.
+
+Links on route are ordered by `link_seq` within `route_ver_id`.
+Paths must be continuous: `j_node` of link with `link_seq = n` must equal `i_node` of link with `link_seq = n+1`.
+There should be no gaps in the order numbers, i.e. `max(link_seq)` should equal the total number of links within a route version.
 
 If `link_reversed` is `false`, the route version traverses through the link `link_id` to the original, digitized direction.
 If `link_reversed` is `true`, the link is traversed to the reverse direction (i.e., the `i_node` and `j_node` have been flipped in routing).
