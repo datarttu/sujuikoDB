@@ -308,6 +308,19 @@ CREATE TABLE nw.stop_on_route (
   PRIMARY KEY (route_ver_id, stop_seq)
 );
 
+COMMENT ON TABLE nw.stop_on_route IS
+'Ordered transit stops used by route versions along their routes.';
+COMMENT ON COLUMN nw.stop_on_route.route_ver_id IS
+'Route version identifier.';
+COMMENT ON COLUMN nw.stop_on_route.stop_seq IS
+'Order number of the stop within the route version, starting from 1.';
+COMMENT ON COLUMN nw.stop_on_route.stop_id IS
+'Stop identifier.';
+COMMENT ON COLUMN nw.stop_on_route.active_place IS
+'Possible Hastus place id used in schedule planning of the route version. Should match `stop_place` of the stop.';
+COMMENT ON COLUMN nw.stop_on_route.errors IS
+'Error codes produced by validations.';
+
 CREATE VIEW nw.view_stop_on_route_expanded AS (
   SELECT
     rv.route_ver_id,
@@ -332,6 +345,9 @@ CREATE VIEW nw.view_stop_on_route_expanded AS (
   LEFT JOIN nw.view_link_directed AS li
     ON (st.link_id = li.link_id AND st.link_reversed = li.link_reversed)
 );
+
+COMMENT ON VIEW nw.view_stop_on_route_expanded IS
+'Stops on routes with related attributes, such as stop geometry, mainly for visualization.';
 
 CREATE TABLE nw.manual_vianode_on_route (
   route_ver_id    text NOT NULL REFERENCES nw.route_version(route_ver_id),
