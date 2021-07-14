@@ -100,15 +100,24 @@ See [link example data](../example_data/link.csv) that can be imported through t
 #### `nw.stop`
 
 Points along the transit network where passengers can board and alight transit vehicles.
-More importantly than the point location, a stop must have a "projected" location along a directed link, so the stop location can be visualized together with vehicle movements on the link.
+More importantly than the point location, a stop must have a "projected" location along a directed link, so the stop location can be analyzed and visualized together with vehicle movements on the link.
 The projected location is modeled by `link_id`, `link_reversed`, and `location_on_link` (float 0 ... 1, relative to the link length).
+`stop_radius_m` is then used to create "coverage distances" before and after the projected point.
+For instance, `halt_on_journey` points falling within such areas will get corresponding `stop_id` references, and this way halt events at stops and elsewhere can be analyzed separately.
 
 If `link_reversed` is `false`, `location_on_link` value shows the relative position of the stop along the original link geometry.
 If `link_reversed` is `true`, the relative position is calculated using the reverse geometry of the link, or from `j_node` to `i_node`.
-`link_reversed` cannot be `true` for oneway links since they cannot be traversed to the opposite direction.
+`link_reversed` cannot be `true` for `oneway = true` links since they cannot be traversed to the opposite direction.
 `link_reversed` also determines which direction version of a two-way link will be used when creating `nw.link_on_route` sequences from `nw.stop_on_route` sequences.
 
 `link_ref_manual` can be set to `true` to omit a stop from batch modifications to the stop-link references, e.g., in case a stop has been manually connected to a link different than a link closest (default) to the stop point.
+
+Note that `stop_radius_m` is not exactly the same as stop radius in Jore - in fact, the term used here is a bit misleading.
+The Jore value means simple geographical radius along the stop point as is used e.g. when detecting arrivals and departures from the stop area.
+Here, in contrast, the radius value is used to create stop "coverage" distances back- and forwards from the _projected_ stop point along the link that the stop is attached to.
+The idea is the same, though: marking areas on the network where halts and door events are (probably) related to a specific stop.
+Also note that the stop coverage distances are capped to the link ends, should the stop be located near to the start or the end of a link.
+Extending the area to the next/previous link would be a complex task, especially in intersections with more than two links at a node.
 
 #### `nw.route_version`
 

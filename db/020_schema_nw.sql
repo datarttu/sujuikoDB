@@ -195,6 +195,39 @@ CREATE TABLE nw.stop (
   geom                geometry(POINT, 3067)
 );
 
+COMMENT ON TABLE nw.stop IS
+'Transit stop points where vehicles can have stopped for boarding and alighting passengers.';
+COMMENT ON COLUMN nw.stop.stop_id IS
+'Unique stop identifier. Equals GTFS and Jore stop id.';
+COMMENT ON COLUMN nw.stop.link_id IS
+'The link that the stop is located along. See nw.get_stop_link_refs() function.';
+COMMENT ON COLUMN nw.stop.link_reversed IS
+'true = link_id refers to the reversed version of a two-way link.';
+COMMENT ON COLUMN nw.stop.location_on_link IS
+'Projected relative stop location along the link distance, between 0.0 and 1.0. Use link length with this to get the absolute location.';
+COMMENT ON COLUMN nw.stop.distance_from_link IS
+'Distance between original stop geometry and projected geometry along the link.';
+COMMENT ON COLUMN nw.stop.link_ref_manual IS
+'true = link ref values are protected from automatic updates (e.g. if they have been modified by hand).';
+COMMENT ON COLUMN nw.stop.stop_radius_m IS
+'Distance that th stop "covers" along the link before and after the projected point.';
+COMMENT ON COLUMN nw.stop.stop_mode IS
+'Allowed vehicle mode of the stop. (In Jore, a physical multi-mode stop is split into one stop entry per mode.)';
+COMMENT ON COLUMN nw.stop.stop_code IS
+'Short identifier of the stop, e.g. H2034. Can group together per-mode entries of a multi-mode stop.';
+COMMENT ON COLUMN nw.stop.stop_name IS
+'Human-readable nme of the stop.';
+COMMENT ON COLUMN nw.stop.stop_place IS
+'Hastus place code of the stop, used in schedule planning. Can group together multiple stops.';
+COMMENT ON COLUMN nw.stop.parent_stop_id IS
+'Groups together multiple stops of a terminal or other area.';
+COMMENT ON COLUMN nw.stop.source_date IS
+'Import or modification date of the stop.';
+COMMENT ON COLUMN nw.stop.errors IS
+'Error codes produced by stop validations.';
+COMMENT ON COLUMN nw.stop.geom IS
+'Stop POINT geometry in ETRS-TM35 coordinates.';
+
 CREATE INDEX ON nw.stop USING GIST(geom);
 
 CREATE VIEW nw.view_stop_wkt AS (
@@ -210,6 +243,9 @@ CREATE VIEW nw.view_stop_wkt AS (
     ST_AsText(geom) AS geom_text
   FROM nw.stop
 );
+
+COMMENT ON VIEW nw.view_stop_wkt IS
+'Stop geometries as well-known text. Allows copying stop data from csv files with WKT geometries.';
 
 CREATE FUNCTION nw.tg_insert_wkt_stop()
 RETURNS trigger
@@ -227,6 +263,9 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE PLPGSQL;
+
+COMMENT ON FUNCTION nw.tg_insert_wkt_stop IS
+'Stores WKT geoms inserted into nw.view_stop_wkt view as binary geoms in the actual table.';
 
 CREATE TRIGGER tg_insert_wkt_stop
 INSTEAD OF INSERT ON nw.view_stop_wkt
