@@ -482,6 +482,25 @@ CREATE TABLE nw.section (
   errors            text[]
 );
 
+COMMENT ON TABLE nw.section IS
+'Sections of network for analysis (continuous paths of links).';
+COMMENT ON COLUMN nw.section.section_id IS
+'Unique section identifier.';
+COMMENT ON COLUMN nw.section.description IS
+'Description of the section.';
+COMMENT ON COLUMN nw.section.section_group IS
+'Group identifier of multiple sections.';
+COMMENT ON COLUMN nw.section.section_order IS
+'Order number of a section within `section_group`.';
+COMMENT ON COLUMN nw.section.report IS
+'true = include section in reporting, false = omit from report / store as "passive" section.';
+COMMENT ON COLUMN nw.section.rotation IS
+'Section rotation in degrees, for map visualization.';
+COMMENT ON COLUMN nw.section.via_nodes IS
+'Ordered via-nodes for creating the section path.';
+COMMENT ON COLUMN nw.section.errors IS
+'Error codes produced by validations.';
+
 CREATE TABLE nw.link_on_section (
   section_id        text NOT NULL REFERENCES nw.section(section_id),
   link_seq          integer NOT NULL CHECK (link_seq > 0),
@@ -491,6 +510,19 @@ CREATE TABLE nw.link_on_section (
 
   PRIMARY KEY (section_id, link_seq)
 );
+
+COMMENT ON TABLE nw.link_on_section IS
+'Ordered links within sections, forming continuous section paths on the network.';
+COMMENT ON COLUMN nw.link_on_section.section_id IS
+'Section identifier.';
+COMMENT ON COLUMN nw.link_on_section.link_seq IS
+'Order number of the link within the section.';
+COMMENT ON COLUMN nw.link_on_section.link_id IS
+'Link identifier.';
+COMMENT ON COLUMN nw.link_on_section.link_reversed IS
+'true = refers to the reversed version of the link.';
+COMMENT ON COLUMN nw.link_on_section.errors IS
+'Error codes produced by validations.';
 
 CREATE VIEW nw.view_link_on_section_geom AS (
   SELECT
@@ -517,6 +549,9 @@ CREATE VIEW nw.view_link_on_section_geom AS (
     ON (los.link_id = ld.link_id AND los.link_reversed = ld.link_reversed)
 );
 
+COMMENT ON VIEW nw.view_link_on_section_geom IS
+'Section links with related attributes, such as link geometries, mainly for visualization.';
+
 CREATE VIEW nw.view_section_ij_line AS (
   SELECT
     se.section_id,
@@ -535,6 +570,9 @@ CREATE VIEW nw.view_section_ij_line AS (
     ON (se.via_nodes[cardinality(se.via_nodes)] = jnd.node_id)
   WHERE cardinality(se.via_nodes) > 1
 );
+
+COMMENT ON VIEW nw.view_section_ij_line IS
+'Sections as LINESTRING geoms from start to end vianode. Used for simple visualization and editing of sections.';
 
 CREATE FUNCTION nw.tg_upsert_section_ij_line()
 RETURNS trigger
@@ -597,6 +635,9 @@ BEGIN
 END;
 $function$;
 
+COMMENT ON FUNCTION nw.tg_upsert_section_ij_line IS
+'Enables editing section start and end nodes visually by getting the node references from the nodes closest to the end points of the input geometry.';
+
 CREATE TRIGGER tg_upsert_section_ij_line
 INSTEAD OF INSERT OR UPDATE ON nw.view_section_ij_line
 FOR EACH ROW EXECUTE PROCEDURE nw.tg_upsert_section_ij_line();
@@ -616,6 +657,9 @@ BEGIN
   RETURN OLD;
 END;
 $function$;
+
+COMMENT ON FUNCTION nw.tg_delete_section_ij_line IS
+'Handles deleting a section and its links when a DELETE statement of the corresponding section_ij_line entry is issued.';
 
 CREATE TRIGGER tg_delete_section_ij_line
 INSTEAD OF DELETE ON nw.view_section_ij_line
@@ -644,6 +688,9 @@ CREATE VIEW nw.view_section_geom AS (
     ON sec.section_id = sg.section_id
 );
 
+COMMENT ON VIEW nw.view_section_geom IS
+'Section paths as LINESTRING geoms combined from links on section.';
+
 CREATE VIEW nw.view_section_stop_points AS (
   WITH cumul_links AS (
     SELECT
@@ -671,3 +718,6 @@ CREATE VIEW nw.view_section_stop_points AS (
   INNER JOIN nw.stop AS st
     ON (cl.link_id = st.link_id AND cl.link_reversed = st.link_reversed)
 );
+
+COMMENT ON VIEW nw.view_section_stop_points IS
+'Stop points with attributes, such as geometry and cumulative location value, along sections. Mainly for visualization.';

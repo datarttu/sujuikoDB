@@ -195,19 +195,26 @@ Continuous part of the network selected for aggregations and analyses from `obs`
 `section_id` can be any (preferably descriptive) string as long as it is unique.
 `description` can be populated with a longer description text.
 
+`section_group` can be used to group multiple sections together, e.g. when reporting subsets of sections into respective files.
+In this case, `section_order` can be used to control the reporting order of sections within a group.
+
 Only sections where `report IS true` are to be included in visualizations and reports; this attribute allows saving "draft" sections aside, for example, or making a larger batch of sections and then choosing which ones should be reported in the end.
 
 `rotation` can be used to control the map view rotation angle of the section line geometry, to align it nicely with a landscape viewport, for example.
-
-_TODO: Add an array for start-via-end nodes to control link_on_section creation process._
+This value can be set automatically with the `nw.batch_update_section_rotation()` procedure that uses the start and end nodes from `via_nodes`.
 
 Note that section paths must not have branches or gaps: they work as `2D -> 1D` projections from the network geometries, allowing for space-time plotting, for example.
 Also note that opposite versions of the same street section must be defined as separate analysis sections.
+
+The `nw.view_section_ij_line` provides a handy desktop GIS interface for editing sections.
+By using this view, we do not need to search for and type the correct start and end nodes for new or modified sections but can draw lines on the map instead.
+A trigger will then take care of getting the closest node matches from the start and end of the drawn line and populating the `via_nodes` array accordingly.
 
 #### `nw.link_on_section`
 
 Links that form a continuous path of an analysis section along the network, ordered by `link_seq`.
 Technically, this works exactly the same way as `nw.link_on_route`.
+Created with the `nw.batch_upsert_links_on_section()` Dijkstra routing procedure by default.
 
 ### Data processing in the network model
 
