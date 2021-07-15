@@ -1,6 +1,3 @@
--- WIP
--- TODO: Allow interpolating over one or several successive links on route without points on link
---       (tst is NULL etc.).
 BEGIN;
 
 -- Thanks for this function and aggregate to Slobodan Pejic at Stackoverflow:
@@ -20,6 +17,20 @@ CREATE AGGREGATE coalesce_agg(anyelement) (
 COMMENT ON AGGREGATE coalesce_agg(anyelement) IS
 'Fills NULL values with the last available non-NULL value according to window ordering.';
 
+CREATE FUNCTION obs.get_interpolated_enter_timestamps()
+RETURNS TABLE (
+  jrnid     uuid,
+  link_seq  integer,
+  x0        float8,
+  t0        timestamptz,
+  x1        float8,
+  t1        timestamptz,
+  x         float8,
+  t         timestamptz
+)
+STABLE
+LANGUAGE SQL
+AS $function$
 WITH
   -- We want to get the first and last space-time data points from each link on the
   -- journey route and use them as source data for interpolating the time values at link
@@ -68,7 +79,6 @@ WITH
       ON (lor.route_ver_id = jrn.route_ver_id)
     LEFT JOIN edge_points             AS ep
       ON (jrn.jrnid = ep.jrnid AND lor.link_seq = ep.link_seq)
-    WHERE jrn.jrnid = 'cd0cbca5-faf6-80d8-909e-06b720552f9b' -- FIXME: REMOVE !!!
     WINDOW w_link AS (PARTITION BY jrn.jrnid ORDER BY lor.link_seq)
   ),
   -- Next we fill the missing x/t observation values for empty links:
@@ -112,13 +122,27 @@ WITH
     WINDOW w_link AS (PARTITION BY jrnid ORDER BY link_seq)
   )
 SELECT
-  --jrnid,
+  jrnid,
   link_seq,
-  t0, x0, t1, x1, x,
+  x0,
+  t0,
+  x1,
+  t1,
+  x,
+  -- To enable basic calculations and relating with distance values,
+  -- timestamp values must be converted to N of seconds and intervals.
+  -- timestamptz + interval will automatically result in timestamptz.
   t0 + ( (x - x0) * (extract(epoch FROM t1 - t0) / (x1 - x0)) * interval '1 second') AS t
-FROM interpolation_parameters
-WHERE link_seq > 170
-ORDER BY jrnid, link_seq
-;
+FROM interpolation_parameters;
+$function$;
+
+COMMENT ON FUNCTION obs.get_interpolated_enter_timestamps() IS
+'From obs.point_on_link and nw.link_on_route, interpolates enter timestamps (t) at link start locations (x) using last available points before the link (x0, t0) and first available point on or after the link (x1, t1).';
+
+SELECT *
+FROM obs.get_interpolated_enter_timestamps()
+WHERE jrnid = 'cd0cbca5-faf6-80d8-909e-06b720552f9b'
+  AND link_seq > 170
+ORDER BY link_seq;
 
 ROLLBACK;
