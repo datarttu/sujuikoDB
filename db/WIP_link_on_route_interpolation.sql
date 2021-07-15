@@ -245,4 +245,26 @@ $procedure$;
 COMMENT ON PROCEDURE obs.create_links_on_journey IS
 'Creates interpolated obs.link_on_journey data for target_jrnid.';
 
+CREATE PROCEDURE obs.batch_create_links_on_journey()
+LANGUAGE PLPGSQL
+AS $procedure$
+DECLARE
+  rec     record;
+BEGIN
+
+  FOR rec IN (
+    SELECT jrnid
+    FROM obs.journey
+    ORDER BY jrnid
+  ) LOOP
+    CALL obs.create_links_on_journey(
+      target_jrnid := rec.jrnid
+    );
+  END LOOP;
+END;
+$procedure$;
+
+COMMENT ON PROCEDURE obs.batch_create_links_on_journey IS
+'Creates interpolated obs.link_on_journey data for all journeys in obs.journey.';
+
 ROLLBACK;
