@@ -21,6 +21,11 @@ COMMENT ON AGGREGATE coalesce_agg(anyelement) IS
 'Fills NULL values with the last available non-NULL value according to window ordering.';
 
 WITH
+  -- We want to get the first and last space-time data points from each link on the
+  -- journey route and use them as source data for interpolating the time values at link
+  -- boundaries, i.e. where relative location values are 0 (start) and 1 (end).
+  -- first() and last() are TimescaleDB functions that allow us to select
+  -- the "edge" location values from the rows with min and max timestamp directly.
   edge_points AS (
     SELECT
       jrnid,
@@ -32,6 +37,20 @@ WITH
     FROM obs.point_on_link
     GROUP BY jrnid, link_seq
   ),
+  -- Now we have the source data for interpolation,
+  -- but we are probably missing values from some links_on_route,
+  -- especially from very short links.
+  -- Also there will be links with just one observation, but that should not be
+  -- a problem: the same value just works as x1/t1 point for previous interpolation
+  -- and x0/t0 point for the next one.
+  -- Since we want to interpolate also the links without observations
+  -- (as long as they have observations on other links before or after them),
+  -- we use nw.link_on_route to get the full set of ordered links belonging to
+  -- the journey as it was planned. nw.view_link_directed is used simply to get
+  -- the link lengths so we can convert relative locations to absolute ones.
+  -- Cumulative sum over a window is used already here with the link length
+  -- to calculate link start distance values from the beginning of the route,
+  -- which are then used as a basis for data point distance values.
   complete_route_links AS (
     SELECT
       jrn.jrnid,
@@ -52,6 +71,13 @@ WITH
     WHERE jrn.jrnid = 'cd0cbca5-faf6-80d8-909e-06b720552f9b' -- FIXME: REMOVE !!!
     WINDOW w_link AS (PARTITION BY jrn.jrnid ORDER BY lor.link_seq)
   ),
+  -- Next we fill the missing x/t observation values for empty links:
+  -- for x0/t0 pairs we use the last available value (window starting from link_seq=1)
+  -- and for x1/t1 pairs the next available value (window starting from the end of link_seq).
+  -- It is important to note that only the observation values are carried forwards/backwards
+  -- and distance value at link start (x) is kept as it is: this way we will
+  -- get the correct timestamp (t) for each link start.
+  nulls_filled AS (
     SELECT
       jrnid,
       link_seq,
@@ -65,6 +91,14 @@ WITH
       w_link_forth  AS (PARTITION BY jrnid ORDER BY link_seq),
       w_link_back   AS (PARTITION BY jrnid ORDER BY link_seq DESC)
   ),
+  -- Interpolated timestamp (t) value is calculated for the start of each link.
+  -- x1/t1 values are therefore obtained from link N while
+  -- x0/t0 values are obtained from link N-1.
+  -- Technically this means that the first link gets no interpolated t at start,
+  -- which makes sense in practice too, because we don't have any observations
+  -- before the first link to interpolate with.
+  -- At this point, we assign the interpolation parameters shorter names
+  -- so the formula will be more readable in the end.
   interpolation_parameters AS (
     SELECT
       jrnid,
