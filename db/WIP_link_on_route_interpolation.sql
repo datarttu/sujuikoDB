@@ -52,25 +52,39 @@ WITH
     WHERE jrn.jrnid = 'cd0cbca5-faf6-80d8-909e-06b720552f9b' -- FIXME: REMOVE !!!
     WINDOW w_link AS (PARTITION BY jrn.jrnid ORDER BY lor.link_seq)
   ),
+    SELECT
+      jrnid,
+      link_seq,
+      cumul_length_m,
+      coalesce_agg(last_tst) OVER w_link_forth                    AS last_avail_tst,
+      coalesce_agg(cumul_length_m + last_loc_m) OVER w_link_forth AS last_avail_loc_m,
+      coalesce_agg(first_tst) OVER w_link_back                    AS first_avail_tst,
+      coalesce_agg(cumul_length_m + first_loc_m) OVER w_link_back AS first_avail_loc_m
+    FROM complete_route_links
+    WINDOW
+      w_link_forth  AS (PARTITION BY jrnid ORDER BY link_seq),
+      w_link_back   AS (PARTITION BY jrnid ORDER BY link_seq DESC)
+  ),
   interpolation_parameters AS (
     SELECT
       jrnid,
       link_seq,
-      lag(last_tst) OVER w_link                     AS t0,
-      first_tst                                     AS t1,
-      lag(cumul_length_m + last_loc_m) OVER w_link  AS x0,
-      cumul_length_m                                AS x,
-      cumul_length_m + first_loc_m                  AS x1,
-      last_tst
-    FROM complete_route_links
+      lag(last_avail_tst) OVER w_link   AS t0,
+      lag(last_avail_loc_m) OVER w_link AS x0,
+      first_avail_tst                   AS t1,
+      first_avail_loc_m                 AS x1,
+      cumul_length_m                    AS x
+    FROM nulls_filled
     WINDOW w_link AS (PARTITION BY jrnid ORDER BY link_seq)
   )
 SELECT
-  jrnid,
+  --jrnid,
   link_seq,
-  t0 AS prev_last_tst,
-  t0 + ( (x - x0) * (extract(epoch FROM t1 - t0) / (x1 - x0)) * interval '1 second') AS enter_tst,
-  t1 AS first_tst
+  t0, x0, t1, x1, x,
+  t0 + ( (x - x0) * (extract(epoch FROM t1 - t0) / (x1 - x0)) * interval '1 second') AS t
 FROM interpolation_parameters
-ORDER BY jrnid, link_seq;
+WHERE link_seq > 170
+ORDER BY jrnid, link_seq
+;
+
 ROLLBACK;
