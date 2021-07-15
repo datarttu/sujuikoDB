@@ -252,3 +252,35 @@ CREATE VIEW obs.view_halt_on_journey_extended AS (
 
 COMMENT ON VIEW obs.view_halt_on_journey_extended IS
 'Halt events with represented, total and door times, possible stop references as well as linear locations along links and derived point geometries.';
+
+/*
+ * LINK ON JOURNEY (traversed links) data model and routines.
+ */
+
+CREATE TABLE obs.link_on_journey (
+  jrnid         uuid,
+  enter_tst     timestamptz,
+  exit_tst      timestamptz,
+  link_seq      integer,
+  link_id       integer REFERENCES nw.link(link_id),
+  link_reversed boolean NOT NULL,
+
+  PRIMARY KEY (jrnid, enter_tst)
+);
+
+CREATE INDEX ON obs.link_on_journey USING btree(link_id, link_reversed);
+
+COMMENT ON TABLE obs.link_on_journey IS
+'Links on route traversed completely by observed journeys, interpolated from obs.point_on_link.';
+COMMENT ON COLUMN obs.link_on_journey.jrnid IS
+'Journey identifier.';
+COMMENT ON COLUMN obs.link_on_journey.enter_tst IS
+'Interpolated timestamp at the link start.';
+COMMENT ON COLUMN obs.link_on_journey.exit_tst IS
+'Interpolated timestamp at the link end, equals enter_tst of the next link.';
+COMMENT ON COLUMN obs.link_on_journey.link_seq IS
+'Link sequence number, same as in the corresponding nw.link_on_route.';
+COMMENT ON COLUMN obs.link_on_journey.link_id IS
+'Link identifier.';
+COMMENT ON COLUMN obs.link_on_journey.link_reversed IS
+'true = link_id refers to the reversed version of a two-way link.';
