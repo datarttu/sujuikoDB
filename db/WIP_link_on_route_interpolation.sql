@@ -167,10 +167,38 @@ COMMENT ON COLUMN obs.link_on_journey.link_id IS
 COMMENT ON COLUMN obs.link_on_journey.link_reversed IS
 'true = link_id refers to the reversed version of a two-way link.';
 
-SELECT *
-FROM obs.get_interpolated_enter_timestamps()
-WHERE jrnid = 'cd0cbca5-faf6-80d8-909e-06b720552f9b'
-  AND link_seq > 170
-ORDER BY link_seq;
+/* CREATE PROCEDURE obs.create_links_on_journey(target_jrnid uuid)
+LANGUAGE PLPGSQL
+AS $procedure$
+BEGIN */
+
+WITH
+  interpolated AS (
+    SELECT
+      jrnid,
+      link_seq,
+      t AS enter_tst,
+      lead(t) OVER (PARTITION BY jrnid ORDER BY link_seq) AS exit_tst
+    FROM obs.get_interpolated_enter_timestamps()
+    WHERE jrnid = 'cd0cbca5-faf6-80d8-909e-06b720552f9b'
+  )
+SELECT
+  ip.jrnid,
+  ip.enter_tst,
+  ip.exit_tst,
+  lor.link_seq,
+  lor.link_id,
+  lor.link_reversed
+FROM interpolated AS ip
+INNER JOIN obs.journey AS jrn
+  ON (ip.jrnid = jrn.jrnid)
+INNER JOIN nw.link_on_route AS lor
+  ON (jrn.route_ver_id = lor.route_ver_id AND ip.link_seq = lor.link_seq)
+WHERE ip.exit_tst IS NOT NULL
+  AND ip.enter_tst IS NOT NULL
+ORDER BY ip.jrnid, ip.enter_tst;
+
+/* END;
+$procedure$; */
 
 ROLLBACK;
