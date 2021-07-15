@@ -167,38 +167,82 @@ COMMENT ON COLUMN obs.link_on_journey.link_id IS
 COMMENT ON COLUMN obs.link_on_journey.link_reversed IS
 'true = link_id refers to the reversed version of a two-way link.';
 
-/* CREATE PROCEDURE obs.create_links_on_journey(target_jrnid uuid)
+CREATE PROCEDURE obs.create_links_on_journey(target_jrnid uuid)
 LANGUAGE PLPGSQL
 AS $procedure$
-BEGIN */
+DECLARE
+  n_expected  bigint;
+  n_inserted  bigint;
+  msg         text;
+  details     text;
+BEGIN
 
-WITH
-  interpolated AS (
-    SELECT
-      jrnid,
-      link_seq,
-      t AS enter_tst,
-      lead(t) OVER (PARTITION BY jrnid ORDER BY link_seq) AS exit_tst
-    FROM obs.get_interpolated_enter_timestamps()
-    WHERE jrnid = 'cd0cbca5-faf6-80d8-909e-06b720552f9b'
-  )
-SELECT
-  ip.jrnid,
-  ip.enter_tst,
-  ip.exit_tst,
-  lor.link_seq,
-  lor.link_id,
-  lor.link_reversed
-FROM interpolated AS ip
-INNER JOIN obs.journey AS jrn
-  ON (ip.jrnid = jrn.jrnid)
-INNER JOIN nw.link_on_route AS lor
-  ON (jrn.route_ver_id = lor.route_ver_id AND ip.link_seq = lor.link_seq)
-WHERE ip.exit_tst IS NOT NULL
-  AND ip.enter_tst IS NOT NULL
-ORDER BY ip.jrnid, ip.enter_tst;
+  -- We expect N inserted links_on_journey to be 2 less than links_on_route,
+  -- since first and last link_on_route will not get interpolated.
+  -- More links missing is a sign of incomplete HFP data or bad route version path.
+  SELECT INTO n_expected count(*) - 2
+  FROM obs.journey            AS jrn
+  INNER JOIN nw.link_on_route AS lor
+    ON (jrn.route_ver_id = lor.route_ver_id)
+  WHERE jrn.jrnid = target_jrnid;
 
-/* END;
-$procedure$; */
+  IF n_expected = -2 THEN
+    RAISE EXCEPTION 'No nw.link_on_route data for jrnid %', target_jrnid
+    USING ERRCODE = 'no_data_found';
+  END IF;
+
+  WITH
+    interpolated AS (
+      SELECT
+        jrnid,
+        link_seq,
+        t AS enter_tst,
+        lead(t) OVER (PARTITION BY jrnid ORDER BY link_seq) AS exit_tst
+      FROM obs.get_interpolated_enter_timestamps()
+      WHERE jrnid = target_jrnid
+    ),
+    inserted AS (
+      INSERT INTO obs.link_on_journey(
+        jrnid, enter_tst, exit_tst, link_seq, link_id, link_reversed
+      )
+      SELECT
+        ip.jrnid,
+        ip.enter_tst,
+        ip.exit_tst,
+        lor.link_seq,
+        lor.link_id,
+        lor.link_reversed
+      FROM interpolated AS ip
+      INNER JOIN obs.journey AS jrn
+        ON (ip.jrnid = jrn.jrnid)
+      INNER JOIN nw.link_on_route AS lor
+        ON (jrn.route_ver_id = lor.route_ver_id AND ip.link_seq = lor.link_seq)
+      WHERE ip.exit_tst IS NOT NULL
+        AND ip.enter_tst IS NOT NULL
+      ORDER BY ip.jrnid, ip.enter_tst
+
+      RETURNING 1
+    )
+  SELECT INTO n_inserted count(1)
+  FROM inserted;
+
+  IF n_inserted = n_expected THEN
+    RAISE INFO 'jrnid %: % link_on_journey',
+      target_jrnid, n_inserted;
+  ELSE
+    RAISE NOTICE 'jrnid %: % link_on_journey (expected %)',
+      target_jrnid, n_inserted, n_expected;
+  END IF;
+
+EXCEPTION
+  WHEN unique_violation OR no_data_found THEN
+    GET STACKED DIAGNOSTICS msg := MESSAGE_TEXT, details := PG_EXCEPTION_DETAIL;
+    RAISE WARNING '%; %', msg, details;
+
+END;
+$procedure$;
+
+COMMENT ON PROCEDURE obs.create_links_on_journey IS
+'Creates interpolated obs.link_on_journey data for target_jrnid.';
 
 ROLLBACK;
