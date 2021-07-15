@@ -284,3 +284,28 @@ COMMENT ON COLUMN obs.link_on_journey.link_id IS
 'Link identifier.';
 COMMENT ON COLUMN obs.link_on_journey.link_reversed IS
 'true = link_id refers to the reversed version of a two-way link.';
+
+CREATE VIEW obs.view_link_on_journey_stats AS (
+  SELECT
+    jrn.jrnid,
+    jrn.route,
+    jrn.dir,
+    (start_tst AT TIME ZONE 'Europe/Helsinki')::date    AS oday,
+    (start_tst AT TIME ZONE 'Europe/Helsinki')::time    AS start,
+    jrn.route_ver_id,
+    jrn.oper,
+    jrn.veh,
+    loj.link_seq,
+    loj.link_id,
+    loj.link_reversed,
+    loj.enter_tst,
+    loj.exit_tst,
+    extract('epoch' FROM loj.exit_tst - loj.enter_tst)  AS duration_s,
+    vld.length_m                                        AS link_length_m,
+    3.6 * (vld.length_m / extract('epoch' FROM loj.exit_tst - loj.enter_tst)) AS speed_kmh
+  FROM obs.journey                  AS jrn
+  INNER JOIN obs.link_on_journey    AS loj
+    ON (jrn.jrnid = loj.jrnid)
+  INNER JOIN nw.view_link_directed  AS vld
+    ON (loj.link_id = vld.link_id AND loj.link_reversed = vld.link_reversed)
+);
