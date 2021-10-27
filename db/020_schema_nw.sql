@@ -23,36 +23,6 @@ COMMENT ON COLUMN nw.node.errors IS
 COMMENT ON COLUMN nw.node.geom IS
 'Node POINT geometry in ETRS-TM35 coordinates.';
 
-CREATE VIEW nw.view_node_wkt AS (
-  SELECT
-    node_id,
-    ST_AsText(geom) AS geom_text
-  FROM nw.node
-);
-
-COMMENT ON VIEW nw.view_node_wkt IS
-'Node geometries as well-known text along with node_id. Also allows copying node data from csv files with WKT geometries.';
-
-CREATE FUNCTION nw.tg_insert_wkt_node()
-RETURNS trigger
-AS $$
-BEGIN
-  INSERT INTO nw.node (node_id, geom)
-  VALUES (
-    NEW.node_id,
-    ST_GeomFromText(NEW.geom_text, 3067)
-  );
-  RETURN NEW;
-END;
-$$ LANGUAGE PLPGSQL;
-
-COMMENT ON FUNCTION nw.tg_insert_wkt_node IS
-'Stores WKT geoms inserted into nw.view_node_wkt view as binary geoms in the actual table.';
-
-CREATE TRIGGER tg_insert_wkt_node
-INSTEAD OF INSERT ON nw.view_node_wkt
-FOR EACH ROW EXECUTE PROCEDURE nw.tg_insert_wkt_node();
-
 -- LINKS
 CREATE TABLE nw.link (
   link_id       integer PRIMARY KEY CHECK (link_id > 0),
