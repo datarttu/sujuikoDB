@@ -7,7 +7,7 @@ CREATE TYPE nw.vehicle_mode AS enum('bus', 'tram');
 
 -- NODES
 CREATE TABLE nw.node (
-  node_id       integer PRIMARY KEY,
+  node_id       serial PRIMARY KEY,
   errors        text[],
   geom          geometry(POINT, 3067) NOT NULL
 );
