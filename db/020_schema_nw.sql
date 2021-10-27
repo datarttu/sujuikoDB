@@ -110,8 +110,6 @@ COMMENT ON VIEW nw.view_link_directed IS
 CREATE VIEW nw.view_link_wkt AS (
   SELECT
     link_id,
-    i_node,
-    j_node,
     oneway,
     link_modes,
     link_label,
@@ -129,12 +127,12 @@ RETURNS trigger
 AS $$
 BEGIN
   INSERT INTO nw.link (
-    link_id, i_node, j_node, oneway, link_modes,
+    link_id, oneway, link_modes,
     link_label, data_source, source_date,
     geom
     )
     VALUES (
-      NEW.link_id, NEW.i_node, NEW.j_node, NEW.oneway, NEW.link_modes,
+      NEW.link_id, NEW.oneway, NEW.link_modes,
       NEW.link_label, NEW.data_source, NEW.source_date,
       ST_GeomFromText(NEW.geom_text, 3067)
   );
