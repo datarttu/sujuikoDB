@@ -67,6 +67,59 @@ COMMENT ON COLUMN nw.link.errors IS
 COMMENT ON COLUMN nw.link.geom IS
 'Link LINESTRING geometry in ETRS-TM35 coordinates.';
 
+CREATE FUNCTION nw.tg_set_link_node_references()
+RETURNS trigger
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+  existing_node_id integer;
+BEGIN
+  -- Link start, i_node
+  SELECT INTO existing_node_id nd.node_id
+  FROM nw.node AS nd
+  WHERE ST_StartPoint(NEW.geom) && nd.geom
+  LIMIT 1;
+  IF NOT FOUND THEN
+    WITH inserted_node AS (
+      INSERT INTO nw.node(geom)
+      VALUES (ST_StartPoint(NEW.geom))
+      RETURNING node_id
+    )
+    SELECT INTO existing_node_id node_id
+    FROM inserted_node;
+  END IF;
+  NEW.i_node := existing_node_id;
+
+  existing_node_id := NULL;
+
+  -- Link end, j_node
+  SELECT INTO existing_node_id nd.node_id
+  FROM nw.node AS nd
+  WHERE ST_EndPoint(NEW.geom) && nd.geom
+  LIMIT 1;
+  IF NOT FOUND THEN
+    WITH inserted_node AS (
+      INSERT INTO nw.node(geom)
+      VALUES (ST_EndPoint(NEW.geom))
+      RETURNING node_id
+    )
+    SELECT INTO existing_node_id node_id
+    FROM inserted_node;
+  END IF;
+  NEW.j_node := existing_node_id;
+
+  RETURN NEW;
+END;
+$$;
+COMMENT ON FUNCTION nw.tg_set_link_node_references IS
+'When creating or updating a link geometry, set is i_node and j_node references
+to nodes located at the corresponding ends of the geometry.
+If no node exists at an end, create a new node there.';
+
+CREATE TRIGGER tg_set_link_node_references
+BEFORE INSERT OR UPDATE OF geom ON nw.link
+FOR EACH ROW EXECUTE PROCEDURE nw.tg_set_link_node_references();
+
 CREATE VIEW nw.view_link_directed AS (
   WITH oneways AS (
     SELECT
