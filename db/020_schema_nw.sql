@@ -203,7 +203,7 @@ FOR EACH ROW EXECUTE PROCEDURE nw.tg_insert_wkt_link();
 -- STOPS
 CREATE TABLE nw.stop (
   stop_id             integer PRIMARY KEY,
-  link_id             integer REFERENCES nw.link(link_id),
+  link_id             integer REFERENCES nw.link(link_id) ON DELETE SET NULL,
   link_reversed       boolean,
   location_on_link    float8,
   distance_from_link  float8,
