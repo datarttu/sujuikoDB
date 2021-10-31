@@ -82,7 +82,7 @@ FOR EACH ROW EXECUTE FUNCTION obs.tg_insert_journey_handler();
 
 -- HFP POINTS (obs)
 CREATE TABLE obs.hfp_point (
-  jrnid                 uuid          NOT NULL REFERENCES obs.journey(jrnid),
+  jrnid                 uuid          NOT NULL REFERENCES obs.journey(jrnid) ON DELETE CASCADE,
   tst                   timestamptz   NOT NULL,
   odo                   integer       NOT NULL,
   drst                  boolean,
@@ -153,10 +153,10 @@ FOR EACH ROW EXECUTE FUNCTION obs.tg_insert_xy_hfp_point();
 
 -- PROJECTED POINTS ON LINKS
 CREATE TABLE obs.point_on_link (
-  jrnid                 uuid          NOT NULL REFERENCES obs.journey(jrnid),
+  jrnid                 uuid          NOT NULL REFERENCES obs.journey(jrnid) ON DELETE CASCADE,
   tst                   timestamptz   NOT NULL,
   link_seq              integer,
-  link_id               integer       NOT NULL REFERENCES nw.link(link_id),
+  link_id               integer       NOT NULL REFERENCES nw.link(link_id) ON DELETE CASCADE ON UPDATE CASCADE,
   link_reversed         boolean,
   location_on_link      float8,
   distance_from_link    float8,
@@ -194,7 +194,7 @@ SELECT create_hypertable(
 
 -- HALT (non-movement) events calculated from points_on_link
 CREATE TABLE obs.halt_on_journey (
-  jrnid                 uuid          NOT NULL REFERENCES obs.journey(jrnid),
+  jrnid                 uuid          NOT NULL REFERENCES obs.journey(jrnid) ON DELETE CASCADE,
   tst                   timestamptz   NOT NULL,
   total_s               float4,
   door_open_s           float4,
@@ -262,7 +262,7 @@ CREATE TABLE obs.link_on_journey (
   enter_tst     timestamptz,
   exit_tst      timestamptz,
   link_seq      integer,
-  link_id       integer REFERENCES nw.link(link_id),
+  link_id       integer REFERENCES nw.link(link_id) ON DELETE CASCADE ON UPDATE CASCADE,
   link_reversed boolean NOT NULL,
 
   PRIMARY KEY (jrnid, enter_tst)
