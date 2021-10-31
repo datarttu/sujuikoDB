@@ -182,7 +182,7 @@ COMMENT ON COLUMN obs.point_on_link.link_reversed IS
 COMMENT ON COLUMN obs.point_on_link.location_on_link IS
 'Projected relative location along the link, between 0.0 and 1.0. Use link length with this to get the absolute location.';
 COMMENT ON COLUMN obs.point_on_link.distance_from_link IS
-'Distance between original and link-projected position.';
+'Distance between original and link-projected position. Negative, if point is on the left side of directed link.';
 
 SELECT create_hypertable(
   relation            => 'obs.point_on_link',

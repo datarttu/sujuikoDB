@@ -59,7 +59,10 @@ SELECT
   abs(
     ST_LineLocatePoint(li.geom, hfp.geom) - (lor.link_reversed::integer)
   )                                       AS location_on_link,
-  ST_Distance(li.geom, hfp.geom)          AS distance_from_link
+  -- Set negative distance when point is on the left side of directed link.
+  (CASE WHEN ST_Contains(ST_Buffer(li.geom, $1, 'side=left'), hfp.geom)
+    THEN -1 ELSE 1 END
+  ) * ST_Distance(li.geom, hfp.geom)      AS distance_from_link
 FROM obs.hfp_point          AS hfp
 INNER JOIN obs.journey      AS jrn
   ON (hfp.jrnid = jrn.jrnid)
