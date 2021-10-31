@@ -446,9 +446,9 @@ COMMENT ON VIEW nw.view_vianode_on_route IS
 'All via-nodes for link_on_route paths of route versions: stops and manual via-nodes in correct order.';
 
 CREATE TABLE nw.link_on_route (
-  route_ver_id  text NOT NULL REFERENCES nw.route_version(route_ver_id),
+  route_ver_id  text NOT NULL REFERENCES nw.route_version(route_ver_id) ON DELETE CASCADE ON UPDATE CASCADE,
   link_seq      integer NOT NULL CHECK (link_seq > 0),
-  link_id       integer NOT NULL REFERENCES nw.link(link_id),
+  link_id       integer NOT NULL REFERENCES nw.link(link_id) ON DELETE CASCADE ON UPDATE CASCADE,
   link_reversed boolean NOT NULL,
   errors        text[],
 
@@ -526,9 +526,9 @@ COMMENT ON COLUMN nw.section.errors IS
 'Error codes produced by validations.';
 
 CREATE TABLE nw.link_on_section (
-  section_id        text NOT NULL REFERENCES nw.section(section_id),
+  section_id        text NOT NULL REFERENCES nw.section(section_id) ON DELETE CASCADE ON UPDATE CASCADE,
   link_seq          integer NOT NULL CHECK (link_seq > 0),
-  link_id           integer NOT NULL REFERENCES nw.link(link_id),
+  link_id           integer NOT NULL REFERENCES nw.link(link_id) ON DELETE CASCADE ON UPDATE CASCADE,
   link_reversed     boolean NOT NULL,
   errors            text[],
 
