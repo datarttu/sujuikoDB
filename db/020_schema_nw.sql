@@ -304,7 +304,7 @@ CREATE TABLE nw.route_version (
   route_mode    nw.vehicle_mode NOT NULL,
   errors        text[],
 
-  EXCLUDE USING GIST (route_ver_id WITH =, valid_during WITH &&)
+  EXCLUDE USING GIST (route WITH =, dir WITH =, valid_during WITH &&)
 );
 
 COMMENT ON TABLE nw.route_version IS
