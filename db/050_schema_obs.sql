@@ -258,7 +258,7 @@ COMMENT ON VIEW obs.view_halt_on_journey_extended IS
  */
 
 CREATE TABLE obs.link_on_journey (
-  jrnid         uuid,
+  jrnid         uuid REFERENCES obs.journey(jrnid) ON DELETE CASCADE,
   enter_tst     timestamptz,
   exit_tst      timestamptz,
   link_seq      integer,
