@@ -631,7 +631,7 @@ BEGIN
 
   IF TG_OP = 'INSERT' THEN
     INSERT INTO nw.section(
-      section_id, description, section_group, report, rotation, via_nodes
+      section_id, description, section_group, section_order, report, rotation, via_nodes
     ) VALUES (
       NEW.section_id,
       NEW.description,
