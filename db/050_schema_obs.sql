@@ -80,6 +80,23 @@ CREATE TRIGGER tg_insert_journey
 BEFORE INSERT OR UPDATE ON obs.journey
 FOR EACH ROW EXECUTE FUNCTION obs.tg_insert_journey_handler();
 
+CREATE VIEW obs.view_journey AS (
+  SELECT
+    jrnid,
+    route,
+    dir,
+    start_tst,
+    (start_tst AT TIME ZONE 'Europe/Helsinki')::date            AS oday,
+    (start_tst AT TIME ZONE 'Europe/Helsinki')::time::interval  AS "start",
+    route_ver_id,
+    oper,
+    veh
+  FROM obs.journey
+);
+
+COMMENT ON VIEW obs.view_journey IS
+'Journeys with oday and start fields calculated from start_tst.';
+
 -- HFP POINTS (obs)
 CREATE TABLE obs.hfp_point (
   jrnid                 uuid          NOT NULL REFERENCES obs.journey(jrnid) ON DELETE CASCADE,
