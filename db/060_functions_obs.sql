@@ -103,7 +103,7 @@ BEGIN
     SELECT DISTINCT ON (jrnid, tst) jrnid, tst, link_seq, link_id, link_reversed, location_on_link, distance_from_link
     FROM obs.get_point_on_link_candidates(20.0)
     WHERE jrnid = target_jrnid
-    ORDER BY jrnid, tst, distance_from_link
+    ORDER BY jrnid, tst, abs(distance_from_link)
     ON CONFLICT DO NOTHING
     RETURNING 1
   )
