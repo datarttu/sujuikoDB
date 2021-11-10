@@ -326,3 +326,61 @@ CREATE VIEW obs.view_link_on_journey_stats AS (
   INNER JOIN nw.view_link_directed  AS vld
     ON (loj.link_id = vld.link_id AND loj.link_reversed = vld.link_reversed)
 );
+
+/*
+ * Section results.
+ */
+
+CREATE VIEW obs.view_full_section_traversal AS (
+  WITH
+    last_per_section_marked AS (
+      SELECT
+        section_id,
+        link_id,
+        link_reversed,
+        link_seq = max(link_seq) OVER (PARTITION BY section_id) AS is_last
+      FROM
+        nw.link_on_section
+    ),
+    section_bound_links AS (
+      SELECT
+        i.section_id,
+        i.link_id       AS i_link_id,
+        i.link_reversed AS i_link_reversed,
+        j.link_id       AS j_link_id,
+        j.link_reversed AS j_link_reversed
+      FROM
+        nw.link_on_section AS i
+        INNER JOIN last_per_section_marked AS j ON (
+          i.section_id = j.section_id
+          AND i.link_seq = 1
+          AND j.is_last
+        )
+    )
+  SELECT
+    sbl.section_id      AS section_id,
+    i_loj.jrnid         AS jrnid,
+    i_loj.enter_tst     AS section_enter_tst,
+    j_loj.exit_tst      AS section_exit_tst,
+    extract(
+      'epoch' FROM j_loj.exit_tst - i_loj.enter_tst
+      )                 AS section_duration_s
+  FROM
+    section_bound_links AS sbl
+    INNER JOIN obs.link_on_journey AS i_loj ON (
+      sbl.i_link_id = i_loj.link_id
+      AND sbl.i_link_reversed = i_loj.link_reversed
+    )
+    INNER JOIN obs.link_on_journey AS j_loj ON (
+      sbl.j_link_id = j_loj.link_id
+      AND sbl.j_link_reversed = j_loj.link_reversed
+      AND i_loj.jrnid = j_loj.jrnid
+    )
+);
+
+COMMENT ON VIEW obs.view_full_section_traversal IS
+'Traversal events of journeys through full sections.
+Journeys that diverted halfway are not included.
+NOTE: Events are unique by jrnid ONLY if the journey
+traversed both the first and last link of the section
+exactly once!';
