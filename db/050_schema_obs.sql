@@ -321,6 +321,34 @@ CREATE VIEW obs.view_halt_on_journey_extended AS (
 COMMENT ON VIEW obs.view_halt_on_journey_extended IS
 'Halt events with represented, total and door times, possible stop references as well as linear locations along links and derived point geometries.';
 
+CREATE VIEW obs.view_point_obs_combined AS (
+  SELECT
+    hp.jrnid,
+    hp.tst,
+    hp.odo,
+    hp.drst,
+    hp.represents_n_points,
+    hp.represents_time_s,
+    pol.link_seq,
+    pol.link_id,
+    pol.link_reversed,
+    pol.location_on_link,
+    pol.distance_from_link,
+    hp.geom                         AS hfp_point_geom,
+    ST_LineInterpolatePoint(
+      vld.geom, pol.location_on_link
+      )                             AS point_on_link_geom
+  FROM
+    obs.hfp_point                   AS hp
+    LEFT JOIN obs.point_on_link     AS pol
+      ON ((hp.jrnid, hp.tst) = (pol.jrnid, pol.tst))
+    LEFT JOIN nw.view_link_directed AS vld
+      ON ((pol.link_id, pol.link_reversed) = (vld.link_id, vld.link_reversed))
+);
+
+COMMENT ON VIEW obs.view_point_obs_combined IS
+'Combines hfp_point and point_on_link observations.';
+
 /*
  * LINK ON JOURNEY (traversed links) data model and routines.
  */
