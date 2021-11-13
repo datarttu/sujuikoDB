@@ -80,23 +80,6 @@ CREATE TRIGGER tg_insert_journey
 BEFORE INSERT OR UPDATE ON obs.journey
 FOR EACH ROW EXECUTE FUNCTION obs.tg_insert_journey_handler();
 
-CREATE VIEW obs.view_journey AS (
-  SELECT
-    jrnid,
-    route,
-    dir,
-    start_tst,
-    (start_tst AT TIME ZONE 'Europe/Helsinki')::date            AS oday,
-    (start_tst AT TIME ZONE 'Europe/Helsinki')::time::interval  AS "start",
-    route_ver_id,
-    oper,
-    veh
-  FROM obs.journey
-);
-
-COMMENT ON VIEW obs.view_journey IS
-'Journeys with oday and start fields calculated from start_tst.';
-
 -- HFP POINTS (obs)
 CREATE TABLE obs.hfp_point (
   jrnid                 uuid          NOT NULL REFERENCES obs.journey(jrnid) ON DELETE CASCADE,
@@ -405,6 +388,71 @@ CREATE VIEW obs.view_link_on_journey_stats AS (
   INNER JOIN nw.view_link_directed  AS vld
     ON (loj.link_id = vld.link_id AND loj.link_reversed = vld.link_reversed)
 );
+
+CREATE VIEW obs.view_journey_stats AS (
+  SELECT
+    jrn.jrnid,
+    jrn.route,
+    jrn.dir,
+    jrn.start_tst,
+    (jrn.start_tst AT TIME ZONE 'Europe/Helsinki')::date            AS oday,
+    (jrn.start_tst AT TIME ZONE 'Europe/Helsinki')::time::interval  AS "start",
+    jrn.oper,
+    jrn.veh,
+    jrn.route_ver_id,
+    lor.n_link_on_route,
+    vpoc.n_hfp_point,
+    vpoc.n_point_on_link,
+    vpoc.first_hp_tst,
+    vpoc.last_hp_tst,
+    vpoc.total_duration_s,
+    vpoc.total_hp_represents_time_s,
+    vpoc.total_pol_represents_time_s,
+    loj.n_link_on_journey,
+    hoj.n_halt_on_journey
+  FROM 
+    obs.journey AS jrn
+    LEFT JOIN (
+      SELECT route_ver_id, count(*) AS n_link_on_route
+      FROM nw.link_on_route
+      GROUP BY route_ver_id
+    ) AS lor
+      ON (jrn.route_ver_id = lor.route_ver_id)
+    LEFT JOIN (
+      SELECT 
+        jrnid, 
+        count(tst)              AS n_hfp_point,
+        count(link_seq)         AS n_point_on_link,
+        min(tst)                AS first_hp_tst,
+        max(tst)                AS last_hp_tst,
+        extract(
+          epoch FROM max(tst)-min(tst)
+        )                       AS total_duration_s,
+        sum(represents_time_s)  AS total_hp_represents_time_s,
+        sum(
+          CASE WHEN link_seq IS NULL THEN 0 
+          ELSE represents_time_s END
+        )                       AS total_pol_represents_time_s
+      FROM obs.view_point_obs_combined
+      GROUP BY jrnid
+    ) AS vpoc
+      ON (jrn.jrnid = vpoc.jrnid)
+    LEFT JOIN (
+      SELECT jrnid, count(*) AS n_link_on_journey
+      FROM obs.link_on_journey
+      GROUP BY jrnid
+    ) AS loj
+      ON (jrn.jrnid = loj.jrnid)
+    LEFT JOIN (
+      SELECT jrnid, count(*) AS n_halt_on_journey
+      FROM obs.halt_on_journey
+      GROUP BY jrnid
+    ) AS hoj
+      ON (jrn.jrnid = hoj.jrnid)
+);
+
+COMMENT ON VIEW obs.view_journey_stats IS
+'Journeys with oday and start, and statistics from child objects.';
 
 /*
  * Section results.
