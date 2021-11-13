@@ -209,6 +209,57 @@ SELECT create_hypertable(
   chunk_time_interval => '1 day'::interval
 );
 
+CREATE VIEW obs.view_point_on_link_geom AS (
+  SELECT
+    pol.jrnid,
+    pol.tst,
+    pol.link_seq,
+    pol.link_id,
+    pol.link_reversed,
+    pol.location_on_link,
+    pol.distance_from_link,
+    ST_LineInterpolatePoint(vld.geom, pol.location_on_link) AS geom
+  FROM 
+    obs.point_on_link AS pol
+  INNER JOIN 
+    nw.view_link_directed AS vld
+    ON (pol.link_id = vld.link_id
+      AND pol.link_reversed = vld.link_reversed)
+);
+
+COMMENT ON VIEW obs.view_point_on_link_geom IS
+'Point geometries of projected HFP points, 
+based on link geometry and linear location value.';
+
+CREATE VIEW obs.view_point_to_hfp_line_geom AS (
+  SELECT
+    pol.jrnid,
+    pol.tst,
+    pol.link_seq,
+    pol.link_id,
+    pol.link_reversed,
+    pol.location_on_link,
+    pol.distance_from_link,
+    ST_MakeLine(
+      hp.geom,
+      ST_LineInterpolatePoint(vld.geom, pol.location_on_link)
+    ) AS geom
+  FROM 
+    obs.point_on_link AS pol
+  INNER JOIN 
+    nw.view_link_directed AS vld
+    ON (pol.link_id = vld.link_id
+      AND pol.link_reversed = vld.link_reversed)
+  INNER JOIN 
+    obs.hfp_point AS hp
+    ON (pol.jrnid = hp.jrnid
+      AND pol.tst = hp.tst)
+);
+
+COMMENT ON VIEW obs.view_point_to_hfp_line_geom IS
+'Linestring geometries between HFP points
+and corresponding projected points on link.';
+
 -- HALT (non-movement) events calculated from points_on_link
 CREATE TABLE obs.halt_on_journey (
   jrnid                 uuid          NOT NULL REFERENCES obs.journey(jrnid) ON DELETE CASCADE,
