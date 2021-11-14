@@ -511,3 +511,23 @@ Journeys that diverted halfway are not included.
 NOTE: Events are unique by jrnid ONLY if the journey
 traversed both the first and last link of the section
 exactly once!';
+
+CREATE VIEW obs.total_journey_halt_times_on_section AS (
+  SELECT
+    los.section_id,
+    hoj.jrnid,
+    coalesce(sum(hoj.door_open_s), 0.0)   AS tot_door_open_s,
+    coalesce(sum(hoj.door_closed_s), 0.0) AS tot_door_closed_s,
+    coalesce(
+      sum(hoj.total_s) - sum(hoj.represents_time_s), 0.0
+    )                                     AS tot_door_unknown_s
+  FROM
+    obs.halt_on_journey           AS hoj
+    INNER JOIN obs.point_on_link  AS pol
+      ON ((hoj.jrnid, hoj.tst) = (pol.jrnid, pol.tst))
+    INNER JOIN nw.link_on_section AS los
+      ON ((pol.link_id, pol.link_reversed) = (los.link_id, los.link_reversed))
+  GROUP BY
+    los.section_id,
+    hoj.jrnid
+);
