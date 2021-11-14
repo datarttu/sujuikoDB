@@ -531,3 +531,7 @@ CREATE VIEW obs.total_journey_halt_times_on_section AS (
     los.section_id,
     hoj.jrnid
 );
+
+COMMENT ON VIEW obs.total_journey_halt_times_on_section IS
+'Summarises halt times by door open, closed, and unknown states
+per section and journey.';
