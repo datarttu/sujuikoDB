@@ -1,5 +1,9 @@
 # Sujuiko database
 
+*NOTE: The thesis behind this software project was completed, and this repository is no longer actively maintained.*
+*The tool is incomplete and you'll find a bunch of TODOs here.*
+*However, feel free to use parts of it in your work, just remember to include a reference to here.*
+
 ![Title picture: general idea.](docs/img/title_example_picture.png)
 
 The purpose of this tool is to enable analysis of public transport service in the past at a more detailed level than transit stops, and, on the other hand, at the general transit network level.
@@ -26,9 +30,8 @@ As a result, we can inspect time-space profiles along sequences of links like th
 
 ... and, finally, aggregate that data by link, route or other common attributes.
 
-To reliably project the HFP data onto the network links, we also need a reasonable schedule and trip path model.
-This enables finding a "planned entity" for each HFP journey by route, direction and start time.
-The schedule model in turn enables analyzing planned-vs-operated time metrics such as schedule adherence, in addition to metrics that come purely from the HFP and network data (such as average operating time through a set of links).
+To reliably project the HFP data onto the network links, we also need a reasonable model for planned transit routes and their paths on the network.
+This enables mapping each HFP journey (effectively, GPS track) to a path of network links, and further, map-matching HFP points to those links.
 
 # Requirements
 
@@ -88,25 +91,33 @@ Should you run any incremental / ad-hoc changes to the database, they are saved 
 
 # Data model & data import and transformation
 
-The tool uses a logig called "extract-load-transform", i.e., I try to avoid additional tools and libraries for data wrangling beforehand, and instead I have included as much as possible of the application logic *inside the Postgres database*.
-You can read more about this philosophy e.g. from [The Art of PostgreSQL](https://theartofpostgresql.com/) by Dimitri Fontaine.
-This is obviously not the best possible approach, since PLPGSQL language has turned out powerful yet very inflexible in many ways, but I decided to give it a try and we're on that track now.
+Read more about the data model in the [db readme](./db/README.md).
+Example datasets can be found [here](.example_data/).
+Note that the `section` dataset was created in a running sujuiko instance, as it's not meant to be imported from any external data source but should be created by the user.
+
+To produce data dumps for the database, see [sujuiko-network-prepare](https://github.com/datarttu/sujuiko-network-prepare) and .
+Unfortunately, the data import and transformation procedure has not been streamlined very neatly.
+It requires a lot of manual intervention.
 
 ## Data sources
 
 - [HFP from Digitransit](https://digitransit.fi/en/developers/apis/4-realtime-api/vehicle-positions/) - this is real-time data but you can collect it yourself e.g. with this [hfplogger](https://github.com/datarttu/hfplogger) tool (a bit messy).
 I am using a data dump from HSL.
-- HSL [GTFS dump](https://transitfeeds.com/p/helsinki-regional-transport/735/20191101) as it was on 1 November 2019.
-This provides us with the transit schedules as well as stop point locations.
-- [OpenStreetMap](openstreetmap.org/) subset: the current tool needs a dataset containing ways in Helsinki region that are used by any bus route in OSM (bus relations - this is far from perfect but better than downloading all the possible highways, 99 % of which could be but are not really used by any bus route) and `railway=tram` ways (surprisingly good data, though some intersections have not been modeled properly).
+See [sujuiko-hfp-manager](https://github.com/datarttu/sujuiko-hfp-manager) for preparing the data for sujuiko.
+- Transit stops and route versions based on HSL Jore (Transit data registry) export dumps.
+Unfortunately, this data is not open at the moment.
+- [Digiroad](https://vayla.fi/vaylista/aineistot/digiroad) road links.
+Links for sujuiko must be extracted manually at the moment, e.g. in QGIS, because there is no automated way to get links used by HSL bus routes.
+See [sujuiko-network-prepare](https://github.com/datarttu/sujuiko-network-prepare) for further steps.
 
-Note that the current tool does *not* support incremental changes to the transit schedule (GTFS) and network (OSM) model.
-It assumes that these data remain static, which is a relatively realistic assumption when we analyse data from a single month only.
-For longer term analyses, it should of course be possible to import new GTFS data on top of older data, and to account for network changes as the time goes by (e.g. building sites, new or moved stops, etc).
-
-**Database model in more detail in [`db README`](db)**.
+Note that sujuiko supports temporal versioning for routes but not for stops or links.
+For instance, if a stop of interest was moved during the analysis period, you must still choose a "representative" location for that stop.
+Or, possibly, manipulate the route versions and their stops to point to two different stop ids that represent the two versions of the same stop;
+however, you will lose backward compatibility to Jore that way.
 
 # Author
 
-Arttu Kosonen, [@datarttu](https://github.com/datarttu), HSL / Aalto University, 2019-2020.
-Developing this tool is essentially part of my master's thesis in Spatial Planning and Transportation Engineering.
+Arttu Kosonen, [@datarttu](https://github.com/datarttu), [HSL](https://hsl.fi) / [Aalto University](https://aalto.fi), 2019-2021.
+Developing this tool was part of my master's thesis in Spatial Planning and Transportation Engineering.
+
+See also: [Thoughts about Transit Data](https://datarttu.github.io/thoughts-about-transit-data/)
