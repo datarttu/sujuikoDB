@@ -80,8 +80,7 @@ Nodes breaking this rule can be found with this function that is also included i
 SELECT * FROM nw.vld_node_duplicated_node();
 ```
 
-See [node example data](../example_data/node.csv) that can be imported through the `nw.view_node_wkt` view.
-This is possible with an `INSTEAD OF INSERT` trigger that calls the `nw.tg_insert_wkt_node()` function.
+Nodes are created and node references of links updated automatically when creating or modifying links.
 
 #### `nw.link`
 
